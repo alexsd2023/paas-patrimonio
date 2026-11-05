@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/eventos/legajo.ingestado.schema.json",
+  "title": "legajo.ingestado · ha llegado un legajo",
+  "description": "Lo emite el puente cuando se crea un ActivoPatrimonial en el registro. Escena 3 del caso, tramo 6.",
+  "type": "object",
+  "properties": {
+    "type": { "const": "legajo.ingestado" },
+    "subject": { "pattern": "^urn:ngsi-ld:ActivoPatrimonial:" },
+    "data": {
+      "type": "object",
+      "required": ["signatura", "ark", "manifiesto", "imagenes", "ingestadoPor"],
+      "properties": {
+        "signatura": { "type": "string", "minLength": 1 },
+        "ark": { "type": "string", "pattern": "^ark:/[0-9]+/.+$" },
+        "manifiesto": { "type": "string", "pattern": "^https?://.+/manifest$", "description": "Manifiesto IIIF Presentation 3" },
+        "imagenes": { "type": "integer", "minimum": 1 },
+        "ingestadoPor": { "type": "string", "minLength": 1, "description": "Usuario que subió el legajo" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

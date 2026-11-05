@@ -1,0 +1,17 @@
+{
+  "specversion": "1.0",
+  "id": "a9d3e4b2-77c1-4f0a-8e26-5b1c0d9e2f33",
+  "source": "/tenants/archivo-villanueva/modulos/htr-mock",
+  "type": "htr.completado",
+  "time": "2026-11-05T10:16:30Z",
+  "subject": "urn:ngsi-ld:Transcripcion:archivo-villanueva:TEST-001-t1",
+  "datacontenttype": "application/json",
+  "tenant": "archivo-villanueva",
+  "data": {
+    "activo": "urn:ngsi-ld:ActivoPatrimonial:archivo-villanueva:TEST-001",
+    "estado": "pendiente-validacion",
+    "modelo": "htr-mock@0.1",
+    "lineas": 42,
+    "confianza": 0.87
+  }
+}

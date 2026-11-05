@@ -1,0 +1,1097 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulador PaaS Patrimonio · PaaS Patrimonio</title>
+<meta name="description" content="Simulador interactivo de cómo instituciones, desarrolladores, participantes del Data Space y comunidades de origen interactúan con el PaaS de patrimonio cultural.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script>(function(){var ok=false;try{ok=sessionStorage.getItem("paas-auth")==="1"||localStorage.getItem("paas-auth")==="1";}catch(e){ok=true;}if(!ok){location.replace("/login?next="+encodeURIComponent(location.pathname+location.search+location.hash));}})();</script>
+<style>html{color-scheme:light}img{max-width:100%}[hidden]{display:none!important}body{margin:0}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F2F3F0; --panel:#FFFFFF; --ink:#1B2230; --muted:#5A6272; --faint:#9AA0A8; --line:#D5D8D2; --band:#E8EAE5;
+  --auth:#A8781F; --auth-soft:#F5EBD6;
+  --api:#3F5C9A; --api-soft:#E3E8F3;
+  --event:#2F7D6D; --event-soft:#E1EFEB;
+  --data:#7A4F9A; --data-soft:#EEE5F4;
+  --human:#B0582E; --human-soft:#F6E6DC;
+  --deny:#B3261E; --deny-soft:#F8DEDC;
+  --serif:"EB Garamond", Georgia, serif;
+  --sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#13171F; --panel:#1B212C; --ink:#E6E8EC; --muted:#9AA2B1; --faint:#5E6676; --line:#2E3645; --band:#20262F;
+    --auth:#D9AE5C; --auth-soft:#3A2F1A;
+    --api:#8FA8DE; --api-soft:#212B40;
+    --event:#5FB8A4; --event-soft:#1C3530;
+    --data:#C39BE0; --data-soft:#2E2338;
+    --human:#E39B72; --human-soft:#3A261C;
+    --deny:#F08A82; --deny-soft:#3E1F1E;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#13171F; --panel:#1B212C; --ink:#E6E8EC; --muted:#9AA2B1; --faint:#5E6676; --line:#2E3645; --band:#20262F;
+  --auth:#D9AE5C; --auth-soft:#3A2F1A;
+  --api:#8FA8DE; --api-soft:#212B40;
+  --event:#5FB8A4; --event-soft:#1C3530;
+  --data:#C39BE0; --data-soft:#2E2338;
+  --human:#E39B72; --human-soft:#3A261C;
+  --deny:#F08A82; --deny-soft:#3E1F1E;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;padding-inline:16px;padding-block:24px 40px}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-direction:column;gap:6px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--event)}
+h1{font-family:var(--serif);font-weight:600;font-size:clamp(26px,3.6vw,36px);line-height:1.1;margin:0;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:80ch}
+
+/* Selección */
+.pick{display:flex;flex-direction:column;gap:10px}
+.roles{display:flex;flex-wrap:wrap;gap:8px}
+.role{font:inherit;cursor:pointer;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:8px 14px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left}
+.role b{font-weight:600;font-size:14px}
+.role small{color:var(--muted);font-size:12px}
+.role.joint{flex-basis:100%;border-style:dashed;border-color:var(--ink)}
+.role.joint b::before{content:"◆ ";}
+.role[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.scen{display:flex;flex-wrap:wrap;gap:6px}
+.sc{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:4px 12px}
+.sc[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible{outline:2px solid var(--api);outline-offset:2px}
+
+.main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
+
+/* Mapa */
+.mapwrap{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.map{position:relative;display:flex;flex-direction:column;gap:8px}
+.layer{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px;align-items:stretch}
+.lname{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;border-right:2px solid var(--line);padding-right:6px}
+.layer.core .lname{border-right-color:var(--event);color:var(--event)}
+.nodes{display:flex;flex-wrap:wrap;gap:8px;padding-block:4px}
+.layer.core .nodes{background:color-mix(in srgb,var(--event-soft) 55%,transparent);border-radius:6px;padding:6px}
+.node{position:relative;z-index:1;border:1.5px solid var(--line);background:var(--bg);border-radius:5px;padding:6px 9px;min-width:112px;flex:1 1 112px;max-width:190px;display:flex;flex-direction:column;gap:0;transition:border-color .2s,background .2s,opacity .2s,transform .2s}
+.node b{font-size:12.5px;font-weight:600;line-height:1.25}
+.node small{font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.3}
+.node.actor{border-style:dashed}
+.node.idle{opacity:.38}
+.node.used{opacity:.8}
+.node.visited{opacity:1;border-color:var(--faint)}
+.node.src{opacity:1;border-color:var(--ink);background:var(--panel)}
+.node.dst{opacity:1;border-color:var(--k,var(--api));background:var(--ks,var(--api-soft));transform:translateY(-1px);box-shadow:0 0 0 3px color-mix(in srgb,var(--k,var(--api)) 22%,transparent)}
+.node .badge{position:absolute;top:-8px;right:-6px;font-family:var(--mono);font-size:9.5px;background:var(--ink);color:var(--bg);border-radius:3px;padding:0 4px;display:none}
+.node.src .badge,.node.dst .badge{display:block}
+svg.wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;overflow:visible}
+.wire{fill:none;stroke-width:2.2}
+.wire.human{stroke-dasharray:6 4}
+.wire.draw{animation:draw .6s ease-out}
+@keyframes draw{from{stroke-dashoffset:var(--len)}to{stroke-dashoffset:0}}
+.pulse{r:5}
+@media (prefers-reduced-motion: reduce){ .wire.draw{animation:none} .node{transition:none} }
+
+.k-auth{--k:var(--auth);--ks:var(--auth-soft)}
+.k-api{--k:var(--api);--ks:var(--api-soft)}
+.k-event{--k:var(--event);--ks:var(--event-soft)}
+.k-data{--k:var(--data);--ks:var(--data-soft)}
+.k-human{--k:var(--human);--ks:var(--human-soft)}
+.k-deny{--k:var(--deny);--ks:var(--deny-soft)}
+
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.sw{width:18px;height:0;border-top:2.5px solid var(--k)}
+.sw.dash{border-top-style:dashed}
+
+/* Controles */
+.ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:5px;padding:6px 12px;display:inline-flex;gap:6px;align-items:center}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.4;cursor:default}
+.prog{flex:1 1 140px;height:6px;background:var(--band);border-radius:3px;overflow:hidden;min-width:100px}
+.prog i{display:block;height:100%;background:var(--ink);width:0;transition:width .25s}
+.speed{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
+.speed select{font:inherit;font-size:12px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:3px 4px}
+
+/* Panel */
+.panel{display:flex;flex-direction:column;gap:12px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.card h2{margin:0;font-family:var(--serif);font-size:19px;font-weight:600;line-height:1.2}
+.meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.chip{font-family:var(--mono);font-size:10.5px;padding:1px 7px;border-radius:3px;background:var(--ks);color:var(--k);border:1px solid color-mix(in srgb,var(--k) 40%,transparent)}
+.route{font-size:13px;font-weight:600;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.route .arr{color:var(--muted);font-weight:400}
+.desc{margin:0;font-size:13.5px}
+pre{margin:0;font-family:var(--mono);font-size:11px;line-height:1.5;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:9px 10px;overflow-x:auto;white-space:pre;color:var(--ink);max-height:230px}
+.rules{display:flex;gap:4px;align-items:center;font-size:11.5px;color:var(--muted)}
+.rule{font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:3px;border:1px solid var(--line);color:var(--faint)}
+.rule.on{border-color:var(--ink);color:var(--ink);background:var(--band)}
+.steps{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;max-height:300px;overflow-y:auto}
+.steps button{font:inherit;font-size:12.5px;width:100%;text-align:left;cursor:pointer;background:transparent;border:0;border-radius:4px;padding:5px 8px;color:var(--muted);display:grid;grid-template-columns:22px 1fr;gap:6px}
+.steps button .n{font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums}
+.steps button.done{color:var(--ink)}
+.steps button.cur{background:var(--band);color:var(--ink);font-weight:600}
+.scen-intro{margin:0;font-size:12.5px;color:var(--muted)}
+.note{font-size:11.5px;color:var(--muted);margin:0}
+
+@media (max-width:1020px){
+  .main{grid-template-columns:minmax(0,1fr)}
+  .panel{position:static}
+}
+@media (max-width:560px){
+  .layer{grid-template-columns:minmax(0,1fr)}
+  .lname{border-right:0;border-bottom:2px solid var(--line);padding:0 0 2px}
+  .layer.core .lname{border-bottom-color:var(--event)}
+  .node{min-width:96px;flex-basis:96px}
+}
+</style>
+<style>
+.sitenav .out{font:inherit;font-family:var(--sans);font-size:13px;color:var(--muted);background:none;border:1px solid var(--line);border-radius:5px;padding:4px 10px;cursor:pointer;margin-left:6px}
+.sitenav .out:hover{color:var(--ink);border-color:var(--ink)}
+.sitenav{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);margin-inline:-16px;padding:10px 16px;margin-top:-24px;margin-bottom:20px}
+.sitenav .in{max-width:1280px;margin:0 auto;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-content:space-between}
+.sitenav .brand{font-family:var(--serif);font-weight:600;font-size:18px;color:var(--ink);text-decoration:none}
+.sitenav nav{display:flex;flex-wrap:wrap;gap:4px}
+.sitenav nav a{font-family:var(--sans);font-size:13px;color:var(--muted);text-decoration:none;padding:5px 10px;border-radius:5px;border:1px solid transparent}
+.sitenav nav a:hover{color:var(--ink);border-color:var(--line)}
+.sitenav nav a[aria-current="page"]{color:var(--bg);background:var(--ink)}
+.sitenav a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.sitefoot{max-width:1280px;margin:32px auto 0;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;font-family:var(--sans)}
+</style>
+</head>
+<body>
+<div class="sitenav" role="banner"><div class="in"><a class="brand" href="/">PaaS Patrimonio</a><nav aria-label="Secciones"><a href="/">Visión general</a><a href="/arquitectura">Arquitectura funcional</a><a href="/simulador" aria-current="page">Simulador</a><a href="/nucleo">Núcleo de integración (backbone)</a><a href="/backbone">Walking Skeleton</a><a href="/stack">Stack tecnológico</a><button class="out" type="button" onclick="try{sessionStorage.removeItem('paas-auth');localStorage.removeItem('paas-auth');}catch(e){}location.replace('/login')">Salir</button></nav></div></div>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Simulador · PaaS de patrimonio cultural</div>
+    <h1>Cómo usa cada participante la plataforma</h1>
+    <p>Los cuatro roles forman el ecosistema; los componentes del mapa, de la entrada a la base, son la infraestructura. Elige un rol y un escenario —o el escenario conjunto, donde los cuatro actores intervienen a la vez—, y avanza paso a paso. Cada paso ilumina los dos componentes que hablan, el tipo de interacción y el mensaje que se intercambian. Los datos son de ejemplo: el archivo, la comunidad, las personas y los documentos son ficticios.</p>
+  </header>
+
+  <div class="pick">
+    <div class="roles" id="roles" role="group" aria-label="Rol"></div>
+    <div class="scen" id="scens" role="group" aria-label="Escenario"></div>
+  </div>
+
+  <div class="main">
+    <div class="mapwrap">
+      <div class="map" id="map">
+        <svg class="wires" id="wires" aria-hidden="true">
+          <defs id="defs"></defs>
+        </svg>
+      </div>
+      <div class="legend" aria-label="Leyenda de interacciones">
+        <span class="k-auth"><i class="sw"></i>Identidad</span>
+        <span class="k-api"><i class="sw"></i>Llamada API</span>
+        <span class="k-event"><i class="sw"></i>Evento</span>
+        <span class="k-data"><i class="sw"></i>Registro de datos</span>
+        <span class="k-human"><i class="sw dash"></i>Acción humana</span>
+        <span class="k-deny"><i class="sw"></i>Denegado</span>
+      </div>
+      <div class="ctrl">
+        <button class="btn" id="bReset" type="button" title="Volver al inicio">⟲ Inicio</button>
+        <button class="btn" id="bPrev" type="button">← Anterior</button>
+        <button class="btn primary" id="bPlay" type="button">▶ Reproducir</button>
+        <button class="btn" id="bNext" type="button">Siguiente →</button>
+        <div class="prog" aria-hidden="true"><i id="prog"></i></div>
+        <label class="speed" for="speed">Velocidad
+          <select id="speed"><option value="4200">Lenta</option><option value="2800" selected>Normal</option><option value="1600">Rápida</option></select>
+        </label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="card" id="detail" aria-live="polite">
+        <div class="meta"><span id="dStep"></span><span class="chip" id="dKind"></span></div>
+        <div class="route" id="dRoute"></div>
+        <p class="desc" id="dText"></p>
+        <pre id="dPay"></pre>
+        <div class="rules" id="dRules"></div>
+      </div>
+      <div class="card">
+        <h2 id="sTitle"></h2>
+        <p class="scen-intro" id="sIntro"></p>
+        <ol class="steps" id="steps"></ol>
+        <p class="note">Teclado: ← y → para moverse, espacio para reproducir.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const LAYERS = [
+  {id:"act", name:"Ecosistema", nodes:[
+    ["inst","Personal de la institución","archivista · paleógrafa",1],
+    ["dev","Desarrollador","proyecto sobre las APIs",1],
+    ["part","Participante Data Space","universidad · empresa · agregador",1],
+    ["com","Comunidad de origen","consejo · asamblea · miembros",1],
+    ["uni","Universidad (emisora)","emisor externo de credenciales",1]]},
+  {id:"edge", name:"Entrada", nodes:[
+    ["apisix","Pasarela de APIs","Apache APISIX (PEP)"],
+    ["conector","Conector Data Space","FDSC-EDC · DSP"],
+    ["vcv","Verificador de credenciales","VCVerifier · Trusted Issuers"],
+    ["opa","Motor de políticas","OPA · ODRL-PAP"],
+    ["portal","Portales","Backstage · Marketplace"],
+    ["oai","Proveedor OAI-PMH","OAI-PMH 2.0 · DC · EDM"]]},
+  {id:"core", name:"Núcleo", nodes:[
+    ["keycloak","Identidad","Keycloak (OIDC · VC)"],
+    ["scorpio","Registro del activo","Scorpio NGSI-LD"],
+    ["kafka","Bus de eventos","Kafka · CloudEvents"],
+    ["temporal","Motor de procesos","Temporal"],
+    ["prov","Procedencia","PROV-O"]]},
+  {id:"mods", name:"Módulos", nodes:[
+    ["iiif","Imágenes","IIIF · Cantaloupe"],
+    ["htr","HTR","eScriptorium · Kraken"],
+    ["tei","Edición","TEI Publisher"],
+    ["archivo","Archivo","AtoM · EDM"],
+    ["pres","Preservación","Archivematica · OAIS"],
+    ["sem","Búsqueda y semántica","OpenSearch · grafo"],
+    ["anota","Anotaciones","W3C Web Annotation"],
+    ["m3d","Módulo 3D (nuevo)","glTF · IIIF 3D"]]},
+  {id:"base", name:"Base", nodes:[
+    ["k8s","Despliegue","Kubernetes · Argo CD"],
+    ["harbor","Registro de imágenes","Harbor"],
+    ["kyverno","Políticas de clúster","Kyverno"],
+    ["store","Almacenamiento","S3 · PostgreSQL"],
+    ["meter","Medición de uso","métricas por tenant"]]}
+];
+const NAME = {}; LAYERS.forEach(l=>l.nodes.forEach(n=>NAME[n[0]]=n[1]));
+const KIND = {auth:"Identidad",api:"Llamada API",event:"Evento",data:"Registro de datos",human:"Acción humana",deny:"Denegado"};
+
+const S = (from,to,kind,text,pay,rules)=>({from,to,kind,text,pay:pay||"",rules:rules||[]});
+
+const ROLES = [
+ {id:"inst", name:"Personal de las instituciones", sub:"archivos, bibliotecas, museos", scen:[
+  {id:"ingesta", name:"Ingresar y transcribir un legajo",
+   intro:"Una archivista sube un legajo notarial de 1562 y una paleógrafa valida la transcripción automática. El núcleo coordina todo sin que los módulos se llamen entre sí.",
+   steps:[
+    S("inst","keycloak","auth","La archivista inicia sesión. Keycloak le da un token OIDC que indica su institución (tenant), su proyecto y su rol.",
+`{
+  "sub": "m.ortega",
+  "tenant": "archivo-villanueva",
+  "proyecto": "protocolos-s16",
+  "roles": ["digitalizador"],
+  "exp": 1790618000
+}`,["ID"]),
+    S("inst","apisix","api","Sube 212 imágenes TIFF del legajo. La pasarela comprueba el token y la cuota de almacenamiento de su institución.",
+`POST /api/v1/ingestas
+Authorization: Bearer eyJhbGciOi...
+Content-Type: multipart/form-data
+
+signatura = "Prot. leg. 1234"
+escribano = "Alonso de Medina"
+fechas    = "1562"
+ficheros  = 212 × TIFF`,["ID","API"]),
+    S("apisix","iiif","api","La pasarela envía la petición al módulo de imágenes, pasándole la identidad y el tenant.",
+`→ iiif-service.archivo-villanueva.svc
+X-Tenant: archivo-villanueva
+X-User:   m.ortega`,["API"]),
+    S("iiif","store","data","El módulo guarda los másters en el almacenamiento de la institución y genera versiones JPEG2000 para el visor.",
+`s3://villanueva-masters/prot-1234/f001r.tif
+s3://villanueva-iiif/prot-1234/f001r.jp2
+... 212 ficheros · 9,4 GB`),
+    S("iiif","scorpio","data","Crea la ficha del activo en el registro canónico, con su identificador persistente y el enlace al manifiesto IIIF.",
+`POST /ngsi-ld/v1/entities
+{
+  "id": "urn:ngsi-ld:ActivoPatrimonial:ark:/99999/vln4k2",
+  "type": "ActivoPatrimonial",
+  "signatura": {"type":"Property","value":"Prot. leg. 1234"},
+  "fase":      {"type":"Property","value":"ingestado"},
+  "manifiesto":{"type":"Property",
+     "value":"https://paas.example/iiif/prot-1234/manifest"}
+}`,["DAT"]),
+    S("scorpio","kafka","event","La suscripción del registro publica en el bus que hay un legajo nuevo. Cualquier módulo interesado puede escucharlo.",
+`{
+  "specversion": "1.0",
+  "type": "legajo.ingestado",
+  "source": "/scorpio/archivo-villanueva",
+  "subject": "ark:/99999/vln4k2",
+  "data": {"folios": 212}
+}`,["EV"]),
+    S("kafka","temporal","event","El motor de procesos recibe el evento y arranca el flujo «transcripción estándar» definido para esta institución.",
+`workflow: TranscripcionEstandar
+id:       vln4k2-2026-09-28
+pasos:    HTR → validación humana → TEI → enriquecimiento`),
+    S("temporal","htr","api","Encarga la transcripción automática con el modelo de letra procesal del XVI. Kraken usa GPU bajo demanda.",
+`POST /htr/v1/trabajos
+{
+  "activo": "ark:/99999/vln4k2",
+  "modelo": "procesal-s16-v3",
+  "segmentacion": "blla"
+}`,["API"]),
+    S("htr","scorpio","data","Registra la transcripción en el registro del activo, marcada como generada por máquina y pendiente de validación.",
+`{
+  "id": "urn:ngsi-ld:Transcripcion:vln4k2-htr1",
+  "type": "Transcripcion",
+  "estado":  {"value":"pendiente-validacion"},
+  "cerEstimado": {"value":0.078},
+  "pageXml": {"value":"https://paas.example/htr/vln4k2/page.zip"},
+  "deActivo":{"type":"Relationship","object":"urn:...:vln4k2"}
+}`,["DAT"]),
+    S("htr","kafka","event","El módulo HTR avisa al bus de que ha terminado.",
+`{ "type": "htr.completado",
+  "subject": "ark:/99999/vln4k2",
+  "data": {"lineas": 6480, "cer": 0.078} }`,["EV"]),
+    S("kafka","prov","event","El servicio de procedencia escucha el evento y deja constancia: qué modelo, qué versión y cuándo.",
+`:htr1 a prov:Entity ;
+  prov:wasGeneratedBy :actividad-htr ;
+  prov:wasAttributedTo :kraken-procesal-s16-v3 .`),
+    S("temporal","inst","human","El flujo crea una tarea para la paleógrafa y se queda esperando. Puede esperar días sin perder su estado.",
+`Tarea asignada a: l.serrano (paleógrafa)
+Legajo: Prot. leg. 1234 · 212 folios
+Plazo: 10 días hábiles`),
+    S("inst","htr","human","La paleógrafa corrige línea a línea en eScriptorium, sobre la imagen, y valida el legajo.",
+`Correcciones: 412 líneas (6,4 %)
+Validado por: l.serrano · 2026-10-06`,["ID"]),
+    S("htr","kafka","event","Se publica la validación. Las correcciones pasan a ser datos de entrenamiento del modelo.",
+`{ "type": "transcripcion.validada",
+  "subject": "ark:/99999/vln4k2",
+  "data": {"validador": "l.serrano", "groundTruth": true} }`,["EV"]),
+    S("temporal","tei","api","El flujo sigue: encarga la conversión a TEI y el enriquecimiento con personas y lugares.",
+`POST /tei/v1/conversiones
+{ "origen": "page-xml", "activo": "ark:/99999/vln4k2",
+  "salidas": ["paleografica","normalizada"] }`,["API"]),
+    S("tei","scorpio","data","Registra la edición TEI como una nueva representación del mismo activo.",
+`{ "id": "urn:ngsi-ld:Representacion:vln4k2-tei",
+  "type": "Representacion",
+  "formato": {"value":"TEI P5"},
+  "url": {"value":"https://paas.example/tei/vln4k2.xml"} }`,["DAT"]),
+    S("apisix","meter","api","La medición anota el consumo de la institución para la facturación.",
+`tenant: archivo-villanueva
+paginas_htr:   212
+gpu_minutos:   38
+almacen_gb:   +9,4`)
+   ]},
+  {id:"publicar", name:"Publicar una colección en el Data Space",
+   intro:"La responsable de colecciones ofrece los protocolos de 1560–1570 a investigadores acreditados, con prohibición de reentrenar modelos comerciales.",
+   steps:[
+    S("inst","keycloak","auth","Inicia sesión con rol de responsable de colecciones, necesario para publicar hacia fuera.",
+`{ "tenant": "archivo-villanueva",
+  "roles": ["responsable-colecciones"] }`,["ID"]),
+    S("inst","portal","api","En el Marketplace crea la oferta «Protocolos notariales 1560–1570: transcripciones TEI e imágenes IIIF».",
+`Oferta: protocolos-1560-1570
+Contenido: 38 legajos · 7.904 folios
+Formatos: TEI P5, IIIF Presentation 3`,["ID","API"]),
+    S("portal","opa","api","Define la política de uso. ODRL-PAP la traduce a reglas que el motor OPA puede evaluar en cada petición.",
+`{
+  "@type": "Offer",
+  "target": "coleccion:protocolos-1560-1570",
+  "permission": [{
+    "action": "read",
+    "constraint": [{"leftOperand":"credentialType",
+      "operator":"eq","rightOperand":"InvestigadorCredential"}]
+  }],
+  "prohibition": [{"action": "train-ai-model"}],
+  "obligation":  [{"action": "attribute"}]
+}`),
+    S("portal","conector","api","El conector publica la oferta en el catálogo federado del Data Space, en formato DCAT-AP.",
+`{ "@type": "dcat:Dataset",
+  "dct:title": "Protocolos notariales 1560–1570",
+  "dct:publisher": "Archivo de Villanueva (ficticio)",
+  "odrl:hasPolicy": "politica:prot-1560-inv" }`),
+    S("conector","scorpio","data","Enlaza la oferta con las 38 fichas de activo del registro canónico.",
+`PATCH /ngsi-ld/v1/entities/urn:...:vln4k2/attrs
+{ "ofertadoEn": {"type":"Relationship",
+    "object":"urn:ngsi-ld:Oferta:protocolos-1560-1570"} }`,["DAT"]),
+    S("scorpio","kafka","event","Se publica que la colección está ofertada.",
+`{ "type": "coleccion.ofertada",
+  "subject": "protocolos-1560-1570",
+  "data": {"activos": 38, "politica": "prot-1560-inv"} }`,["EV"]),
+    S("kafka","prov","event","Procedencia registra quién publicó, cuándo y con qué política vigente.",
+`:oferta-1560 prov:wasAttributedTo :resp-colecciones ;
+  prov:generatedAtTime "2026-10-07T10:12:00Z" .`),
+    S("kafka","archivo","event","El módulo de archivo escucha el mismo evento y prepara la exportación de metadatos EDM hacia Europeana.",
+`EDM: 38 ProvidedCHO + WebResource (IIIF)
+Destino: agregador → Europeana`)
+   ]},
+  {id:"preservar", name:"Preservar un legajo (OAIS)",
+   intro:"Una vez validado, el legajo entra en preservación digital a largo plazo siguiendo el modelo OAIS: paquete de ingreso (SIP), paquete de archivo (AIP) y paquete de difusión (DIP).",
+   steps:[
+    S("kafka","temporal","event","La validación de la transcripción activa el flujo de preservación definido por el archivo.",
+`{ "type": "transcripcion.validada",
+  "subject": "ark:/99999/vln4k2" }
+→ workflow: PreservacionOAIS`,["EV"]),
+    S("temporal","pres","api","Temporal entrega al módulo de preservación un paquete de ingreso (SIP) en formato BagIt: imágenes máster, PAGE-XML, TEI y metadatos.",
+`SIP  vln4k2-sip.zip  (BagIt, RFC 8493)
+├── bagit.txt
+├── manifest-sha256.txt
+└── data/
+    ├── masters/ 212 × TIFF
+    ├── page-xml/ 212 × PAGE
+    ├── vln4k2.tei.xml
+    └── metadata/ dc.xml · isad.xml`,["API"]),
+    S("pres","store","data","Ingesta OAIS: comprueba sumas de control, identifica formatos contra el registro PRONOM y normaliza a formatos de preservación.",
+`✓ fixity: 426/426 sha256 correctos
+✓ formatos: fmt/353 (TIFF) · fmt/101 (XML)
+✓ normalización: TIFF sin comprimir conservado
+✓ virus: sin amenazas`),
+    S("pres","store","data","Genera el paquete de archivo (AIP) con METS y PREMIS y lo guarda en dos ubicaciones geográficas distintas.",
+`AIP  uuid: 5e1c9a3b-…  (METS + PREMIS)
+  premis:event  ingestion · fixity check · format identification
+  copia 1: s3://villanueva-aip-madrid/
+  copia 2: s3://villanueva-aip-sevilla/
+  tamaño: 9,6 GB`),
+    S("pres","scorpio","data","El registro canónico anota que el activo está preservado y dónde está su AIP.",
+`PATCH /ngsi-ld/v1/entities/urn:...:vln4k2/attrs
+{ "preservacion": {"type":"Property","value":{
+    "estado": "AIP almacenado",
+    "aip": "urn:uuid:5e1c9a3b-…",
+    "copias": 2, "modelo": "OAIS (ISO 14721)" }} }`,["DAT"]),
+    S("pres","kafka","event","Publica que el AIP está almacenado.",
+`{ "type": "aip.almacenado",
+  "subject": "ark:/99999/vln4k2",
+  "data": {"aip": "urn:uuid:5e1c9a3b-…", "copias": 2} }`,["EV"]),
+    S("kafka","prov","event","Procedencia enlaza los eventos PREMIS con el resto de la historia del documento.",
+`:aip-5e1c prov:wasDerivedFrom :vln4k2-tei, :vln4k2-masters ;
+  prov:wasGeneratedBy :ingesta-oais-2026-10-07 .`),
+    S("pres","iiif","api","Genera el paquete de difusión (DIP) para el acceso: derivados ligeros que sirve el módulo de imágenes.",
+`DIP  vln4k2-dip
+  212 × JPEG2000 (difusión)
+  vln4k2.tei.xml
+  METS de difusión`,["API"]),
+    S("temporal","pres","api","Cada seis meses, Temporal programa una verificación de integridad del AIP.",
+`cron: 0 3 1 */6 *
+tarea: fixity-check urn:uuid:5e1c9a3b-…
+resultado 2027-04-01: ✓ 426/426 correctos en ambas copias`,["API"])
+   ]}
+ ]},
+ {id:"dev", name:"Desarrolladores", sub:"nivel PaaS: construyen sobre la plataforma", scen:[
+  {id:"app", name:"Crear una app sobre las APIs",
+   intro:"Un equipo universitario construye una web de cartas y escrituras del XVI usando las APIs de la plataforma, sin montar infraestructura.",
+   steps:[
+    S("dev","portal","api","Consulta el portal de desarrolladores: documentación OpenAPI, ejemplos y límites de uso.",
+`GET /portal/apis
+  busqueda      v1  OpenAPI 3.1
+  ngsi-ld       v1  ETSI NGSI-LD
+  iiif          v3  IIIF Presentation
+  tei           v1  OpenAPI 3.1`),
+    S("dev","keycloak","auth","Registra su aplicación y obtiene credenciales de cliente con acceso solo a su proyecto.",
+`POST /realms/paas/protocol/openid-connect/token
+grant_type=client_credentials
+client_id=web-cartas-s16
+scope=busqueda:read ngsi:read iiif:read`,["ID"]),
+    S("dev","apisix","api","Su app busca documentos que mencionan a un escribano concreto.",
+`GET /api/v1/busqueda?q=escribano:"Alonso de Medina"&desde=1560
+Authorization: Bearer eyJ...`,["ID","API"]),
+    S("apisix","sem","api","La pasarela envía la consulta al módulo de búsqueda.",
+`200 OK
+{ "total": 146,
+  "resultados": [{"activo":"ark:/99999/vln4k2",
+                  "folio":"12r", "fragmento":"…ante mí el escriuano…"}] }`,["API"]),
+    S("apisix","scorpio","data","La app pide la ficha completa del activo al registro canónico, en NGSI-LD.",
+`GET /ngsi-ld/v1/entities/urn:ngsi-ld:ActivoPatrimonial:ark:/99999/vln4k2
+→ signatura, fechas, fase, representaciones (IIIF, TEI)`,["DAT"]),
+    S("apisix","iiif","api","Carga el manifiesto IIIF para mostrar las imágenes en su propio visor.",
+`GET /iiif/prot-1234/manifest
+→ 212 canvases · servicio de imagen IIIF Image API 3`,["API"]),
+    S("apisix","meter","api","Cada llamada se contabiliza contra el plan del proyecto.",
+`proyecto: web-cartas-s16
+plan: investigación · 100 peticiones/min
+uso actual: 97/min`),
+    S("dev","apisix","deny","Un pico de tráfico supera el límite del plan y la pasarela frena las peticiones.",
+`HTTP/1.1 429 Too Many Requests
+Retry-After: 12
+{ "error": "Has superado 100 peticiones por minuto del plan investigación." }`,["API"])
+   ]},
+  {id:"modulo", name:"Conectar un módulo nuevo (3D)",
+   intro:"Un integrador añade un módulo de modelos 3D para museos. Solo tiene que cumplir el contrato de integración: el núcleo no cambia.",
+   steps:[
+    S("dev","harbor","api","Sube la imagen del contenedor firmada. Harbor la escanea en busca de vulnerabilidades.",
+`docker push harbor.paas.example/modulos/visor3d:1.0.0
+cosign sign harbor.paas.example/modulos/visor3d:1.0.0
+Escaneo: 0 críticas · 2 medias`),
+    S("dev","k8s","api","Añade el módulo al repositorio GitOps. Argo CD detecta el cambio y lo sincroniza.",
+`modulos/visor3d/values.yaml
+  image: harbor.paas.example/modulos/visor3d:1.0.0
+  contrato: [oidc, openapi, cloudevents, ngsi-ld]`),
+    S("k8s","kyverno","api","Antes de desplegar, las políticas del clúster comprueban firma, permisos y límites de recursos.",
+`✓ imagen firmada por clave de la plataforma
+✓ sin contenedores privilegiados
+✓ límites de CPU y memoria declarados`),
+    S("k8s","m3d","api","El módulo arranca en su espacio dentro del clúster.",
+`deployment/visor3d  1/1 disponible
+namespace: modulos`),
+    S("m3d","keycloak","auth","Regla 1, identidad: se registra como cliente OIDC y acepta los tokens de la plataforma.",
+`client_id: visor3d
+roles aceptados: conservador, investigador`,["ID"]),
+    S("m3d","apisix","api","Regla 2, API: publica sus rutas OpenAPI en la pasarela.",
+`/api/v1/modelos3d/{activo}   GET
+/api/v1/modelos3d            POST`,["API"]),
+    S("m3d","portal","api","Aparece automáticamente en el catálogo del portal para otros desarrolladores.",
+`Backstage: componente visor3d · propietario: integrador-x`),
+    S("kafka","m3d","event","Regla 3, eventos: se suscribe a los ingresos de objetos de museo.",
+`suscripción: activo.ingestado
+filtro: data.tipo == "objeto"`,["EV"]),
+    S("m3d","scorpio","data","Regla 4, datos: registra cada modelo 3D como nueva representación del activo.",
+`{ "type": "Representacion",
+  "formato": {"value":"glTF 2.0"},
+  "deActivo": {"type":"Relationship","object":"urn:...:obj-0042"} }`,["DAT"])
+   ]}
+ ]},
+ {id:"part", name:"Participantes del Data Space", sub:"otras instituciones, universidades, empresas, agregadores", scen:[
+  {id:"acceso", name:"Una investigadora accede a una colección",
+   intro:"Una investigadora de otra universidad, con credencial emitida por su propia institución, accede a los protocolos bajo la política del archivo.",
+   steps:[
+    S("part","conector","api","Su conector consulta el catálogo del Data Space mediante el Dataspace Protocol.",
+`POST /dsp/catalog/request
+{ "@type": "dspace:CatalogRequestMessage",
+  "filter": {"keyword": "protocolos notariales"} }`,["API"]),
+    S("conector","part","api","Recibe la oferta con su política: solo lectura para investigadores, sin entrenar IA, cita obligatoria.",
+`dcat:Dataset protocolos-1560-1570
+odrl:hasPolicy → permitido: read (InvestigadorCredential)
+                 prohibido: train-ai-model
+                 obligatorio: attribute`),
+    S("part","conector","api","Negocia el contrato y acepta las condiciones. Queda un acuerdo firmado entre ambos conectores.",
+`dspace:ContractAgreementMessage
+acuerdo: urn:uuid:7f3c…
+estado: FINALIZED`),
+    S("part","vcv","auth","Presenta su credencial verificable de investigadora, emitida por su universidad.",
+`{ "type": ["VerifiableCredential","InvestigadorCredential"],
+  "issuer": "did:web:univ-norte.example",
+  "credentialSubject": {"institucion":"Universidad del Norte (ficticia)",
+                        "linea":"Historia moderna"} }`,["ID"]),
+    S("vcv","part","auth","El verificador comprueba la firma y que la universidad figura en la lista de emisores de confianza. Le da un token de acceso.",
+`✓ firma válida
+✓ did:web:univ-norte.example ∈ Trusted Issuers List
+→ access_token (15 min)`,["ID"]),
+    S("part","apisix","api","Pide la edición TEI de un legajo con ese token.",
+`GET /api/v1/tei/vln4k2.xml
+Authorization: Bearer eyJ...`,["ID","API"]),
+    S("apisix","opa","api","Antes de dejar pasar, la pasarela pregunta al motor de políticas.",
+`input: { credencial: "InvestigadorCredential",
+         accion: "read", recurso: "coleccion:protocolos-1560-1570" }
+decision: allow`),
+    S("apisix","tei","api","Petición permitida: el módulo de edición devuelve el documento.",
+`200 OK  Content-Type: application/tei+xml
+<TEI> … <persName ref="#alonso-medina">Alonso de Medina</persName> …`,["API"]),
+    S("apisix","iiif","api","Su visor carga también las imágenes de los folios.",
+`GET /iiif/prot-1234/manifest → 200 OK`,["API"]),
+    S("apisix","kafka","event","La pasarela publica el acceso concedido.",
+`{ "type": "acceso.concedido",
+  "data": {"quien":"did:web:univ-norte.example#inv-221",
+           "recurso":"vln4k2", "acuerdo":"urn:uuid:7f3c…"} }`,["EV"]),
+    S("kafka","prov","event","Procedencia registra quién accedió, a qué y bajo qué contrato. El archivo puede consultarlo.",
+`:acceso-9931 prov:used :vln4k2-tei ;
+  prov:wasAssociatedWith :inv-221 ;
+  :bajoAcuerdo :7f3c .`)
+   ]},
+  {id:"denegado", name:"Una solicitud denegada",
+   intro:"Una empresa intenta usar la colección para entrenar un modelo comercial y luego accede sin acuerdo. La plataforma lo impide y deja constancia.",
+   steps:[
+    S("part","conector","api","El conector de la empresa solicita un contrato declarando como finalidad el entrenamiento de un modelo.",
+`dspace:ContractRequestMessage
+propuesta: action = train-ai-model`,["API"]),
+    S("conector","part","deny","La propuesta choca con la prohibición de la política. El contrato se rechaza.",
+`dspace:ContractNegotiationTerminationMessage
+motivo: "La política prohíbe train-ai-model sobre esta colección."`),
+    S("part","vcv","auth","Aun así, presenta una credencial de empresa para intentar acceder.",
+`{ "type": ["VerifiableCredential","EmpresaCredential"],
+  "issuer": "did:web:empresa-ia.example" }`,["ID"]),
+    S("part","apisix","api","Intenta descargar la colección completa.",
+`GET /api/v1/tei/export?coleccion=protocolos-1560-1570`,["API"]),
+    S("apisix","opa","deny","El motor de políticas deniega: la credencial no es de investigador y no hay acuerdo vigente.",
+`input: { credencial: "EmpresaCredential", accion: "read",
+         acuerdo: null }
+decision: deny
+motivos: ["credencial no admitida", "sin acuerdo de contrato"]`),
+    S("apisix","part","deny","La pasarela responde con un error claro.",
+`HTTP/1.1 403 Forbidden
+{ "error": "Esta colección solo admite investigadores acreditados con acuerdo vigente." }`),
+    S("apisix","kafka","event","Se publica el intento denegado.",
+`{ "type": "acceso.denegado",
+  "data": {"quien":"did:web:empresa-ia.example", "motivo":"politica"} }`,["EV"]),
+    S("kafka","prov","event","Queda registrado para el archivo y para la gobernanza del Data Space.",
+`:intento-311 a :AccesoDenegado ;
+  prov:wasAssociatedWith :empresa-ia ;
+  prov:atTime "2026-10-08T09:41:00Z" .`)
+   ]},
+  {id:"oaipmh", name:"Un agregador recolecta metadatos (OAI-PMH)",
+   intro:"Un agregador nacional recolecta periódicamente los metadatos del archivo con OAI-PMH para llevarlos a Europeana. Solo se exponen los registros cuya política lo permite.",
+   steps:[
+    S("part","oai","api","El agregador identifica el repositorio.",
+`GET /oai?verb=Identify
+
+<repositoryName>Archivo de Villanueva (ficticio)</repositoryName>
+<protocolVersion>2.0</protocolVersion>
+<earliestDatestamp>2026-09-01</earliestDatestamp>
+<deletedRecord>persistent</deletedRecord>
+<granularity>YYYY-MM-DDThh:mm:ssZ</granularity>`,["API"]),
+    S("part","oai","api","Consulta qué formatos de metadatos ofrece.",
+`GET /oai?verb=ListMetadataFormats
+
+oai_dc   http://www.openarchives.org/OAI/2.0/oai_dc.xsd
+edm      http://www.europeana.eu/schemas/edm/
+ead      urn:isbn:1-931666-22-9`,["API"]),
+    S("part","oai","api","Pide los registros nuevos o modificados desde la última recolección, en formato EDM y del conjunto de protocolos.",
+`GET /oai?verb=ListRecords&metadataPrefix=edm
+       &set=protocolos-s16&from=2026-10-01T00:00:00Z`,["API"]),
+    S("oai","opa","api","Antes de responder, el proveedor pregunta al motor de políticas qué registros pueden exponerse en abierto.",
+`input: { accion: "harvest-metadata",
+         conjunto: "protocolos-s16" }
+decision: allow, excepto
+  - pleitos-tierras-1560-1600/pinturas-linderos
+    (política coaprobada con la comunidad de origen)`),
+    S("oai","archivo","api","Obtiene del módulo de archivo los registros permitidos y los transforma a EDM.",
+`38 registros descriptivos (ISAD(G)) → EDM
+  edm:ProvidedCHO + ore:Aggregation
+  edm:isShownBy → manifiestos IIIF`,["API"]),
+    S("oai","part","api","Devuelve la primera página de registros con un token para seguir recolectando.",
+`<ListRecords>
+  <record><header>
+    <identifier>oai:villanueva.example:ark:/99999/vln4k2</identifier>
+    <datestamp>2026-10-07T10:12:00Z</datestamp>
+    <setSpec>protocolos-s16</setSpec>
+  </header><metadata> … edm:ProvidedCHO … </metadata></record>
+  …
+  <resumptionToken completeListSize="38" cursor="0">tk-7f21</resumptionToken>
+</ListRecords>`,["API"]),
+    S("part","oai","api","Continúa con el token hasta completar la lista. Los registros retirados aparecen marcados como borrados, así el agregador también los retira.",
+`GET /oai?verb=ListRecords&resumptionToken=tk-7f21
+
+<header status="deleted">
+  <identifier>oai:villanueva.example:pleito-1574-pintura</identifier>
+</header>`,["API"]),
+    S("oai","kafka","event","Se publica que ha habido una recolección.",
+`{ "type": "metadatos.recolectados",
+  "data": {"agregador":"agregador-nacional", "registros":38,
+           "formato":"edm", "excluidos":1} }`,["EV"]),
+    S("kafka","prov","event","Procedencia registra qué se entregó, a quién y en qué formato.",
+`:recoleccion-2026-10-15 a :RecoleccionOAIPMH ;
+  prov:used :conjunto-protocolos-s16 ;
+  prov:wasAssociatedWith :agregador-nacional .`)
+   ]}
+ ]},
+ {id:"com", name:"Comunidades de origen", sub:"pueblos a los que conciernen los documentos", scen:[
+  {id:"emisora", name:"Incorporarse como emisora de confianza",
+   intro:"Una comunidad indígena cuyos antepasados aparecen en el fondo de Indias del archivo se une al Data Space con autoridad propia: emitirá las credenciales que dan acceso a lo que le concierne.",
+   steps:[
+    S("com","keycloak","auth","Se crea la organización propia de la comunidad. Sus autoridades la administran: nadie de fuera gestiona a sus miembros.",
+`{ "organizacion": "comunidad-tlaxco",
+  "nombre": "Comunidad de San Miguel Tlaxco (ficticia)",
+  "administradores": ["consejo-tlaxco"],
+  "roles": ["autoridad", "miembro", "anotador-comunitario"] }`,["ID"]),
+    S("com","conector","api","La comunidad despliega su propio conector y lo aloja donde decide: en este caso, un servidor comunitario en México, no en la UE.",
+`conector: dsc.tlaxco.example
+participante: did:web:tlaxco.example
+alojamiento: servidor comunitario (fuera de la UE)
+protocolo: Dataspace Protocol 2025-1`,["API"]),
+    S("com","vcv","auth","El consorcio, con el voto de la comunidad según el Rulebook, la añade a la lista de emisores de confianza para su propio tipo de credencial.",
+`POST /v4/issuers
+{ "did": "did:web:tlaxco.example",
+  "credentials": [{
+    "credentialsType": "AutorizadoPorConsejoCredential",
+    "claims": [{"name":"alcance",
+      "allowedValues":["consulta","anotacion","uso-comercial"]}]
+  }] }`,["ID"]),
+    S("com","part","auth","El consejo concede permiso de consulta a una investigadora que lo ha pedido, emitiéndole una credencial firmada por la comunidad.",
+`{ "type": ["VerifiableCredential","AutorizadoPorConsejoCredential"],
+  "issuer": "did:web:tlaxco.example",
+  "credentialSubject": {
+    "id": "did:web:univ-norte.example#inv-221",
+    "alcance": "consulta",
+    "coleccion": "pleitos-tierras-1560-1600",
+    "validoHasta": "2027-10-01" } }`,["ID"]),
+    S("conector","kafka","event","Se publica la incorporación de la comunidad al Data Space.",
+`{ "type": "participante.incorporado",
+  "subject": "did:web:tlaxco.example",
+  "data": {"rol": "emisora-de-confianza", "aprobadoPor": "asamblea-consorcio-2026-10"} }`,["EV"]),
+    S("kafka","prov","event","Procedencia registra la decisión y quién la tomó.",
+`:tlaxco a :EmisoraDeConfianza ;
+  prov:wasGeneratedBy :decision-consorcio-2026-10 ;
+  :conVotoDe :consejo-tlaxco .`)
+   ]},
+  {id:"coaprobar", name:"Coaprobar la política de una colección",
+   intro:"El archivo quiere ofertar pleitos de tierras de pueblos de indios de 1560–1600. Nada se publica sin el consentimiento libre, previo e informado de la comunidad.",
+   steps:[
+    S("inst","portal","api","La responsable de colecciones prepara la oferta y una propuesta de política. Queda en borrador: la colección está marcada como de interés comunitario.",
+`Oferta (borrador): pleitos-tierras-1560-1600
+Contenido: 14 expedientes · 2.310 folios
+  incluye 6 pinturas de linderos (mapas indígenas)
+Marca: interesComunitario = comunidad-tlaxco
+Estado: pendiente de consentimiento`,["ID","API"]),
+    S("portal","kafka","event","El borrador se anuncia en el bus, lo que activa el proceso de consulta.",
+`{ "type": "politica.propuesta",
+  "subject": "pleitos-tierras-1560-1600",
+  "data": {"requiereConsentimiento": "did:web:tlaxco.example"} }`,["EV"]),
+    S("temporal","com","human","El motor de procesos abre la consulta y espera la decisión de la asamblea comunitaria, que puede tardar semanas. El flujo no avanza sin ella.",
+`Consulta: pleitos-tierras-1560-1600
+Documentación enviada: descripción, muestras, usos previstos
+Plazo propuesto por la comunidad: 45 días
+Estado: esperando decisión de asamblea`),
+    S("com","portal","human","La asamblea decide. Acepta la consulta académica, pero restringe las pinturas de linderos y exige reparto de beneficios para cualquier uso comercial.",
+`Decisión de asamblea (2026-11-20):
+✓ transcripciones: consulta académica abierta con cita
+✗ pinturas de linderos: solo con AutorizadoPorConsejoCredential
+✗ uso comercial: solo con acuerdo y reparto de beneficios
+✗ entrenamiento de IA: prohibido`,["ID"]),
+    S("portal","opa","api","La política final lleva dos firmas, del archivo y de la comunidad. Ninguna de las dos puede cambiarla sola.",
+`{ "@type": "Offer",
+  "target": "coleccion:pleitos-tierras-1560-1600",
+  "assigner": ["did:web:archivo-villanueva.example",
+               "did:web:tlaxco.example"],
+  "permission": [
+    {"action":"read","target":"parte:transcripciones",
+     "duty":[{"action":"attribute"}]},
+    {"action":"read","target":"parte:pinturas-linderos",
+     "constraint":[{"leftOperand":"credentialType","operator":"eq",
+       "rightOperand":"AutorizadoPorConsejoCredential"}]}],
+  "prohibition": [{"action":"train-ai-model"},
+                  {"action":"commercialize"}] }`),
+    S("portal","scorpio","data","Las etiquetas de Local Contexts quedan unidas a cada activo, para que viajen con los datos a cualquier sistema.",
+`PATCH /ngsi-ld/v1/entities/urn:...:pleito-1574/attrs
+{ "etiquetasLocalContexts": {"type":"Property","value":[
+    "TK Attribution (TK A)",
+    "TK Non-Commercial (TK NC)",
+    "TK Community Voice (TK CV)"]},
+  "comunidadDeOrigen": {"type":"Relationship",
+    "object":"urn:ngsi-ld:Comunidad:tlaxco"} }`,["DAT"]),
+    S("portal","conector","api","La oferta se publica en el catálogo con las dos partes como firmantes.",
+`dcat:Dataset pleitos-tierras-1560-1600
+dct:publisher  → Archivo de Villanueva (ficticio)
+dct:rightsHolder → Comunidad de San Miguel Tlaxco (ficticia)
+odrl:hasPolicy → politica:pleitos-coaprobada`),
+    S("kafka","prov","event","Procedencia registra el consentimiento, la fecha de la asamblea y la versión de la política.",
+`:politica-pleitos prov:wasGeneratedBy :asamblea-2026-11-20 ;
+  :aprobadaPor :archivo-villanueva, :consejo-tlaxco .`)
+   ]},
+  {id:"anotar", name:"Anotar un documento con voz propia",
+   intro:"Un miembro de la comunidad añade a un pleito de 1574 el nombre propio del lugar y la memoria comunitaria del conflicto. No reemplaza la descripción del archivo: se pone a su lado.",
+   steps:[
+    S("com","keycloak","auth","El miembro inicia sesión con el rol de anotador que le ha dado su propia comunidad.",
+`{ "organizacion": "comunidad-tlaxco",
+  "roles": ["anotador-comunitario"] }`,["ID"]),
+    S("com","apisix","api","Abre el expediente del pleito por tierras de 1574.",
+`GET /api/v1/tei/pleito-1574.xml
+Authorization: Bearer eyJ...`,["ID","API"]),
+    S("apisix","tei","api","El módulo de edición devuelve la transcripción, donde el lugar aparece con el nombre castellanizado.",
+`<placeName ref="#tlasco">pueblo de Tlasco</placeName>
+… que los dichos yndios tienen las dichas tierras …`,["API"]),
+    S("com","anota","data","Crea una anotación en su lengua y en castellano: el nombre propio del lugar y la memoria comunitaria de lo que se disputaba.",
+`{ "@context": "http://www.w3.org/ns/anno.jsonld",
+  "type": "Annotation",
+  "motivation": ["identifying","commenting"],
+  "creator": {"id":"did:web:tlaxco.example","name":"Comunidad de Tlaxco"},
+  "body": [
+    {"type":"TextualBody","language":"nah",
+     "value":"(nombre propio del lugar en la lengua de la comunidad)"},
+    {"type":"TextualBody","language":"es",
+     "value":"Estas tierras son las del manantial; el pleito se recuerda aún en la fiesta del pueblo."}],
+  "target": {"source":"https://paas.example/tei/pleito-1574.xml",
+             "selector":{"type":"XPathSelector","value":"//placeName[1]"}} }`,["DAT"]),
+    S("anota","scorpio","data","La anotación se registra como parte del activo, con autoría comunitaria explícita.",
+`{ "type": "Anotacion",
+  "voz": {"value": "comunidad-de-origen"},
+  "autor": {"type":"Relationship","object":"urn:ngsi-ld:Comunidad:tlaxco"},
+  "deActivo": {"type":"Relationship","object":"urn:...:pleito-1574"} }`,["DAT"]),
+    S("anota","kafka","event","Se publica la nueva anotación comunitaria.",
+`{ "type": "anotacion.comunitaria",
+  "subject": "pleito-1574",
+  "data": {"tipo": "toponimo-propio"} }`,["EV"]),
+    S("kafka","sem","event","El buscador incorpora el nombre propio: quien busque por él encontrará el pleito, y la ficha muestra ambos nombres.",
+`toponimo:
+  preferente_comunidad: (nombre propio)
+  en_documento:         "Tlasco"
+  fuente:               anotación comunitaria · 2026-12-02`),
+    S("kafka","prov","event","Procedencia registra de quién es cada voz. La del archivo y la de la comunidad conviven, ninguna sobrescribe a la otra.",
+`:anot-88 prov:wasAttributedTo :comunidad-tlaxco ;
+  :complementaA :descripcion-archivo-pleito-1574 .`)
+   ]},
+  {id:"bloquear", name:"Bloquear un uso no consentido",
+   intro:"Una editorial pide reproducir las pinturas de linderos en un libro comercial. La decisión es de la comunidad, que además puede ver todo lo que se ha solicitado.",
+   steps:[
+    S("part","conector","api","El conector de la editorial solicita una licencia comercial de las pinturas de linderos.",
+`dspace:ContractRequestMessage
+target: parte:pinturas-linderos
+action: commercialize`,["API"]),
+    S("conector","opa","api","La política coaprobada exige el consentimiento de la comunidad para cualquier uso comercial. La negociación queda en espera.",
+`decision: pending
+motivo: "commercialize requiere acuerdo de did:web:tlaxco.example"`),
+    S("temporal","com","human","El motor de procesos lleva la solicitud al consejo, con quién la pide, para qué y qué ofrece a cambio.",
+`Solicitud: Editorial Ejemplo S.L. (ficticia)
+Uso: libro ilustrado comercial · tirada 3.000
+Ofrece: 4 % de ventas a la comunidad`),
+    S("com","portal","human","El consejo decide no autorizarlo. No tiene que justificarse ante la editorial.",
+`Decisión del consejo (2027-01-15): no autorizado`,["ID"]),
+    S("conector","part","deny","El contrato se rechaza.",
+`dspace:ContractNegotiationTerminationMessage
+motivo: "La comunidad de origen no ha dado su consentimiento."`),
+    S("part","apisix","api","Aun así, la editorial intenta descargar las imágenes en alta resolución.",
+`GET /iiif/pleito-1574/pintura-linderos/full/max/0/default.jpg`,["API"]),
+    S("apisix","opa","deny","El motor de políticas deniega: no hay acuerdo ni credencial del consejo.",
+`input: { credencial: "EmpresaCredential", acuerdo: null,
+         recurso: "parte:pinturas-linderos" }
+decision: deny`),
+    S("apisix","kafka","event","Se publica el intento denegado.",
+`{ "type": "acceso.denegado",
+  "data": {"quien":"did:web:editorial-ejemplo.example",
+           "recurso":"pinturas-linderos", "motivo":"sin consentimiento comunitario"} }`,["EV"]),
+    S("prov","com","api","La comunidad consulta en su panel todo lo que se ha pedido sobre sus documentos, lo concedido y lo denegado.",
+`Solicitudes sobre pleitos-tierras-1560-1600 (último trimestre)
+  consulta académica   · 12 concedidas
+  anotación            ·  3 (miembros de la comunidad)
+  uso comercial        ·  1 denegada por el consejo
+  intentos sin acuerdo ·  1 bloqueado`,["API"])
+   ]}
+ ]},
+ {id:"todos", name:"Escenario conjunto · los cuatro actores", sub:"institución, desarrollador, participante y comunidad interactúan a la vez", joint:true, scen:[
+  {id:"emisores", name:"Cuatro emisores de confianza",
+   intro:"Cada actor tiene su propio emisor de credenciales: el archivo acredita a su personal, el consorcio a los desarrolladores, la universidad a sus investigadores y la comunidad decide sobre lo que le concierne. El verificador acepta o rechaza cada petición según quién firmó la credencial.",
+   steps:[
+    S("conector","vcv","auth","El espacio de datos mantiene la lista de emisores de confianza: quién puede emitir qué tipo de credencial. La gobierna el consorcio, con asiento y veto para las comunidades.",
+`Trusted Issuers List
+  did:web:archivo-villanueva.example → PersonalArchivoCredential
+  did:web:consorcio-paas.example     → DesarrolladorAcreditadoCredential
+  did:web:univ-norte.example         → InvestigadorCredential
+  did:web:tlaxco.example             → AutorizadoPorConsejoCredential`,["ID"]),
+    S("keycloak","inst","auth","① El Archivo de Villanueva, con su propio emisor (su organización en Keycloak), acredita a la archivera M. Ortega.",
+`{ "type": ["VerifiableCredential","PersonalArchivoCredential"],
+  "issuer": "did:web:archivo-villanueva.example",
+  "credentialSubject": { "id": "m.ortega", "rol": "archivera" } }`,["ID"]),
+    S("portal","dev","auth","② El consorcio de la plataforma acredita al Integrador X cuando acepta el contrato de integración y las normas de uso de la API.",
+`{ "type": ["VerifiableCredential","DesarrolladorAcreditadoCredential"],
+  "issuer": "did:web:consorcio-paas.example",
+  "credentialSubject": { "id": "integrador-x",
+    "proyecto": "web-cartas-s16", "plan": "investigación" } }`,["ID"]),
+    S("uni","part","auth","③ La Universidad del Norte, con su propio emisor y fuera de la plataforma, acredita a su investigadora. La plataforma no interviene: solo confía en la firma.",
+`{ "type": ["VerifiableCredential","InvestigadorCredential"],
+  "issuer": "did:web:univ-norte.example",
+  "credentialSubject": { "id": "inv-221", "linea": "historia moderna" },
+  "validUntil": "2027-06-30" }`,["ID"]),
+    S("inst","vcv","auth","Petición 1. La archivera presenta su credencial ①. El verificador comprueba la firma, que el archivo figura en la lista para ese tipo y que no está caducada ni revocada.",
+`✓ firma válida (did:web:archivo-villanueva.example)
+✓ emisor autorizado para PersonalArchivoCredential
+✓ vigente y no revocada
+→ token de acceso`,["ID"]),
+    S("apisix","opa","api","El motor de políticas permite a la archivera corregir la ficha de un pleito de su archivo.",
+`input: { credencial: "PersonalArchivoCredential", accion: "editar",
+         recurso: "pleito-1574/ficha" }
+decision: allow  ✓`),
+    S("dev","apisix","api","Petición 2. La app del Integrador X busca pleitos por escribano con su credencial ②. Los metadatos están abiertos a desarrolladores acreditados.",
+`GET /api/v1/busqueda?escribano="Alonso de Medina"
+credencial: DesarrolladorAcreditadoCredential (consorcio)
+decision: allow  ✓  (solo fichas descriptivas)`,["ID","API"]),
+    S("apisix","opa","deny","Petición 3. La misma app intenta descargar una pintura de linderos. Su credencial del consorcio no basta: esa parte exige autorización de la comunidad.",
+`input: { credencial: "DesarrolladorAcreditadoCredential",
+         recurso: "pinturas-linderos" }
+decision: deny  ✗
+motivo: "requiere AutorizadoPorConsejoCredential de did:web:tlaxco.example"`),
+    S("part","vcv","auth","Petición 4. La investigadora presenta su credencial ③ de la universidad. El verificador confirma que la universidad es emisora de confianza.",
+`✓ firma válida (did:web:univ-norte.example)
+✓ emisor autorizado para InvestigadorCredential
+→ token de acceso`,["ID"]),
+    S("apisix","tei","api","Con la credencial de investigadora puede leer las transcripciones de la colección.",
+`GET /api/v1/tei/pleito-1574.xml
+decision: allow  ✓  (cita obligatoria)`,["API"]),
+    S("apisix","opa","deny","Petición 5. La investigadora pide ver una pintura de linderos solo con la credencial de su universidad. Se deniega: falta la autorización de la comunidad.",
+`input: { credenciales: ["InvestigadorCredential"],
+         recurso: "pinturas-linderos" }
+decision: deny  ✗
+motivo: "falta AutorizadoPorConsejoCredential"`),
+    S("part","com","human","La investigadora solicita permiso al consejo de la comunidad, explicando para qué quiere consultar las pinturas.",
+`Solicitud al consejo de Tlaxco
+  investigadora: inv-221 (Universidad del Norte)
+  uso: tesis doctoral, sin fines comerciales
+  plazo solicitado: un año`),
+    S("com","part","auth","④ El consejo decide concederlo y emite, con su propio emisor y sus propias claves, una credencial limitada: solo consulta, hasta una fecha y con condiciones.",
+`{ "type": ["VerifiableCredential","AutorizadoPorConsejoCredential"],
+  "issuer": "did:web:tlaxco.example",
+  "credentialSubject": { "id": "inv-221", "alcance": "consulta",
+    "coleccion": "pinturas-linderos",
+    "condiciones": ["cita-obligatoria","sin-uso-comercial"] },
+  "validUntil": "2027-10-01",
+  "credentialStatus": "https://tlaxco.example/revocadas#57" }`,["ID"]),
+    S("apisix","iiif","api","Petición 6. Ahora presenta dos credenciales a la vez: ③ de su universidad y ④ de la comunidad. Las dos son válidas y la política se cumple.",
+`credenciales: InvestigadorCredential (universidad)
+             + AutorizadoPorConsejoCredential (comunidad)
+decision: allow  ✓  con cita obligatoria
+GET /iiif/pleito-1574/pintura-linderos/full/max/0/default.jpg`,["ID","API"]),
+    S("portal","opa","deny","Petición 7. El archivo intenta abrir las pinturas al uso comercial cambiando la política con su firma solamente. Se rechaza: la política exige también la firma de la comunidad.",
+`cambio de política: pinturas-linderos → permitir commercialize
+firmas: did:web:archivo-villanueva.example
+decision: deny  ✗
+motivo: "falta la firma de did:web:tlaxco.example"`),
+    S("part","vcv","deny","Petición 8. Una empresa de IA presenta una InvestigadorCredential que se ha firmado a sí misma. El verificador la rechaza: no está en la lista como emisora de ese tipo.",
+`issuer: did:web:empresa-ia.example
+type: InvestigadorCredential
+✗ emisor no autorizado para InvestigadorCredential
+→ sin token`),
+    S("com","vcv","auth","Días después, el consejo revoca la credencial ④ porque la investigadora usó una imagen sin citarla. Solo tiene que marcarla en su propia lista de revocadas.",
+`https://tlaxco.example/revocadas
+  #57 → revocada (2027-01-12)
+motivo: uso sin cita`,["ID"]),
+    S("part","apisix","deny","Petición 9. La investigadora vuelve a pedir una pintura. El verificador consulta la lista de la comunidad y ve la credencial revocada. Sus demás accesos, con la credencial de la universidad, siguen funcionando.",
+`✗ AutorizadoPorConsejoCredential #57 revocada por did:web:tlaxco.example
+decision: deny (pinturas-linderos)
+✓ transcripciones: siguen permitidas con InvestigadorCredential`,["ID"]),
+    S("prov","com","api","La comunidad consulta en su panel todas las decisiones sobre sus documentos: qué credenciales emitió, qué accesos se concedieron, cuáles se denegaron y por qué.",
+`Panel de la comunidad · pinturas de linderos
+  credenciales emitidas por el consejo · 1 (revocada)
+  accesos concedidos                   · 1
+  accesos denegados                    · 4
+  intentos con emisor no autorizado    · 1`,["API"])
+   ]}
+ ]}
+];
+
+/* ---------- Render mapa ---------- */
+const map = document.getElementById("map"), wires = document.getElementById("wires"), defs = document.getElementById("defs");
+LAYERS.forEach(l=>{
+  const row=document.createElement("div"); row.className="layer "+l.id;
+  row.innerHTML=`<div class="lname">${l.name}</div><div class="nodes"></div>`;
+  const box=row.querySelector(".nodes");
+  l.nodes.forEach(([id,n,t,actor])=>{
+    const d=document.createElement("div"); d.className="node"+(actor?" actor":""); d.id="n-"+id;
+    d.innerHTML=`<span class="badge"></span><b>${n}</b><small>${t}</small>`;
+    box.appendChild(d);
+  });
+  map.appendChild(row);
+});
+Object.keys(KIND).forEach(k=>{
+  defs.insertAdjacentHTML("beforeend",`<marker id="m-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--${k})"/></marker>`);
+});
+
+/* ---------- Estado ---------- */
+let role=ROLES[0], scen=role.scen[0], idx=0, timer=null;
+const $=id=>document.getElementById(id);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function renderRoles(){
+  $("roles").innerHTML="";
+  ROLES.forEach(r=>{
+    const b=document.createElement("button"); b.type="button"; b.className="role"+(r.joint?" joint":""); b.setAttribute("aria-pressed",r===role);
+    b.innerHTML=`<b>${r.name}</b><small>${r.sub}</small>`;
+    b.onclick=()=>{ role=r; scen=r.scen[0]; idx=0; stop(); renderRoles(); renderScen(); show(); };
+    $("roles").appendChild(b);
+  });
+}
+function renderScen(){
+  $("scens").innerHTML="";
+  role.scen.forEach(s=>{
+    const b=document.createElement("button"); b.type="button"; b.className="sc"; b.setAttribute("aria-pressed",s===scen); b.textContent=s.name;
+    b.onclick=()=>{ scen=s; idx=0; stop(); renderScen(); show(); };
+    $("scens").appendChild(b);
+  });
+  $("sTitle").textContent=scen.name; $("sIntro").textContent=scen.intro;
+  const ol=$("steps"); ol.innerHTML="";
+  scen.steps.forEach((st,i)=>{
+    const li=document.createElement("li"), b=document.createElement("button"); b.type="button";
+    b.innerHTML=`<span class="n">${String(i+1).padStart(2,"0")}</span><span>${NAME[st.from]} → ${NAME[st.to]}</span>`;
+    b.onclick=()=>{ stop(); idx=i; show(); };
+    li.appendChild(b); ol.appendChild(li);
+  });
+}
+
+function center(el){
+  const m=map.getBoundingClientRect(), r=el.getBoundingClientRect();
+  return {x:r.left-m.left+r.width/2, y:r.top-m.top+r.height/2, w:r.width, h:r.height};
+}
+function edgePoint(c,t){ // punto en el borde del rectángulo c hacia t
+  const dx=t.x-c.x, dy=t.y-c.y; if(!dx&&!dy) return c;
+  const sx=(c.w/2+4)/Math.abs(dx||1e-6), sy=(c.h/2+4)/Math.abs(dy||1e-6), s=Math.min(sx,sy);
+  return {x:c.x+dx*s, y:c.y+dy*s};
+}
+let anim=null;
+function drawWire(st){
+  wires.querySelectorAll(".wire,.pulse").forEach(e=>e.remove());
+  if(anim) cancelAnimationFrame(anim);
+  const a=center($("n-"+st.from)), b=center($("n-"+st.to));
+  const p1=edgePoint(a,b), p2=edgePoint(b,a);
+  const mx=(p1.x+p2.x)/2, my=(p1.y+p2.y)/2, dx=p2.x-p1.x, dy=p2.y-p1.y, len=Math.hypot(dx,dy)||1;
+  const bend=Math.min(60,len*.18), cx=mx-dy/len*bend, cy=my+dx/len*bend;
+  const path=document.createElementNS("http://www.w3.org/2000/svg","path");
+  path.setAttribute("d",`M${p1.x},${p1.y} Q${cx},${cy} ${p2.x},${p2.y}`);
+  path.setAttribute("class","wire "+st.kind);
+  path.style.stroke=`var(--${st.kind})`;
+  path.setAttribute("marker-end",`url(#m-${st.kind})`);
+  wires.appendChild(path);
+  const L=path.getTotalLength();
+  if(!reduce && st.kind!=="human"){
+    path.style.strokeDasharray=L; path.style.setProperty("--len",L); path.classList.add("draw");
+    path.addEventListener("animationend",()=>{path.style.strokeDasharray="";},{once:true});
+  }
+  if(!reduce){
+    const dot=document.createElementNS("http://www.w3.org/2000/svg","circle");
+    dot.setAttribute("class","pulse"); dot.setAttribute("r","5"); dot.style.fill=`var(--${st.kind})`;
+    wires.appendChild(dot);
+    const t0=performance.now(), dur=900;
+    const tick=t=>{ const k=Math.min(1,(t-t0)/dur), pt=path.getPointAtLength(L*k);
+      dot.setAttribute("cx",pt.x); dot.setAttribute("cy",pt.y);
+      if(k<1) anim=requestAnimationFrame(tick); else dot.remove(); };
+    anim=requestAnimationFrame(tick);
+  }
+}
+
+function show(){
+  const st=scen.steps[idx];
+  const used=new Set(), visited=new Set();
+  scen.steps.forEach((s,i)=>{ used.add(s.from); used.add(s.to); if(i<idx){visited.add(s.from);visited.add(s.to);} });
+  document.querySelectorAll(".node").forEach(n=>{
+    const id=n.id.slice(2);
+    n.className=n.className.replace(/\b(idle|used|visited|src|dst|k-\w+)\b/g,"").trim();
+    if(id===st.to){ n.classList.add("dst","k-"+st.kind); n.querySelector(".badge").textContent="destino"; }
+    else if(id===st.from){ n.classList.add("src"); n.querySelector(".badge").textContent="origen"; }
+    else if(visited.has(id)) n.classList.add("visited");
+    else if(used.has(id)) n.classList.add("used");
+    else n.classList.add("idle");
+  });
+  drawWire(st);
+  $("dStep").textContent=`Paso ${idx+1} de ${scen.steps.length}`;
+  const kc=$("dKind"); kc.textContent=KIND[st.kind]; kc.className="chip k-"+st.kind;
+  $("dRoute").innerHTML=`<span>${NAME[st.from]}</span><span class="arr">→</span><span>${NAME[st.to]}</span>`;
+  $("dText").textContent=st.text;
+  $("dPay").textContent=st.pay; $("dPay").hidden=!st.pay;
+  $("dRules").innerHTML=`<span>Contrato:</span>`+["ID","API","EV","DAT"].map(r=>`<span class="rule${st.rules.includes(r)?" on":""}">${r}</span>`).join("");
+  $("steps").querySelectorAll("button").forEach((b,i)=>{ b.classList.toggle("cur",i===idx); b.classList.toggle("done",i<idx); });
+  const cur=$("steps").querySelectorAll("button")[idx]; if(cur){ const ol=$("steps"); const top=cur.offsetTop-ol.offsetTop; if(top<ol.scrollTop||top>ol.scrollTop+ol.clientHeight-30) ol.scrollTop=top-60; }
+  $("prog").style.width=((idx+1)/scen.steps.length*100)+"%";
+  $("bPrev").disabled=idx===0; $("bNext").disabled=idx===scen.steps.length-1;
+}
+function next(){ if(idx<scen.steps.length-1){idx++;show();} else stop(); }
+function prev(){ if(idx>0){idx--;show();} }
+function play(){ if(timer){stop();return;} if(idx===scen.steps.length-1){idx=0;show();} $("bPlay").textContent="❚❚ Pausa"; timer=setInterval(()=>{ if(idx>=scen.steps.length-1){stop();return;} next(); }, +$("speed").value); }
+function stop(){ clearInterval(timer); timer=null; $("bPlay").textContent="▶ Reproducir"; }
+$("bNext").onclick=()=>{stop();next();}; $("bPrev").onclick=()=>{stop();prev();};
+$("bPlay").onclick=play; $("bReset").onclick=()=>{stop();idx=0;show();};
+$("speed").onchange=()=>{ if(timer){stop();play();} };
+document.addEventListener("keydown",e=>{
+  if(e.target.closest("select")) return;
+  if(e.key==="ArrowRight"){e.preventDefault();stop();next();}
+  else if(e.key==="ArrowLeft"){e.preventDefault();stop();prev();}
+  else if(e.key===" " && !e.target.closest("button")){e.preventDefault();play();}
+});
+let rz; addEventListener("resize",()=>{clearTimeout(rz); rz=setTimeout(()=>drawWire(scen.steps[idx]),120);});
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>drawWire(scen.steps[idx]));
+
+renderRoles(); renderScen(); show();
+</script>
+<footer class="sitefoot">Prototipo de arquitectura de referencia. El archivo, las personas y los legajos del simulador son ficticios.</footer>
+<!-- trafico-contador (paas) -->
+<script>
+(function(){var E="https://epfszizoeedjjyogmqev.supabase.co/functions/v1/track",A="paas";
+if(/^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname))return;
+function uid(){return crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36)}
+function id(k,s){try{var t=s?sessionStorage:localStorage,v=t.getItem(k);if(!v){v=uid();t.setItem(k,v)}return v}catch(e){return null}}
+function send(o){var d=JSON.stringify(o);try{if(!(navigator.sendBeacon&&navigator.sendBeacon(E,new Blob([d],{type:"text/plain"}))))fetch(E,{method:"POST",body:d,keepalive:true})}catch(e){}}
+function depth(){var h=document.documentElement,b=document.body,sh=Math.max(h.scrollHeight,b?b.scrollHeight:0),vh=innerHeight||h.clientHeight;return sh<=vh+2?100:Math.min(100,Math.round(((scrollY||h.scrollTop)+vh)/sh*100))}
+var last,first=true,pv=null,act=0,secs=0,maxS=0,inter=false,sent="";
+function fin(){if(!pv)return;var k=secs+"|"+maxS+"|"+inter;if(k===sent)return;sent=k;send({ev:"fin",app:A,pv:pv,t:secs,s:maxS,i:inter})}
+function hit(){var p=location.pathname;if(p===last)return;fin();last=p;pv=uid();secs=0;inter=false;sent="";act=Date.now();maxS=depth();
+send({app:A,pv:pv,host:location.hostname,path:p,title:document.title,ref:first?document.referrer:"",lang:navigator.language,wd:navigator.webdriver===true,vid:id("_tv"),sid:id("_ts",1)});first=false}
+function on(){act=Date.now()}
+["click","keydown","touchstart"].forEach(function(e){addEventListener(e,function(){on();inter=true},{passive:true,capture:true})});
+["mousemove","wheel"].forEach(function(e){addEventListener(e,on,{passive:true})});
+addEventListener("scroll",function(){on();var d=depth();if(d>maxS)maxS=d},{passive:true});
+setInterval(function(){if(pv&&document.visibilityState==="visible"&&Date.now()-act<30000&&secs<3600)secs++},1000);
+addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")fin();else on()});
+addEventListener("pagehide",fin);
+var ps=history.pushState;history.pushState=function(){ps.apply(this,arguments);setTimeout(hit,50)};addEventListener("popstate",function(){setTimeout(hit,50)});
+if(document.readyState==="complete")hit();else addEventListener("load",hit);})();
+</script>
+</body>
+</html>

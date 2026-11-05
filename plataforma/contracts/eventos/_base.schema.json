@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/eventos/_base.schema.json",
+  "title": "Sobre común de todos los eventos (CloudEvents 1.0 + tenant)",
+  "description": "Todo evento del bus cumple este esquema además del de su tipo.",
+  "type": "object",
+  "required": ["specversion", "id", "source", "type", "time", "subject", "datacontenttype", "tenant", "data"],
+  "properties": {
+    "specversion": { "const": "1.0" },
+    "id": { "type": "string", "minLength": 1, "description": "Único por evento (UUID). Sirve para descartar duplicados." },
+    "source": { "type": "string", "pattern": "^/tenants/[a-z0-9-]+/(modulos|servicios)/[a-z0-9-]+$", "description": "Quién emite: /tenants/<tenant>/modulos/<módulo>" },
+    "type": { "type": "string", "pattern": "^[a-z]+\\.[a-z]+$", "description": "Qué pasó: legajo.ingestado, htr.completado…" },
+    "time": { "type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$" },
+    "subject": { "type": "string", "pattern": "^urn:ngsi-ld:[A-Za-z]+:[a-z0-9-]+:[A-Za-z0-9-]+$", "description": "La entidad de la que habla el evento (URN NGSI-LD). Es también la clave en Kafka." },
+    "datacontenttype": { "const": "application/json" },
+    "tenant": { "type": "string", "pattern": "^[a-z0-9-]+$", "description": "Institución propietaria. Extensión propia de CloudEvents." },
+    "traceparent": { "type": "string", "pattern": "^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$", "description": "Contexto de traza W3C (opcional hasta el paso 7)." },
+    "data": { "type": "object" }
+  },
+  "additionalProperties": false
+}

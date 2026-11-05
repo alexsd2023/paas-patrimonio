@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Acceso a la Ciudad · PaaS Patrimonio</title>
+<meta name="description" content="Acceso a la plataforma: una ciudad para la memoria escrita que se construye mientras entras.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>html{color-scheme:light}[hidden]{display:none!important}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#EEF0EC; --panel:#FFFFFF; --ink:#1B2230; --muted:#5A6272; --line:#D5D8D2;
+  --ground:#E4E6DF; --grid:#D2D6CC; --pipe:#B9A6CC; --street:#C9CCC3; --street-edge:#B3B8AD;
+  --wall:#8C7A5B; --gate:#A8781F;
+  --core:#2F7D6D; --core-soft:#E1EFEB;
+  --bld:#3F5C9A; --bld-soft:#DCE3F2;
+  --eco:#B0582E; --community:#C9893F;
+  --letter:#A8781F; --crit:#B3261E;
+  --serif:"EB Garamond", Georgia, serif;
+  --sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#10141B; --panel:#1B212C; --ink:#E6E8EC; --muted:#9AA2B1; --line:#2E3645;
+    --ground:#151A22; --grid:#1F2631; --pipe:#5E4F72; --street:#2A323F; --street-edge:#343D4C;
+    --wall:#A8946C; --gate:#D9AE5C;
+    --core:#5FB8A4; --core-soft:#1C3530;
+    --bld:#8FA8DE; --bld-soft:#212B40;
+    --eco:#E39B72; --community:#E0A85E;
+    --letter:#D9AE5C; --crit:#F08A82;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#10141B; --panel:#1B212C; --ink:#E6E8EC; --muted:#9AA2B1; --line:#2E3645;
+  --ground:#151A22; --grid:#1F2631; --pipe:#5E4F72; --street:#2A323F; --street-edge:#343D4C;
+  --wall:#A8946C; --gate:#D9AE5C;
+  --core:#5FB8A4; --core-soft:#1C3530;
+  --bld:#8FA8DE; --bld-soft:#212B40;
+  --eco:#E39B72; --community:#E0A85E;
+  --letter:#D9AE5C; --crit:#F08A82;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;overflow:hidden}
+.stage{position:fixed;inset:0}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+.panel{position:absolute;right:max(24px,6vw);top:50%;transform:translateY(-50%);width:min(360px,calc(100% - 32px));background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:14px;padding:26px 24px;display:flex;flex-direction:column;gap:16px;box-shadow:0 20px 50px rgba(15,20,30,.18)}
+.brand{display:flex;flex-direction:column;gap:4px}
+.brand .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--core)}
+.brand h1{margin:0;font-family:var(--serif);font-weight:600;font-size:30px;line-height:1.05}
+.brand p{margin:0;font-size:13.5px;color:var(--muted)}
+form{display:flex;flex-direction:column;gap:12px}
+label{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:500}
+input{font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:10px 12px}
+input:focus-visible{outline:2px solid var(--core);outline-offset:1px;border-color:var(--core)}
+button{font:inherit;font-size:15px;font-weight:600;cursor:pointer;border:0;border-radius:7px;padding:11px 14px;background:var(--ink);color:var(--bg)}
+button:focus-visible{outline:2px solid var(--core);outline-offset:2px}
+button:disabled{opacity:.6;cursor:default}
+.err{margin:0;font-size:13px;color:var(--crit);min-height:1.2em}
+.ok{margin:0;font-size:13px;color:var(--core)}
+.hint{margin:0;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
+.hint code{font-family:var(--mono);font-size:12px}
+.shake{animation:shake .35s}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.panel.leaving{transition:opacity .6s,transform .6s;opacity:0;transform:translateY(-50%) scale(.97)}
+@media (max-width:760px){
+  .panel{right:16px;left:16px;width:auto;top:auto;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:none;padding:18px;gap:12px}
+  .brand p{display:none}
+  form{gap:9px}
+  input{padding:8px 10px}
+  .hint{padding-top:8px;font-size:11.5px}
+  .panel.leaving{transform:scale(.97)}
+  .brand h1{font-size:26px}
+}
+@media (prefers-reduced-motion: reduce){.shake{animation:none}.panel.leaving{transition:none}}
+</style>
+</head>
+<body>
+<div class="stage" aria-hidden="true">
+  <canvas id="city"></canvas>
+</div>
+
+<main class="panel" id="panel">
+  <div class="brand">
+    <span class="k">PaaS de patrimonio cultural</span>
+    <h1>Una ciudad para la memoria escrita</h1>
+    <p>Identifícate en el registro civil para entrar.</p>
+  </div>
+  <form id="form" novalidate>
+    <label for="user">Usuario
+      <input id="user" name="user" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+    </label>
+    <label for="pass">Contraseña
+      <input id="pass" name="pass" type="password" autocomplete="current-password" required>
+    </label>
+    <p class="err" id="err" role="alert"></p>
+    <button id="go" type="submit">Entrar en la ciudad</button>
+  </form>
+</main>
+
+<script>
+const IN_APP=true; // el empaquetado para Vercel lo cambia a true
+/* ---------- Datos de la ciudad ---------- */
+const PHASES=[
+ {t:"El terreno y las redes",d:"Se prepara el suelo y se tienden las redes: la infraestructura base."},
+ {t:"Las ordenanzas y el callejero",d:"Se trazan las calles con las reglas comunes: los contratos."},
+ {t:"La muralla y sus puertas",d:"Una sola puerta con guardia y una embajada hacia otras ciudades: la entrada y el Data Space."},
+ {t:"Los servicios municipales",d:"Registro civil, catastro, Correos, gestoría y notaría: el núcleo de integración."},
+ {t:"Los edificios",d:"Sala de lectura, taller de copistas, editorial, archivo, cámara acorazada: los módulos funcionales."},
+ {t:"La vida de la ciudad",d:"Llegan vecinos, visitantes y comunidades, y circulan las cartas: el ecosistema."}
+];
+const T_PH=[0,2.4,4.8,7.0,9.6,13.0]; // inicio de cada fase (s)
+const T_END=15.5;
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const cv=document.getElementById("city"), cx=cv.getContext("2d");
+let W=0,H=0,DPR=1,L=null;
+function col(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+let C={};
+function readColors(){["--ground","--grid","--pipe","--street","--street-edge","--wall","--gate","--core","--core-soft","--bld","--bld-soft","--eco","--community","--letter","--ink","--muted","--panel"].forEach(k=>C[k]=col(k));}
+
+// generador pseudoaleatorio con semilla
+function rng(seed){let s=seed>>>0;return()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};}
+
+function layout(){
+  const r=cv.getBoundingClientRect(); W=r.width; H=r.height; DPR=Math.min(2,window.devicePixelRatio||1);
+  cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR); cx.setTransform(DPR,0,0,DPR,0,0);
+  // La ciudad ocupa la parte izquierda en escritorio y todo el ancho en móvil
+  const mobile=W<760;
+  const pr0=document.getElementById("panel").getBoundingClientRect();
+  let area;
+  if(mobile){const y=40, bottom=pr0.top-26; area={x:30,y,w:W-60,h:Math.max(120,bottom-y)};}
+  else{const x=Math.max(48,W*0.04), right=pr0.left-56, y=Math.max(48,H*0.07), bottom=H-Math.max(48,H*0.07); area={x,y,w:Math.max(260,right-x),h:Math.max(200,bottom-y)};}
+  const cols=mobile?6:8, rows=mobile?5:6;
+  const sx=area.w/cols, sy=area.h/rows;
+  const xs=[...Array(cols+1)].map((_,i)=>area.x+i*sx), ys=[...Array(rows+1)].map((_,j)=>area.y+j*sy);
+  const sw=Math.max(5,Math.min(sx,sy)*0.16); // ancho de calle
+  const R=rng(7);
+  // manzanas
+  const blocks=[];
+  for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
+    blocks.push({i,j,x:xs[i]+sw/2,y:ys[j]+sw/2,w:sx-sw,h:sy-sw});
+  }
+  const ci=Math.floor(cols/2)-1, cj=Math.floor(rows/2)-1; // plaza central (2x2 manzanas)
+  const plaza={x:xs[ci]+sw/2,y:ys[cj]+sw/2,w:2*sx-sw,h:2*sy-sw};
+  const inPlaza=b=>b.i>=ci&&b.i<=ci+1&&b.j>=cj&&b.j<=cj+1;
+  const commBlock=blocks.find(b=>b.i===cols-1&&b.j===0);
+  // servicios municipales alrededor de la plaza
+  const pcx=plaza.x+plaza.w/2, pcy=plaza.y+plaza.h/2, pr=Math.min(plaza.w,plaza.h);
+  const svc=[["Registro civil",-0.32,-0.30],["Catastro",0,-0.32],["Correos",0.32,-0.30],["Gestoría",-0.32,0.28],["Notaría",0,0.30],["Ordenanzas",0.32,0.28]]
+    .map(([n,dx,dy],k)=>({n,x:pcx+dx*plaza.w,y:pcy+dy*plaza.h,s:pr*0.2,k}));
+  // edificios en el resto de manzanas
+  const named=["Sala de lectura","Taller de copistas","Editorial","Archivo","Cámara acorazada","Biblioteca","Laboratorio","Tablón de voces"];
+  const buildings=[]; let nk=0;
+  const order=blocks.filter(b=>!inPlaza(b)&&b!==commBlock).sort((a,b)=>Math.hypot(a.i-ci-0.5,a.j-cj-0.5)-Math.hypot(b.i-ci-0.5,b.j-cj-0.5));
+  order.forEach((b,bi)=>{
+    const n=1+Math.floor(R()*3); const gap=Math.max(2,b.w*0.06);
+    for(let q=0;q<n;q++){
+      const bw=(b.w-gap*(n+1))/n, bh=b.h*(0.45+R()*0.45);
+      buildings.push({x:b.x+gap+q*(bw+gap),y:b.y+b.h-gap-bh,w:bw,h:bh,delay:bi*0.18+q*0.06+R()*0.1,
+        label:(q===0&&nk<named.length&&bi%Math.max(1,Math.floor(order.length/named.length))===0)?named[nk++]:null});
+    }
+  });
+  // barrio de la comunidad
+  const comm=commBlock?{x:commBlock.x,y:commBlock.y,w:commBlock.w,h:commBlock.h,huts:[...Array(4)].map((_,k)=>({x:commBlock.x+commBlock.w*(0.2+0.6*((k%2))) ,y:commBlock.y+commBlock.h*(0.3+0.4*Math.floor(k/2)),r:Math.min(commBlock.w,commBlock.h)*0.13}))}:null;
+  // muralla con puerta a la izquierda y embajada a la derecha
+  const pad=sw*1.6;
+  const wall={x:area.x-pad,y:area.y-pad,w:area.w+2*pad,h:area.h+2*pad};
+  const gateY=ys[Math.floor(rows/2)];
+  // red de calles para peatones
+  const nodes=[]; for(let j=0;j<=rows;j++)for(let i=0;i<=cols;i++)nodes.push({i,j,x:xs[i],y:ys[j]});
+  const node=(i,j)=>nodes[j*(cols+1)+i];
+  // tuberías (terreno)
+  const pipes=[...Array(5)].map((_,k)=>({y:area.y+area.h*(0.12+0.19*k),amp:sy*0.12,ph:R()*6}));
+  // personas
+  const people=[...Array(mobile?18:34)].map((_,k)=>{const n=nodes[Math.floor(R()*nodes.length)];return{i:n.i,j:n.j,ti:n.i,tj:n.j,p:1,sp:0.25+R()*0.35,kind:k<4?"comm":(k<8?"visit":"vec"),delay:R()*2};});
+  L={area,cols,rows,xs,ys,sx,sy,sw,blocks,plaza,svc,buildings,comm,wall,gateY,nodes,node,pipes,people,mobile,letters:[],nextLetter:0};
+}
+
+/* ---------- Dibujo ---------- */
+const ease=t=>t<0?0:t>1?1:1-Math.pow(1-t,3);
+const prog=(t,a,d)=>ease((t-a)/d);
+function rrect(x,y,w,h,r){cx.beginPath();cx.moveTo(x+r,y);cx.arcTo(x+w,y,x+w,y+h,r);cx.arcTo(x+w,y+h,x,y+h,r);cx.arcTo(x,y+h,x,y,r);cx.arcTo(x,y,x+w,y,r);cx.closePath();}
+function label(text,x,y,size,color,align){cx.font=`500 ${size}px ${getComputedStyle(document.body).fontFamily}`;cx.fillStyle=color;cx.textAlign=align||"center";cx.textBaseline="middle";cx.fillText(text,x,y);}
+
+let t0=performance.now(), opening=0, openStart=0;
+function draw(now){
+  const t=reduce?T_END+1:(now-t0)/1000;
+  const {area,xs,ys,sw,wall}=L;
+  cx.clearRect(0,0,W,H);
+  cx.fillStyle=C["--ground"];cx.fillRect(0,0,W,H);
+
+  // 1 · Terreno: cuadrícula y tuberías
+  const p1=prog(t,T_PH[0],2.2);
+  cx.strokeStyle=C["--grid"];cx.lineWidth=1;
+  for(let x=0;x<W;x+=24){cx.globalAlpha=p1*0.9;cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,H*p1);cx.stroke();}
+  cx.globalAlpha=1;
+  cx.strokeStyle=C["--pipe"];cx.lineWidth=2;cx.setLineDash([6,6]);
+  L.pipes.forEach((pp,k)=>{const pr=prog(t,T_PH[0]+k*0.25,1.6);if(pr<=0)return;cx.beginPath();
+    for(let x=area.x-20;x<=area.x-20+(area.w+40)*pr;x+=6){const y=pp.y+Math.sin(x/40+pp.ph)*pp.amp;x===area.x-20?cx.moveTo(x,y):cx.lineTo(x,y);}cx.stroke();});
+  cx.setLineDash([]);
+
+  // 2 · Calles
+  const p2=prog(t,T_PH[1],2.2);
+  if(p2>0){cx.lineCap="round";
+    const draw1=(x1,y1,x2,y2,pp)=>{cx.beginPath();cx.moveTo(x1,y1);cx.lineTo(x1+(x2-x1)*pp,y1+(y2-y1)*pp);cx.stroke();};
+    [["--street-edge",sw+2],["--street",sw]].forEach(([c,lw])=>{cx.strokeStyle=C[c];cx.lineWidth=lw;
+      ys.forEach((y,j)=>draw1(area.x,y,area.x+area.w,y,ease(p2*1.4-j*0.06)));
+      xs.forEach((x,i)=>draw1(x,area.y,x,area.y+area.h,ease(p2*1.4-0.2-i*0.05)));
+    });
+    // camino hasta la puerta
+    cx.strokeStyle=C["--street"];cx.lineWidth=sw;draw1(0,L.gateY,area.x,L.gateY,p2);
+    cx.lineCap="butt";
+  }
+
+  // 3 · Muralla, puerta y embajada
+  const p3=prog(t,T_PH[2],2.0);
+  if(p3>0){
+    const per=2*(wall.w+wall.h);cx.strokeStyle=C["--wall"];cx.lineWidth=Math.max(4,sw*0.55);
+    cx.setLineDash([per*p3,per]);rrect(wall.x,wall.y,wall.w,wall.h,sw);cx.stroke();cx.setLineDash([]);
+    // torres
+    cx.fillStyle=C["--wall"];
+    [[wall.x,wall.y],[wall.x+wall.w,wall.y],[wall.x,wall.y+wall.h],[wall.x+wall.w,wall.y+wall.h]].forEach(([x,y],k)=>{const a=prog(t,T_PH[2]+0.4+k*0.2,0.5);if(a>0){cx.globalAlpha=a;cx.beginPath();cx.arc(x,y,sw*0.9,0,7);cx.fill();cx.globalAlpha=1;}});
+    // puerta
+    const g=prog(t,T_PH[2]+1.2,0.8);
+    if(g>0){const gy=L.gateY, gh=sw*2.2;cx.fillStyle=C["--ground"];cx.fillRect(wall.x-sw,gy-gh/2,sw*2,gh);
+      cx.fillStyle=C["--gate"];cx.globalAlpha=g;
+      const op=opening; // apertura al entrar
+      cx.fillRect(wall.x-sw*0.9,gy-gh/2-op*gh*0.45,sw*0.5,gh/2);cx.fillRect(wall.x-sw*0.9,gy+op*gh*0.45,sw*0.5,gh/2);
+      if(!L.mobile)label("Puerta",wall.x,gy-gh*0.95,11,C["--gate"]);
+      cx.globalAlpha=1;}
+    // embajada en el lado derecho
+    const e=prog(t,T_PH[2]+1.5,0.7);
+    if(e>0){const ex=wall.x+wall.w, ey=wall.y+wall.h*0.25, s=sw*1.6;cx.globalAlpha=e;cx.fillStyle=C["--gate"];
+      rrect(ex-s/2,ey-s/2,s,s,3);cx.fill();cx.fillStyle=C["--panel"];cx.fillRect(ex-1,ey-s*0.35,2,s*0.5);
+      cx.beginPath();cx.moveTo(ex+1,ey-s*0.35);cx.lineTo(ex+s*0.3,ey-s*0.25);cx.lineTo(ex+1,ey-s*0.15);cx.fill();
+      if(!L.mobile)label("Embajada",ex,ey+s*0.95,11,C["--gate"]);cx.globalAlpha=1;}
+  }
+
+  // 4 · Servicios municipales en la plaza
+  const p4=prog(t,T_PH[3],0.6);
+  if(p4>0){const pl=L.plaza;cx.globalAlpha=p4;cx.fillStyle=C["--core-soft"];rrect(pl.x,pl.y,pl.w,pl.h,6);cx.fill();cx.strokeStyle=C["--core"];cx.lineWidth=1.5;cx.stroke();cx.globalAlpha=1;
+    L.svc.forEach((s,k)=>{const a=prog(t,T_PH[3]+0.3+k*0.32,0.5);if(a<=0)return;const z=s.s*(0.4+0.6*a);
+      cx.globalAlpha=a;cx.fillStyle=C["--core"];
+      // edificio con frontón
+      cx.fillRect(s.x-z/2,s.y-z*0.25,z,z*0.55);
+      cx.beginPath();cx.moveTo(s.x-z*0.6,s.y-z*0.25);cx.lineTo(s.x,s.y-z*0.62);cx.lineTo(s.x+z*0.6,s.y-z*0.25);cx.closePath();cx.fill();
+      cx.fillStyle=C["--core-soft"];for(let c=-1;c<=1;c++)cx.fillRect(s.x+c*z*0.3-z*0.04,s.y-z*0.15,z*0.08,z*0.4);
+      if(!L.mobile)label(s.n,s.x,s.y+z*0.52,L.mobile?9.5:11,C["--ink"]);
+      cx.globalAlpha=1;});
+  }
+
+  // 5 · Edificios que se levantan
+  L.buildings.forEach(b=>{const a=prog(t,T_PH[4]+b.delay*0.9,0.7);if(a<=0)return;const h=b.h*a;
+    cx.fillStyle=C["--bld-soft"];cx.fillRect(b.x,b.y+b.h-h,b.w,h);cx.strokeStyle=C["--bld"];cx.lineWidth=1.2;cx.strokeRect(b.x+0.5,b.y+b.h-h+0.5,b.w-1,h-1);
+    // ventanas
+    if(b.w>10&&h>14){cx.fillStyle=C["--bld"];cx.globalAlpha=0.55;for(let yy=b.y+b.h-h+5;yy<b.y+b.h-6;yy+=8)for(let xx=b.x+4;xx<b.x+b.w-5;xx+=7)cx.fillRect(xx,yy,3,3);cx.globalAlpha=1;}
+    if(b.label&&a>0.9&&!L.mobile){label(b.label,b.x+b.w/2,b.y-8,10.5,C["--bld"]);}
+  });
+  // barrio de la comunidad
+  if(L.comm){const a=prog(t,T_PH[4]+1.2,1.0);if(a>0){const c=L.comm;cx.globalAlpha=a;cx.setLineDash([4,4]);cx.strokeStyle=C["--community"];cx.lineWidth=1.5;rrect(c.x,c.y,c.w,c.h,6);cx.stroke();cx.setLineDash([]);
+    c.huts.forEach(hh=>{cx.fillStyle=C["--community"];cx.beginPath();cx.arc(hh.x,hh.y,hh.r,Math.PI,0);cx.fill();cx.fillRect(hh.x-hh.r,hh.y,hh.r*2,hh.r*0.5);});
+    if(!L.mobile)label("Barrio de la comunidad",c.x+c.w/2,c.y-8,10.5,C["--community"]);cx.globalAlpha=1;}}
+
+  // 6 · Ecosistema: personas y cartas
+  const p6=prog(t,T_PH[5],1.0);
+  if(p6>0){
+    const dt=reduce?0:Math.min(0.05,(now-(draw.last||now))/1000);
+    L.people.forEach(pp=>{
+      if(t<T_PH[5]+pp.delay)return;
+      if(pp.p>=1){pp.i=pp.ti;pp.j=pp.tj;const opts=[[1,0],[-1,0],[0,1],[0,-1]].map(([a,b])=>[pp.i+a,pp.j+b]).filter(([a,b])=>a>=0&&b>=0&&a<=L.cols&&b<=L.rows);const [ni,nj]=opts[Math.floor(Math.random()*opts.length)];pp.ti=ni;pp.tj=nj;pp.p=0;}
+      pp.p=Math.min(1,pp.p+dt*pp.sp);
+      const A=L.node(pp.i,pp.j),B=L.node(pp.ti,pp.tj);const x=A.x+(B.x-A.x)*pp.p,y=A.y+(B.y-A.y)*pp.p;
+      cx.fillStyle=pp.kind==="comm"?C["--community"]:pp.kind==="visit"?C["--gate"]:C["--eco"];
+      cx.globalAlpha=Math.min(1,(t-T_PH[5]-pp.delay)*1.5);cx.beginPath();cx.arc(x,y,Math.max(2.4,sw*0.22),0,7);cx.fill();cx.globalAlpha=1;
+    });
+    // cartas desde el catastro (Correos)
+    if(t>T_PH[5]+0.8&&now>L.nextLetter&&!reduce){const from=L.svc[1];const targets=L.buildings.filter(b=>b.label).concat(L.svc.filter((_,k)=>k===3||k===4));
+      const to=targets[Math.floor(Math.random()*targets.length)];L.letters.push({x0:from.x,y0:from.y,x1:to.x+(to.w||0)/2,y1:to.y+(to.h||0)/2,p:0});L.nextLetter=now+650;}
+    L.letters=L.letters.filter(l=>l.p<1);
+    L.letters.forEach(l=>{l.p=Math.min(1,l.p+dt*0.55);const e=ease(l.p);const x=l.x0+(l.x1-l.x0)*e,y=l.y0+(l.y1-l.y0)*e-Math.sin(Math.PI*e)*L.sy*0.5;
+      const s=Math.max(5,sw*0.45);cx.fillStyle=C["--letter"];cx.fillRect(x-s/2,y-s*0.35,s,s*0.7);cx.strokeStyle=C["--panel"];cx.lineWidth=1;cx.beginPath();cx.moveTo(x-s/2,y-s*0.35);cx.lineTo(x,y);cx.lineTo(x+s/2,y-s*0.35);cx.stroke();});
+    // visitante entrando por la puerta cuando se inicia sesión
+    if(opening>0){const k=Math.min(1,(now-openStart)/1400);const x=-10+(L.wall.x+L.sw*3+10)*ease(k);cx.fillStyle=C["--gate"];cx.beginPath();cx.arc(x,L.gateY,Math.max(3.5,L.sw*0.32),0,7);cx.fill();}
+  }
+  draw.last=now;
+  requestAnimationFrame(draw);
+}
+
+
+/* ---------- Autenticación de demostración ---------- */
+const form=document.getElementById("form"), err=document.getElementById("err"), panel=document.getElementById("panel");
+function store(){try{sessionStorage.setItem("paas-auth","1");return true;}catch(_){try{localStorage.setItem("paas-auth","1");return true;}catch(__){return false;}}}
+form.addEventListener("submit",e=>{
+  e.preventDefault();
+  const u=document.getElementById("user").value.trim(), p=document.getElementById("pass").value;
+  if(u==="admin"&&p==="admin"){
+    err.textContent="";document.getElementById("go").disabled=true;
+    opening=1;openStart=performance.now();
+    if(reduce||(performance.now()-t0)/1000<T_END){t0=performance.now()-(T_END+0.5)*1000;} // completa la ciudad
+    store();
+    const msg=document.createElement("p");msg.className="ok";msg.textContent="DNI válido. Se abren las puertas…";form.appendChild(msg);
+    setTimeout(()=>{
+      if(IN_APP){panel.classList.add("leaving");setTimeout(()=>{const q=new URLSearchParams(location.search).get("next");location.replace(q&&q.startsWith("/")&&!q.startsWith("//")?q:"/");},reduce?0:600);}
+      else{msg.textContent="Acceso concedido. En la app desplegada, aquí se entra a la Visión general.";}
+    },reduce?100:1400);
+  }else{
+    err.textContent="Usuario o contraseña incorrectos.";
+    panel.classList.remove("shake");void panel.offsetWidth;panel.classList.add("shake");
+    document.getElementById("pass").select();
+  }
+});
+
+/* ---------- Arranque ---------- */
+function start(){readColors();layout();}
+start();
+addEventListener("resize",()=>{layout();});
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",readColors);
+new MutationObserver(readColors).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+requestAnimationFrame(draw);
+document.getElementById("user").focus({preventScroll:true});
+</script>
+<!-- trafico-contador (paas) -->
+<script>
+(function(){var E="https://epfszizoeedjjyogmqev.supabase.co/functions/v1/track",A="paas";
+if(/^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname))return;
+function uid(){return crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36)}
+function id(k,s){try{var t=s?sessionStorage:localStorage,v=t.getItem(k);if(!v){v=uid();t.setItem(k,v)}return v}catch(e){return null}}
+function send(o){var d=JSON.stringify(o);try{if(!(navigator.sendBeacon&&navigator.sendBeacon(E,new Blob([d],{type:"text/plain"}))))fetch(E,{method:"POST",body:d,keepalive:true})}catch(e){}}
+function depth(){var h=document.documentElement,b=document.body,sh=Math.max(h.scrollHeight,b?b.scrollHeight:0),vh=innerHeight||h.clientHeight;return sh<=vh+2?100:Math.min(100,Math.round(((scrollY||h.scrollTop)+vh)/sh*100))}
+var last,first=true,pv=null,act=0,secs=0,maxS=0,inter=false,sent="";
+function fin(){if(!pv)return;var k=secs+"|"+maxS+"|"+inter;if(k===sent)return;sent=k;send({ev:"fin",app:A,pv:pv,t:secs,s:maxS,i:inter})}
+function hit(){var p=location.pathname;if(p===last)return;fin();last=p;pv=uid();secs=0;inter=false;sent="";act=Date.now();maxS=depth();
+send({app:A,pv:pv,host:location.hostname,path:p,title:document.title,ref:first?document.referrer:"",lang:navigator.language,wd:navigator.webdriver===true,vid:id("_tv"),sid:id("_ts",1)});first=false}
+function on(){act=Date.now()}
+["click","keydown","touchstart"].forEach(function(e){addEventListener(e,function(){on();inter=true},{passive:true,capture:true})});
+["mousemove","wheel"].forEach(function(e){addEventListener(e,on,{passive:true})});
+addEventListener("scroll",function(){on();var d=depth();if(d>maxS)maxS=d},{passive:true});
+setInterval(function(){if(pv&&document.visibilityState==="visible"&&Date.now()-act<30000&&secs<3600)secs++},1000);
+addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")fin();else on()});
+addEventListener("pagehide",fin);
+var ps=history.pushState;history.pushState=function(){ps.apply(this,arguments);setTimeout(hit,50)};addEventListener("popstate",function(){setTimeout(hit,50)});
+if(document.readyState==="complete")hit();else addEventListener("load",hit);})();
+</script>
+</body>
+</html>

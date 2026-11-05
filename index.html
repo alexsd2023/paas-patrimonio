@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ciudad del Patrimonio · PaaS Patrimonio</title>
+<meta name="description" content="Visión general del PaaS de patrimonio cultural para todos los públicos, explicada como una ciudad: capas, piezas, su función y por qué hacen falta.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script>(function(){var ok=false;try{ok=sessionStorage.getItem("paas-auth")==="1"||localStorage.getItem("paas-auth")==="1";}catch(e){ok=true;}if(!ok){location.replace("/login?next="+encodeURIComponent(location.pathname+location.search+location.hash));}})();</script>
+<style>html{color-scheme:light}img{max-width:100%}[hidden]{display:none!important}body{margin:0}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F2F3F0; --panel:#FFFFFF; --ink:#1B2230; --muted:#5A6272; --line:#D5D8D2; --band:#E8EAE5;
+  --gente:#B0582E; --gente-soft:#F6E6DC;
+  --fronteras:#A8781F; --fronteras-soft:#F5EBD6;
+  --servicios:#2F7D6D; --servicios-soft:#E1EFEB;
+  --edificios:#3F5C9A; --edificios-soft:#E3E8F3;
+  --terreno:#6B5B7A; --terreno-soft:#ECE6F0;
+  --serif:"EB Garamond", Georgia, serif;
+  --sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#13171F; --panel:#1B212C; --ink:#E6E8EC; --muted:#9AA2B1; --line:#2E3645; --band:#20262F;
+    --gente:#E39B72; --gente-soft:#3A261C;
+    --fronteras:#D9AE5C; --fronteras-soft:#3A2F1A;
+    --servicios:#5FB8A4; --servicios-soft:#1C3530;
+    --edificios:#8FA8DE; --edificios-soft:#212B40;
+    --terreno:#B9A6CC; --terreno-soft:#2C2536;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#13171F; --panel:#1B212C; --ink:#E6E8EC; --muted:#9AA2B1; --line:#2E3645; --band:#20262F;
+  --gente:#E39B72; --gente-soft:#3A261C;
+  --fronteras:#D9AE5C; --fronteras-soft:#3A2F1A;
+  --servicios:#5FB8A4; --servicios-soft:#1C3530;
+  --edificios:#8FA8DE; --edificios-soft:#212B40;
+  --terreno:#B9A6CC; --terreno-soft:#2C2536;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;padding-inline:16px;padding-block:28px 48px}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+button{font:inherit;color:inherit}
+button:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--servicios)}
+h1{font-family:var(--serif);font-weight:600;font-size:clamp(30px,4.4vw,46px);line-height:1.08;margin:0;text-wrap:balance}
+h2{font-family:var(--serif);font-weight:600;font-size:clamp(24px,3vw,32px);line-height:1.15;margin:0;text-wrap:balance}
+h3{font-family:var(--serif);font-weight:600;font-size:20px;line-height:1.2;margin:0}
+.lead{margin:0;color:var(--muted);max-width:66ch;font-size:16px}
+.intro{display:flex;flex-direction:column;gap:10px}
+
+/* Colores por capa */
+[data-l="gente"]{--c:var(--gente);--cs:var(--gente-soft)}
+[data-l="fronteras"]{--c:var(--fronteras);--cs:var(--fronteras-soft)}
+[data-l="servicios"]{--c:var(--servicios);--cs:var(--servicios-soft)}
+[data-l="edificios"]{--c:var(--edificios);--cs:var(--edificios-soft)}
+[data-l="terreno"]{--c:var(--terreno);--cs:var(--terreno-soft)}
+
+/* Vista general */
+.overview{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:22px;align-items:start}
+.city{display:flex;flex-direction:column;gap:6px}
+.band{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--c);border-radius:8px;padding:14px 16px;transition:transform .15s,box-shadow .15s,background .15s}
+.band:hover{background:var(--cs);transform:translateX(3px)}
+.band:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.band.core{border-width:2px;border-left-width:6px;border-color:var(--c)}
+.glyph{width:52px;height:52px;border-radius:8px;background:var(--cs);color:var(--c);display:grid;place-items:center}
+.glyph svg{width:36px;height:36px}
+.band .txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.band .an{font-family:var(--serif);font-size:22px;font-weight:600;line-height:1.15}
+.band .tech{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--c)}
+.band .what{font-size:14px;color:var(--muted)}
+.band .go{font-size:13px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.band .go b{font-family:var(--mono);font-weight:500;color:var(--ink)}
+.ground{height:8px;border-radius:0 0 8px 8px;background:repeating-linear-gradient(90deg,var(--terreno) 0 10px,transparent 10px 16px);opacity:.35;margin-top:-2px}
+
+.story{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.story ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px;counter-reset:s}
+.story li{display:grid;grid-template-columns:28px 1fr;gap:10px;counter-increment:s}
+.story li::before{content:counter(s);font-family:var(--mono);font-size:12px;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center}
+.story p{margin:0;font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.chip{all:unset;cursor:pointer;font-family:var(--mono);font-size:11px;padding:1px 8px;border-radius:999px;background:var(--cs);color:var(--c);border:1px solid color-mix(in srgb,var(--c) 40%,transparent)}
+.chip:hover{border-color:var(--c)}
+.chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.hint{font-size:13px;color:var(--muted);margin:0}
+
+/* Vista de capa */
+.layer-view{display:grid;grid-template-columns:120px minmax(0,1fr);gap:22px;align-items:start}
+.crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.crumbs button{all:unset;cursor:pointer;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.crumbs button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.minimap{display:flex;flex-direction:column;gap:4px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px)}
+.minimap .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.mm{all:unset;cursor:pointer;box-sizing:border-box;border-radius:5px;padding:7px 8px;font-size:12px;line-height:1.25;border:1px solid var(--line);border-left:4px solid var(--c);background:var(--panel);color:var(--muted)}
+.mm[aria-current="true"]{background:var(--cs);color:var(--ink);font-weight:600;border-color:var(--c)}
+.mm:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.lhead{display:grid;grid-template-columns:64px minmax(0,1fr);gap:16px;align-items:start;background:var(--cs);border:1px solid color-mix(in srgb,var(--c) 35%,transparent);border-radius:10px;padding:18px}
+.lhead .glyph{width:64px;height:64px;background:var(--panel)}
+.lhead .glyph svg{width:44px;height:44px}
+.lhead .tech{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--c)}
+.lhead p{margin:6px 0 0;max-width:70ch}
+.lhead .why{color:var(--muted);font-size:14px}
+.lcol{display:flex;flex-direction:column;gap:16px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.card{all:unset;box-sizing:border-box;cursor:pointer;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--c);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:6px;transition:box-shadow .15s,transform .15s}
+.card:hover{box-shadow:0 6px 18px rgba(20,25,35,.1);transform:translateY(-2px)}
+.card:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.card .an{font-family:var(--serif);font-size:19px;font-weight:600;line-height:1.2}
+.card .tech{font-family:var(--mono);font-size:10.5px;color:var(--c)}
+.card .what{font-size:14px;color:var(--ink)}
+.card .more{font-size:12.5px;color:var(--muted);margin-top:auto}
+.pager{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.btn{cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:8px 14px;font-size:14px}
+.btn:hover{border-color:var(--ink)}
+.btn[disabled]{opacity:.35;cursor:default}
+
+/* Detalle del elemento */
+.scrim{position:fixed;inset:0;background:rgba(15,18,25,.45);z-index:60;display:grid;place-items:center;padding:16px}
+.detail{background:var(--panel);color:var(--ink);border-radius:12px;border-top:6px solid var(--c);max-width:620px;width:100%;max-height:calc(100vh - 32px);overflow:auto;padding:22px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.detail .top{display:flex;justify-content:space-between;gap:12px;align-items:start}
+.detail .x{all:unset;cursor:pointer;font-size:22px;line-height:1;padding:4px 8px;border-radius:6px;color:var(--muted)}
+.detail .x:hover{background:var(--band);color:var(--ink)}
+.detail .x:focus-visible{outline:2px solid var(--ink)}
+.detail .layerlbl{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--c)}
+.detail h3{font-size:26px}
+.sec{display:grid;grid-template-columns:130px minmax(0,1fr);gap:12px;border-top:1px solid var(--line);padding-top:12px}
+.sec i{font-style:normal;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.sec p{margin:0}
+.sec.analog p{font-family:var(--serif);font-style:italic;font-size:19px;line-height:1.35}
+.sec code{font-family:var(--mono);font-size:12.5px;background:var(--band);padding:1px 6px;border-radius:4px}
+.dnav{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px}
+
+/* Infraestructura y ecosistema */
+.city{gap:14px}
+.zone{border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.zone.eco{border:2px dashed var(--gente);background:color-mix(in srgb,var(--gente-soft) 55%,transparent)}
+.zone.infra{border:2px solid var(--line);background:var(--band)}
+.zone-h{display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline;padding:2px 4px 6px}
+.zone-h b{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:600}
+.zone.eco .zone-h b{color:var(--gente)}
+.zone.infra .zone-h b{color:var(--ink)}
+.zone-h span{font-size:13px;color:var(--muted)}
+.zb{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:1px 7px;border-radius:999px;align-self:flex-start;white-space:nowrap}
+.zb.eco{color:var(--gente);border:1px dashed var(--gente);background:var(--gente-soft)}
+.zb.infra{color:var(--muted);border:1px solid var(--line);background:var(--band)}
+.card.eco{border-top-style:dashed}
+.card .toprow{display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+.ttip[hidden],.tip[hidden]{display:none}
+.lhead h2:focus{outline:none}
+.mm-sep{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.mm-sep.eco{color:var(--gente)}
+.compare{display:flex;flex-direction:column;gap:14px;margin-top:6px}
+.compare .lead2{margin:0;color:var(--muted);max-width:72ch}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ccard{border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.ccard.infra{background:var(--panel);border:2px solid var(--line)}
+.ccard.eco{background:color-mix(in srgb,var(--gente-soft) 55%,var(--panel));border:2px dashed var(--gente)}
+.ccard h3{display:flex;flex-direction:column;gap:2px}
+.ccard h3 small{font-family:var(--sans);font-size:13px;font-weight:400;color:var(--muted)}
+.crow{display:grid;grid-template-columns:118px minmax(0,1fr);gap:10px;border-top:1px solid var(--line);padding-top:8px;font-size:14px}
+.crow i{font-style:normal;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.ccard .btn{align-self:flex-start;margin-top:4px}
+.bridge{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--servicios);border-radius:8px;padding:12px 14px;font-size:14px;margin:0}
+@media (max-width:760px){.cmp{grid-template-columns:1fr}.crow{grid-template-columns:1fr;gap:2px}}
+
+/* Tip técnico */
+.ttip{position:fixed;z-index:90;max-width:340px;background:var(--ink);color:var(--bg);border-radius:8px;padding:11px 13px;display:flex;flex-direction:column;gap:5px;pointer-events:none;font-size:13px;line-height:1.45;box-shadow:0 10px 28px rgba(0,0,0,.25)}
+.ttip .k{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
+.ttip b{font-family:var(--mono);font-size:12.5px;font-weight:500}
+.ttip p{margin:0}
+.ttip .h{font-size:11.5px;opacity:.65;border-top:1px solid color-mix(in srgb,var(--bg) 25%,transparent);padding-top:5px}
+.lhead .tdesc{font-size:13.5px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-top:10px}
+.lhead .tdesc i{font-style:normal;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--c);display:block;margin-bottom:2px}
+
+/* Zoom */
+.zoom-in{animation:zin .38s cubic-bezier(.2,.7,.2,1)}
+@keyframes zin{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+.zoom-out{animation:zout .32s cubic-bezier(.2,.7,.2,1)}
+@keyframes zout{from{opacity:0;transform:scale(1.06)}to{opacity:1;transform:none}}
+.pop{animation:pop .25s ease-out}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.zoom-in,.zoom-out,.pop{animation:none}.band,.card{transition:none}}
+
+@media (max-width:900px){
+  .overview{grid-template-columns:1fr}
+  .layer-view{grid-template-columns:1fr}
+  .minimap{position:static;flex-direction:row;flex-wrap:wrap}
+  .minimap .lbl{width:100%}
+  .mm{flex:1 1 120px}
+}
+@media (max-width:560px){
+  .band{grid-template-columns:44px minmax(0,1fr);padding:12px}
+  .band .go{grid-column:2}
+  .glyph{width:44px;height:44px}
+  .band .an{font-size:19px}
+  .lhead{grid-template-columns:1fr}
+  .sec{grid-template-columns:1fr;gap:4px}
+}
+</style>
+<style>
+.sitenav .out{font:inherit;font-family:var(--sans);font-size:13px;color:var(--muted);background:none;border:1px solid var(--line);border-radius:5px;padding:4px 10px;cursor:pointer;margin-left:6px}
+.sitenav .out:hover{color:var(--ink);border-color:var(--ink)}
+.sitenav{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);margin-inline:-16px;padding:10px 16px;margin-top:-24px;margin-bottom:20px}
+.sitenav .in{max-width:1280px;margin:0 auto;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-content:space-between}
+.sitenav .brand{font-family:var(--serif);font-weight:600;font-size:18px;color:var(--ink);text-decoration:none}
+.sitenav nav{display:flex;flex-wrap:wrap;gap:4px}
+.sitenav nav a{font-family:var(--sans);font-size:13px;color:var(--muted);text-decoration:none;padding:5px 10px;border-radius:5px;border:1px solid transparent}
+.sitenav nav a:hover{color:var(--ink);border-color:var(--line)}
+.sitenav nav a[aria-current="page"]{color:var(--bg);background:var(--ink)}
+.sitenav a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.sitefoot{max-width:1280px;margin:32px auto 0;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;font-family:var(--sans)}
+</style>
+</head>
+<body>
+<div class="sitenav" role="banner"><div class="in"><a class="brand" href="/">PaaS Patrimonio</a><nav aria-label="Secciones"><a href="/" aria-current="page">Visión general</a><a href="/arquitectura">Arquitectura funcional</a><a href="/simulador">Simulador</a><a href="/nucleo">Núcleo de integración (backbone)</a><a href="/backbone">Walking Skeleton</a><a href="/stack">Stack tecnológico</a><button class="out" type="button" onclick="try{sessionStorage.removeItem('paas-auth');localStorage.removeItem('paas-auth');}catch(e){}location.replace('/login')">Salir</button></nav></div></div>
+<div class="wrap">
+  <div class="intro">
+    <div class="eyebrow">Visión general · para todos los públicos</div>
+    <h1>Una ciudad para la memoria escrita</h1>
+    <p class="lead">La plataforma funciona como una ciudad. Hay quienes llegan, puertas con guardia, servicios municipales comunes, edificios donde se trabaja con los documentos y un terreno con redes que lo sostiene todo. Pulsa una capa para acercarte y ver sus piezas; pulsa una pieza para saber qué hace y por qué hace falta. Pasa el ratón por encima de cualquier capa o pieza para ver su nombre técnico. Arriba, con borde discontinuo, está el <b>ecosistema</b>: lo que crece en la ciudad. Debajo, con borde continuo, la <b>infraestructura</b>: lo que se construye y se gobierna.</p>
+  </div>
+  <main id="view" aria-live="polite"></main>
+  <div class="ttip" id="ttip" role="tooltip" hidden></div>
+</div>
+
+<script>
+const G={
+ gente:'<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="14" r="4"/><circle cx="20" cy="11" r="4.5"/><circle cx="29" cy="14" r="4"/><path d="M4 31c0-5 3-8 7-8s7 3 7 8M13 31c0-6 3-10 7-10s7 4 7 10M22 31c0-5 3-8 7-8s7 3 7 8"/></svg>',
+ fronteras:'<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 35V12h6v4h4v-4h6v4h2v-4h6v4h4v-4h6v23"/><path d="M14 35V25a6 6 0 0 1 12 0v10"/><path d="M3 35h34"/></svg>',
+ servicios:'<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 15L20 5l16 10z"/><path d="M8 15v16M14 15v16M20 15v16M26 15v16M32 15v16"/><path d="M4 31h32M3 35h34"/></svg>',
+ edificios:'<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="16" width="10" height="19"/><rect x="15" y="6" width="11" height="29"/><rect x="27" y="12" width="9" height="23"/><path d="M18 11h5M18 16h5M18 21h5M7 21h4M7 26h4M30 17h3M30 22h3M3 35h34"/></svg>',
+ terreno:'<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 11h34"/><path d="M6 11l3-4M14 11l3-4M22 11l3-4M30 11l3-4"/><path d="M4 19h10v8h12v-8h10"/><path d="M4 33c4-3 8 3 12 0s8 3 12 0 6 2 8 0"/></svg>'
+};
+
+const L=[
+ {id:"gente", zone:"eco", an:"Quienes dan vida a la ciudad", tech:"Participantes y relaciones",
+  what:"Las personas y organizaciones que participan, y las relaciones que tejen entre ellas.",
+  why:"Una plataforma de patrimonio solo tiene sentido si sirve a quienes guardan, estudian, reutilizan y recuerdan los documentos. Esto es el ecosistema: no se construye, se cultiva. La infraestructura existe para que crezca, y su éxito se mide por él.",
+  e:[
+   {an:"Los vecinos que traen sus tesoros", tech:"Instituciones: archivos, bibliotecas, museos", what:"Suben sus fondos, los transcriben, los describen y deciden quién puede verlos.", why:"Son los custodios. Sin ellos no hay documentos ni criterio experto.", city:"Los vecinos que traen sus tesoros al registro de la ciudad y deciden cómo se enseñan."},
+   {an:"Los constructores con licencia", tech:"Desarrolladores", what:"Crean aplicaciones y servicios nuevos usando la plataforma como base.", why:"Nadie puede construirlo todo. Abrir la ciudad a constructores multiplica lo que se puede hacer con los documentos.", city:"Los constructores que levantan edificios nuevos siguiendo las ordenanzas, sin tener que trazar calles propias."},
+   {an:"Los visitantes con pasaporte", tech:"Participantes del Data Space: universidades, otros archivos, Europeana, empresas", what:"Acceden a colecciones de otros bajo condiciones acordadas y registradas.", why:"El conocimiento crece cuando se comparte, pero cada archivo necesita saber quién entra y para qué.", city:"Los visitantes de otras ciudades, que entran con pasaporte y conocen las normas antes de cruzar la puerta."},
+   {an:"Los pueblos cuya memoria guarda la ciudad", tech:"Comunidades de origen", what:"Comunidades indígenas a las que conciernen los documentos. Tienen llave propia, voto en las normas de sus colecciones y voz en la descripción.", why:"Muchos documentos de Indias hablan de ellas o los escribieron ellas. Decidir sin ellas repetiría la lógica colonial que produjo el archivo.", city:"Los pueblos cuya historia está en las salas de la ciudad: tienen su propia llave de esas salas y un asiento en el consejo que decide sobre ellas."},
+   {kind:"relacion", an:"Los tratos entre vecinos", tech:"Acuerdos de acceso y uso", what:"Cada vez que un archivo permite a una universidad usar una colección, nace un acuerdo con sus condiciones.", why:"Es la forma básica de colaboración del ecosistema: sin acuerdos no hay intercambio.", city:"Los contratos entre vecinos, que se registran ante notario."},
+   {kind:"relacion", an:"Los locales nuevos", tech:"Módulos y aplicaciones de terceros", what:"Desarrolladores y otras instituciones crean servicios nuevos sobre la plataforma.", why:"El valor de un PaaS está en lo que otros construyen encima.", city:"Los comercios que otros abren en los bajos de la ciudad, sin que el ayuntamiento los planifique."},
+   {kind:"relacion", an:"El saber compartido de los copistas", tech:"Modelos HTR y ground truth compartidos", what:"Las correcciones validadas en un archivo mejoran la transcripción de los fondos de otros.", why:"Cada participante gana con lo que aportan los demás: es el efecto de red del ecosistema.", city:"El gremio de copistas que comparte técnicas entre talleres."},
+   {kind:"relacion", an:"La memoria de los pueblos", tech:"Anotaciones y descripciones comunitarias", what:"Las comunidades añaden su voz, sus nombres y su memoria a los documentos.", why:"Enriquece los fondos y corrige la mirada colonial del archivo.", city:"Las historias que los vecinos cuentan de su barrio, junto a la placa oficial."},
+   {kind:"relacion", an:"Las ciudades hermanas", tech:"Agregadores y otros espacios de datos", what:"Europeana y otros agregadores difunden los fondos fuera de la ciudad.", why:"Da visibilidad y conecta con otros ecosistemas.", city:"Las ciudades hermanadas que reproducen nuestro boletín."},
+   {kind:"relacion", an:"El reparto de beneficios", tech:"Flujos de valor", what:"Cuando hay uso comercial, una parte vuelve a las comunidades y a los archivos.", why:"Un ecosistema en el que solo gana uno se vacía. El reparto lo hace justo y sostenible.", city:"Los impuestos y ayudas que devuelven a los barrios lo que generan."}
+  ]},
+ {id:"fronteras", an:"Puertas y relaciones con otras ciudades", tech:"Entrada y Data Space",
+  what:"Todo lo que entra o sale pasa por aquí, y aquí se aplican las condiciones de cada colección.",
+  why:"Un único punto de control hace posible la seguridad y que las normas de cada archivo y cada comunidad se cumplan siempre, no solo cuando alguien se acuerda.",
+  e:[
+   {an:"Las puertas de la muralla", tech:"Pasarela de APIs · Apache APISIX", what:"Comprueba quién eres, te dirige al edificio correcto y cuenta cuántas veces entras.", why:"Sin una sola puerta, cada edificio tendría que vigilar por su cuenta, y alguno se olvidaría.", city:"Las puertas de la muralla con su guardia: miran el DNI, cobran el peaje e indican la calle."},
+   {an:"La embajada", tech:"Conector del Data Space · FIWARE", what:"Publica el catálogo de colecciones y negocia las condiciones de uso con otras organizaciones.", why:"Permite compartir sin entregar el control: cada acuerdo queda firmado y trazado.", city:"La embajada que firma tratados con otras ciudades y guarda copia de cada uno."},
+   {an:"El control de pasaportes", tech:"Verificador de credenciales · VCVerifier", what:"Comprueba que la credencial de un visitante es auténtica y la emitió alguien de confianza, incluida una comunidad.", why:"La plataforma reconoce a investigadores de otras universidades sin darlos de alta uno a uno, y las comunidades pueden emitir sus propios permisos.", city:"El control de pasaportes, que acepta los documentos de las ciudades y pueblos con los que hay tratado."},
+   {an:"El reglamento de cada puerta", tech:"Motor de políticas · OPA y ODRL", what:"Decide en cada petición si está permitida según las condiciones de la colección.", why:"Condiciones como solo investigación, no entrenar IA o consentimiento comunitario dejan de ser papel y se aplican de verdad.", city:"El reglamento que la guardia consulta cada vez que alguien quiere entrar en una sala concreta."},
+   {an:"La oficina de turismo y la ventanilla de licencias", tech:"Portales · Marketplace y portal de desarrolladores", what:"Donde se ven las colecciones disponibles, se piden accesos y los constructores leen las normas técnicas.", why:"Hace comprensible la ciudad a quien llega por primera vez.", city:"La oficina de turismo con el catálogo de lo que se puede visitar, y la ventanilla donde se piden licencias de obra."},
+   {an:"El boletín oficial", tech:"Proveedor OAI-PMH", what:"Permite que agregadores como Europeana recojan las descripciones de los documentos, solo las que se pueden publicar.", why:"Da visibilidad internacional a los fondos respetando las restricciones.", city:"El boletín oficial que otras ciudades copian y difunden; lo reservado nunca se publica en él."}
+  ]},
+ {id:"servicios", core:true, an:"Los servicios municipales", tech:"Núcleo de integración · backbone",
+  what:"Los servicios comunes que hacen que todo funcione como una sola ciudad.",
+  why:"Si cada edificio tuviera su propio registro, su propio correo y sus propias normas, la ciudad sería un conjunto de islas. Por eso estos servicios se montan primero: todo lo demás depende de ellos.",
+  e:[
+   {an:"Las ordenanzas y el callejero", tech:"Contratos · modelo canónico y esquemas", what:"Las reglas comunes: cómo se llama cada cosa, cómo se escriben los avisos y cómo se identifica a cada persona.", why:"Si todos hablan el mismo idioma, se puede cambiar un edificio sin rehacer la ciudad.", city:"Las ordenanzas municipales y el callejero oficial: todos construyen y numeran igual."},
+   {an:"El registro civil", tech:"Identidad · Keycloak", what:"Da a cada persona una identidad con su institución y su papel: archivera, paleógrafa, investigadora.", why:"Una sola identidad para todo evita contraseñas repetidas y permite saber siempre quién hizo qué.", city:"El registro civil que expide el DNI: dice quién eres y a qué institución perteneces."},
+   {an:"El catastro", tech:"Registro canónico · Scorpio, NGSI-LD", what:"La ficha oficial de cada documento: qué es, en qué fase está y dónde están sus imágenes y transcripciones.", why:"Una única ficha evita versiones contradictorias del mismo legajo en distintos servicios.", city:"El catastro y el registro de la propiedad: la ficha oficial de cada bien, con su dirección y su historia."},
+   {an:"Correos", tech:"Bus de eventos · Kafka", what:"Reparte avisos como «ha llegado un legajo» o «transcripción validada». Cada servicio recibe los que le interesan.", why:"Los servicios no dependen unos de otros: si uno cambia, los demás siguen recibiendo su correo.", city:"El servicio de correos con apartados por tema: cada vecino recibe solo las cartas que le interesan."},
+   {an:"La gestoría", tech:"Motor de procesos · Temporal", what:"Coordina trabajos largos paso a paso y sabe esperar: días hasta que una paleógrafa valida, semanas hasta que decide una asamblea.", why:"Los procesos del patrimonio tienen pausas humanas. Sin esto, los expedientes se perderían por el camino.", city:"La gestoría que lleva tu expediente: sabe en qué trámite está, espera las firmas y avisa al siguiente despacho."},
+   {an:"El notario", tech:"Procedencia · PROV-O", what:"Deja constancia de cada acto: qué hizo cada máquina, qué validó cada persona, quién accedió y cuándo.", why:"Da confianza académica y permite a archivos y comunidades pedir cuentas.", city:"El notario que da fe de cada acto y lo anota en sus libros de protocolo."},
+   {an:"Las cámaras de tráfico", tech:"Observabilidad · OpenTelemetry", what:"Permite seguir el recorrido de un documento por todos los servicios y ver dónde se atasca.", why:"Sin ella, cuando algo falla nadie sabe dónde.", city:"Las cámaras y contadores de tráfico, que permiten seguir un vehículo por toda la ciudad."},
+   {an:"La oficina de urbanismo", tech:"Operador de instituciones · tenants", what:"Al dar de alta un archivo o una comunidad, le crea de una vez su espacio, sus usuarios, su almacén y su conector.", why:"Incorporar una institución pasa de semanas de trabajo técnico a un trámite.", city:"La oficina que urbaniza un barrio nuevo: calles, luz y buzones listos antes de que llegue el primer vecino."}
+  ]},
+ {id:"edificios", an:"Los edificios de la ciudad", tech:"Módulos funcionales",
+  what:"Cada edificio hace un trabajo concreto con los documentos.",
+  why:"Separar los trabajos en edificios permite renovar uno, por ejemplo un transcriptor mejor, sin cerrar la ciudad.",
+  e:[
+   {an:"La sala de lectura", tech:"Imágenes · IIIF", what:"Guarda y muestra las imágenes de los documentos con un zoom muy fino, compatible con visores de todo el mundo.", why:"Los investigadores necesitan ver cada trazo, y IIIF es el estándar internacional para hacerlo.", city:"La sala de lectura y la fototeca, abiertas a lectores de cualquier ciudad."},
+   {an:"El taller de copistas", tech:"Transcripción automática · HTR", what:"Lee la letra procesal y cortesana del siglo XVI y propone una transcripción que después revisa una paleógrafa.", why:"Transcribir a mano miles de folios llevaría décadas. La máquina propone y la persona decide.", city:"El taller de copistas expertos en letra antigua, con una maestra que revisa cada copia."},
+   {an:"La editorial", tech:"Edición · TEI", what:"Convierte la transcripción en una edición académica: versión fiel, versión modernizada y notas.", why:"Es el formato que la comunidad académica usa para ediciones duraderas.", city:"La editorial que prepara ediciones cuidadas, con notas y aparato crítico."},
+   {an:"El archivo municipal", tech:"Descripción archivística · AtoM", what:"Describe los fondos según las normas archivísticas: fondo, serie, legajo.", why:"Mantiene el contexto: un documento suelto dice poco sin saber de dónde viene.", city:"El archivo municipal con sus inventarios, donde cada papel tiene su lugar."},
+   {an:"La cámara acorazada", tech:"Preservación · OAIS", what:"Guarda copias certificadas a largo plazo y comprueba periódicamente que no se han dañado.", why:"Lo digital también se pierde: formatos que caducan, discos que fallan.", city:"La cámara acorazada con copias en dos lugares distintos y revisiones periódicas."},
+   {an:"La biblioteca y su fichero", tech:"Búsqueda y grafo de conocimiento", what:"Permite buscar por palabras, personas, lugares y fechas, y ver cómo se relacionan entre sí.", why:"Encontrar es el primer paso para investigar.", city:"La biblioteca con su fichero y un gran mapa de quién se relaciona con quién."},
+   {an:"El tablón de las voces", tech:"Anotaciones · W3C Web Annotation", what:"Investigadores y comunidades añaden notas, nombres propios y memoria junto a la descripción oficial, sin borrarla.", why:"La historia tiene más de un narrador.", city:"El tablón junto a cada documento donde cada voz añade su versión, firmada."},
+   {an:"La lupa y el mirador", tech:"Lectura cercana y lejana", what:"La lupa sirve para leer un documento a fondo; el mirador, para ver patrones en miles: redes, mapas y temas.", why:"Las humanidades digitales combinan las dos miradas.", city:"La lupa del lector en su mesa y el mirador de la torre desde el que se ve toda la ciudad."},
+   {an:"El laboratorio del taller", tech:"Versionado de modelos · laboratorio con MLflow", what:"Entrena y guarda cada versión de los modelos de transcripción, con los ejemplos que usó y su calidad.", why:"Permite saber qué modelo produjo cada transcripción, mejorarlo sin perder el anterior y retirarlo si una comunidad retira su consentimiento.", city:"El taller donde los maestros copistas ensayan técnicas nuevas y anotan en un libro cada versión: con qué ejemplos se aprendió y desde cuándo se usa."}
+  ]},
+ {id:"terreno", an:"El terreno y las redes", tech:"Infraestructura base",
+  what:"Lo que no se ve pero lo sostiene todo: suelo, tuberías, almacenes y contadores.",
+  why:"Una base sólida y automatizada permite crecer sin que cada ampliación sea una obra.",
+  e:[
+   {an:"El suelo en parcelas", tech:"Contenedores · Kubernetes", what:"Cada servicio ocupa su parcela. Si uno se cae, se levanta solo y no afecta a los vecinos.", why:"Permite crecer y aislar a cada institución.", city:"El suelo urbanizado y dividido en parcelas, con acometidas listas para construir."},
+   {an:"Los almacenes", tech:"Almacenamiento · S3 y PostgreSQL", what:"Donde se guardan las imágenes, los textos y las fichas.", why:"Los fondos ocupan mucho: un solo legajo son varios gigas de imágenes.", city:"Los almacenes y depósitos de la ciudad."},
+   {an:"El registro de obras", tech:"Versionado de código y despliegue · Git, Argo CD y Harbor", what:"Cada cambio de código queda registrado en Git con su versión, y cada pieza se revisa antes de instalarse.", why:"Evita cambios sin control y piezas con fallos de seguridad.", city:"El registro de obras y la inspección de materiales antes de construir."},
+   {an:"El código de edificación", tech:"Seguridad · Kyverno y OpenBao", what:"Normas que toda obra debe cumplir y un lugar seguro para guardar las claves.", why:"Es requisito para trabajar con administraciones públicas (Esquema Nacional de Seguridad).", city:"El código técnico de edificación y la caja de llaves del ayuntamiento."},
+   {an:"Los contadores", tech:"Medición de uso", what:"Mide cuánto usa cada institución: páginas transcritas, almacenamiento y horas de cálculo.", why:"Permite repartir costes con justicia y tener tarifas claras, incluida una modalidad gratuita para comunidades.", city:"Los contadores de agua y luz de cada vecino."},
+   {an:"El almacén de muestras", tech:"Versionado de datos · DVC", what:"Guarda cada versión de los conjuntos de ejemplos con los que se entrenan los modelos, con una etiqueta que la identifica.", why:"Sin saber con qué datos se entrenó un modelo, no se puede reproducir ni rendir cuentas. Cada institución y comunidad guarda sus muestras en su propio almacén.", city:"El almacén de muestras: cada caja con su etiqueta y su fecha, y la llave de cada estante en manos de su dueño."}
+  ]}
+];
+
+const TD={
+ gente:["Ecosistema: actores externos que usan la plataforma a través de la pasarela (tenants, clientes de API, conectores de otros participantes, comunidades emisoras de credenciales) y las relaciones entre ellos. No es software: se apoya en la infraestructura de las cuatro capas inferiores.",[
+  "Tenants de la plataforma. Cada institución es una organización en Keycloak con su espacio de ejecución, su almacenamiento y sus políticas.",
+  "Clientes de API con credenciales OAuth2 (client_credentials). Consumen las APIs REST, NGSI-LD e IIIF publicadas en APISIX y documentadas con OpenAPI.",
+  "Organizaciones externas con su propio conector compatible con el Dataspace Protocol. Se autentican con credenciales verificables (OID4VP).",
+  "Participantes con organización propia, conector opcional y rol de emisor en la Trusted Issuers List. Coautoras de políticas ODRL con doble firma.",
+  "Contratos negociados con el Dataspace Protocol, firmados entre conectores y trazados en PROV-O.",
+  "Módulos que cumplen el contrato de cuatro reglas (OIDC, OpenAPI, CloudEvents, NGSI-LD) y se publican en el catálogo de Backstage.",
+  "Modelos Kraken entrenados con ground truth validado, versionados y ofrecidos en el catálogo del Data Space con sus propias políticas.",
+  "Anotaciones W3C con autoría comunitaria, indexadas como nombres preferentes y registradas en PROV-O.",
+  "Recolección OAI-PMH en EDM y federación con otros espacios de datos mediante el Dataspace Protocol.",
+  "Condiciones de reparto en las políticas ODRL y los contratos, calculadas con el servicio de medición de uso."]],
+ fronteras:["Capa perimetral: API gateway como punto de aplicación de políticas, conector del Data Space, verificación de credenciales verificables, decisión de políticas ODRL, portales y proveedor OAI-PMH.",[
+  "API gateway: valida tokens OIDC, añade cabeceras de tenant, limita peticiones, enruta a los servicios y actúa como Policy Enforcement Point (PEP).",
+  "FIWARE Data Space Connector: catálogo DCAT-AP, negociación de contratos y transferencia según el Dataspace Protocol, basado en Eclipse EDC.",
+  "VCVerifier: comprueba presentaciones de credenciales verificables (OID4VP) contra la Trusted Issuers List y emite tokens de acceso.",
+  "Open Policy Agent como Policy Decision Point (PDP). Las políticas se escriben en ODRL y ODRL-PAP las traduce a reglas evaluables.",
+  "Marketplace basado en las TMForum Open APIs para ofertas y pedidos; portal de desarrolladores con Backstage y especificaciones OpenAPI.",
+  "Endpoint OAI-PMH 2.0 (Identify, ListRecords, resumptionToken, registros borrados) que expone oai_dc, EDM y EAD, filtrado por las políticas."]],
+ servicios:["Núcleo de integración (backbone): contratos compartidos, IAM con Keycloak, registro canónico NGSI-LD en Scorpio, bus de eventos Kafka con CloudEvents, workflows con Temporal, procedencia PROV-O y observabilidad OpenTelemetry.",[
+  "@context JSON-LD del modelo canónico, esquemas JSON de CloudEvents, claims estándar del token OIDC, esquema de identificadores ARK y especificaciones OpenAPI.",
+  "Proveedor de identidad OIDC con organizaciones por tenant y mappers de claims. También emite credenciales verificables (OID4VCI).",
+  "Context Broker NGSI-LD sobre PostgreSQL. Multi-tenant mediante la cabecera NGSILD-Tenant; suscripciones que notifican cambios por HTTP.",
+  "Broker de eventos en modo KRaft. Topics por dominio con mensajes CloudEvents que llevan la extensión tenant.",
+  "Motor de workflows duraderos: estado persistente, reintentos, temporizadores y signals para esperar acciones humanas.",
+  "Servicio que consume los eventos del bus y los traduce a tripletas PROV-O en un triplestore (Jena Fuseki) consultable con SPARQL.",
+  "Instrumentación OpenTelemetry en todos los servicios, con propagación de contexto por HTTP y por cabeceras de Kafka; trazas en Jaeger o Tempo.",
+  "Operador de Kubernetes propio que aprovisiona un tenant: namespace, organización en Keycloak, buckets, tenant NGSI-LD y conector del Data Space."]],
+ edificios:["Microservicios de dominio que se conectan al núcleo mediante el contrato de integración (OIDC, OpenAPI, CloudEvents, NGSI-LD): IIIF, HTR, TEI, descripción archivística, preservación OAIS, búsqueda, anotación y análisis.",[
+  "Servidor IIIF Image API 3 (Cantaloupe) y manifiestos IIIF Presentation 3; visores Mirador o Universal Viewer.",
+  "eScriptorium y Kraken para segmentación y reconocimiento de escritura manuscrita. Salida PAGE-XML, modelos por tipo de letra y GPU bajo demanda.",
+  "Conversión PAGE-XML → TEI P5 con XSLT (Saxon); publicación con TEI Publisher sobre eXist-db.",
+  "Descripción ISAD(G) y EAD en AtoM, con exportación a RiC-O y EDM.",
+  "Archivematica: SIP en BagIt, fixity, identificación de formatos PRONOM (Siegfried), AIP con METS y PREMIS, y DIP para el acceso.",
+  "OpenSearch para texto completo y vectores; triplestore con CIDOC-CRM; reconocimiento de entidades y enlazado con Wikidata y GeoNames.",
+  "Servicio de anotaciones conforme a W3C Web Annotation, con autoría y voz registradas en NGSI-LD y PROV-O.",
+  "Visores sincronizados imagen-texto (Mirador, TEI Publisher) y entorno Jupyter para modelado de temas, redes y estilometría.",
+  "MLflow Model Registry con versiones, métricas (CER) y estado; pipelines de entrenamiento con dvc.yaml; fichas de modelo con datos de origen, consentimiento y licencia; evento modelo.promovido para que el HTR cargue la versión en producción."]],
+ terreno:["Plataforma de ejecución: Kubernetes multi-tenant, almacenamiento de objetos y bases de datos, GitOps con Argo CD, registro de imágenes Harbor, políticas de clúster con Kyverno, secretos con OpenBao y medición de uso.",[
+  "Orquestador de contenedores con aislamiento por namespace o vCluster para cada institución, nodos GPU para HTR y k3s en el piloto.",
+  "Almacenamiento de objetos compatible con S3 (Ceph) para másters y derivados, y PostgreSQL para los servicios; copias en dos ubicaciones.",
+  "Git con versionado semántico de los contratos; GitOps con Helm y Argo CD; imágenes en Harbor etiquetadas con el commit, firmadas y escaneadas.",
+  "Políticas de admisión con Kyverno, gestión de secretos con OpenBao y mTLS entre servicios; alineado con el Esquema Nacional de Seguridad.",
+  "Métricas de consumo por tenant (páginas HTR, minutos de GPU, GB almacenados, peticiones API) para facturación y cuotas.",
+  "DVC: ficheros .dvc en Git y datos en un remoto S3 (Ceph) por institución o comunidad. Versiona ground truth y conjuntos de entrenamiento; no sustituye a la preservación OAIS."]]
+};
+L.forEach(l=>{l.td=TD[l.id][0]; l.e.forEach((e,j)=>e.td=TD[l.id][1][j]);});
+L.forEach(l=>{l.zone=l.zone||"infra";});
+const ZN={eco:"Ecosistema",infra:"Infraestructura"};
+const zb=(z,extra)=>`<span class="zb ${z}">${ZN[z]}${extra?" · "+extra:""}</span>`;
+const kindLbl=e=>e.kind==="relacion"?"Relación":"Actor";
+const IDX=Object.fromEntries(L.map((l,i)=>[l.id,i]));
+
+const STORY=[
+ {t:"Una archivera llega con un legajo notarial de 1562 para digitalizarlo.", l:["gente"]},
+ {t:"Entra por la puerta de la muralla con su DNI del registro civil.", l:["fronteras","servicios"]},
+ {t:"El catastro abre la ficha del legajo y Correos avisa a quien corresponde.", l:["servicios"]},
+ {t:"El taller de copistas propone la transcripción; la gestoría espera a que la paleógrafa la valide.", l:["edificios","servicios"]},
+ {t:"La cámara acorazada guarda dos copias y el notario da fe de todo lo ocurrido.", l:["edificios","servicios"]},
+ {t:"La embajada ofrece el legajo a otras ciudades, con las condiciones acordadas con la comunidad de origen.", l:["fronteras","gente"]}
+];
+
+const view=document.getElementById("view");
+const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+let state={level:0,layer:null,origin:null};
+
+function renderOverview(anim){
+  view.innerHTML=`
+  <div class="overview ${anim||""}">
+    <section aria-label="Capas de la ciudad">
+      <div class="city">
+        <div class="zone eco" role="group" aria-label="Ecosistema">
+          <div class="zone-h"><b>Ecosistema</b><span>lo que crece: quienes participan y las relaciones entre ellos</span></div>
+          ${L.filter(l=>l.zone==="eco").map(l=>`<button class="band${l.core?" core":""}" data-l="${l.id}" data-go="${l.id}" data-tip="L:${l.id}" aria-label="Acercarse a ${esc(l.an)}">
+          <span class="glyph">${G[l.id]}</span>
+          <span class="txt"><span class="tech">${esc(l.tech)}</span><span class="an">${esc(l.an)}</span><span class="what">${esc(l.what)}</span></span>
+          <span class="go"><b>${l.e.length}</b> piezas →</span>
+        </button>`).join("")}
+        </div>
+        <div class="zone infra" role="group" aria-label="Infraestructura">
+          <div class="zone-h"><b>Infraestructura</b><span>lo que se construye y se gobierna para que el ecosistema crezca</span></div>
+          ${L.filter(l=>l.zone==="infra").map(l=>`<button class="band${l.core?" core":""}" data-l="${l.id}" data-go="${l.id}" data-tip="L:${l.id}" aria-label="Acercarse a ${esc(l.an)}">
+          <span class="glyph">${G[l.id]}</span>
+          <span class="txt"><span class="tech">${esc(l.tech)}</span><span class="an">${esc(l.an)}</span><span class="what">${esc(l.what)}</span></span>
+          <span class="go"><b>${l.e.length}</b> piezas →</span>
+        </button>`).join("")}
+          <div class="ground" aria-hidden="true"></div>
+        </div>
+      </div>
+    </section>
+    <aside class="story" aria-label="El viaje de un legajo">
+      <h3>El viaje de un legajo</h3>
+      <ol>${STORY.map(s=>`<li><div><p>${esc(s.t)}</p><div class="chips">${s.l.map(id=>`<button class="chip" data-l="${id}" data-go="${id}" data-tip="L:${id}">${esc(L[IDX[id]].an)}</button>`).join("")}</div></div></li>`).join("")}</ol>
+      <p class="hint">Los servicios municipales son el backbone: se construyen primero porque todo lo demás se apoya en ellos.</p>
+    </aside>
+  </div>
+  <section class="compare ${anim||""}" aria-labelledby="cmpT">
+    <h2 id="cmpT">Infraestructura y ecosistema</h2>
+    <p class="lead2">La infraestructura es lo que se construye; el ecosistema, lo que crece encima. La primera es el entregable del proyecto; el segundo, su objetivo y su medida de éxito.</p>
+    <div class="cmp">
+      <div class="ccard infra">
+        <h3>Infraestructura<small>Las cuatro capas de abajo</small></h3>
+        <div class="crow"><i>Qué es</i><span>Servicios, estándares, protocolos y reglas compartidas.</span></div>
+        <div class="crow"><i>En la ciudad</i><span>Las calles, el registro civil, Correos, el catastro, los edificios públicos, el suelo y las redes.</span></div>
+        <div class="crow"><i>Cómo surge</i><span>Se diseña y se construye.</span></div>
+        <div class="crow"><i>Quién decide</i><span>El operador y el consorcio, con asientos y veto para las comunidades.</span></div>
+        <div class="crow"><i>Cómo se mide</i><span>Disponibilidad, seguridad, cumplimiento de estándares y coste.</span></div>
+        <div class="crow"><i>Cómo fracasa</i><span>Se cae, o deja de cumplir sus propias reglas.</span></div>
+        <button class="btn" data-go="servicios">Ver los servicios municipales →</button>
+      </div>
+      <div class="ccard eco">
+        <h3>Ecosistema<small>La capa de arriba</small></h3>
+        <div class="crow"><i>Qué es</i><span>Quienes participan y las relaciones que tejen: acuerdos, módulos de terceros, modelos compartidos, memoria comunitaria, reparto de beneficios.</span></div>
+        <div class="crow"><i>En la ciudad</i><span>La vida de la ciudad: vecinos, comercios, visitantes, pueblos y sus tratos.</span></div>
+        <div class="crow"><i>Cómo surge</i><span>Emerge. Solo se puede favorecer o desalentar.</span></div>
+        <div class="crow"><i>Quién decide</i><span>Nadie por completo.</span></div>
+        <div class="crow"><i>Cómo se mide</i><span>Participantes y su diversidad, acuerdos firmados, módulos de terceros, comunidades con nodo propio, beneficios repartidos.</span></div>
+        <div class="crow"><i>Cómo fracasa</i><span>Se queda vacío, o lo domina un solo actor.</span></div>
+        <button class="btn" data-go="gente">Ver el ecosistema →</button>
+      </div>
+    </div>
+    <p class="bridge"><b>Dónde se tocan.</b> La infraestructura no decide quién prospera, pero lo condiciona. El nodo comunitario ligero, la doble firma, el reparto de beneficios y la modalidad gratuita son decisiones de infraestructura al servicio de un ecosistema justo.</p>
+  </section>`;
+  view.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>{state.origin=b.dataset.go;go(1,b.dataset.go);}));
+  if(state.origin){const b=view.querySelector(`.band[data-go="${state.origin}"]`); if(b&&anim) b.focus({preventScroll:true});}
+}
+
+function renderLayer(id,anim){
+  const i=IDX[id], l=L[i];
+  view.innerHTML=`
+  <div class="layer-view ${anim||""}" data-l="${l.id}">
+    <nav class="minimap" aria-label="Capas">
+      <span class="lbl">Capas</span>
+      ${L.map((x,k)=>`${k===0||L[k-1].zone!==x.zone?`<span class="mm-sep ${x.zone}">${ZN[x.zone]}</span>`:""}<button class="mm" data-l="${x.id}" data-go="${x.id}" data-tip="L:${x.id}" aria-current="${x.id===id}">${esc(x.an)}</button>`).join("")}
+    </nav>
+    <div class="lcol">
+      <div class="crumbs"><button id="toCity">Toda la ciudad</button><span>›</span><span>${esc(l.an)}</span></div>
+      <header class="lhead">
+        <span class="glyph">${G[l.id]}</span>
+        <div>
+          ${zb(l.zone)} <span class="tech">${esc(l.tech)}</span>
+          <h2>${esc(l.an)}</h2>
+          <p>${esc(l.what)}</p>
+          <p class="why"><b>Por qué existe esta capa.</b> ${esc(l.why)}</p>
+          <p class="tdesc"><i>Descripción técnica</i>${esc(l.td)}</p>
+        </div>
+      </header>
+      <div class="cards">
+        ${l.e.map((e,j)=>`<button class="card ${l.zone}" data-e="${j}" data-tip="E:${l.id}:${j}">
+          <span class="toprow">${zb(l.zone,l.zone==="eco"?kindLbl(e):"")}<span class="tech">${esc(e.tech)}</span></span>
+          <span class="an">${esc(e.an)}</span>
+          <span class="what">${esc(e.what)}</span>
+          <span class="more">Ver por qué hace falta →</span>
+        </button>`).join("")}
+      </div>
+      <div class="pager">
+        <button class="btn" id="prevL" ${i===0?"disabled":""}>↑ ${i>0?esc(L[i-1].an):"Capa anterior"}</button>
+        <button class="btn" id="nextL" ${i===L.length-1?"disabled":""}>${i<L.length-1?esc(L[i+1].an):"Capa siguiente"} ↓</button>
+      </div>
+    </div>
+  </div>`;
+  view.querySelector("#toCity").onclick=()=>go(0);
+  view.querySelectorAll(".mm").forEach(b=>b.onclick=()=>{if(b.dataset.go!==id)go(1,b.dataset.go,"pop");});
+  view.querySelector("#prevL").onclick=()=>{if(i>0)go(1,L[i-1].id,"pop");};
+  view.querySelector("#nextL").onclick=()=>{if(i<L.length-1)go(1,L[i+1].id,"pop");};
+  view.querySelectorAll(".card").forEach(c=>c.onclick=()=>openDetail(id,+c.dataset.e,c));
+}
+
+let lastFocus=null;
+function openDetail(id,j,from){
+  closeDetail(true);
+  lastFocus=from||document.activeElement;
+  const l=L[IDX[id]], e=l.e[j];
+  const s=document.createElement("div"); s.className="scrim"; s.id="scrim";
+  s.innerHTML=`<div class="detail pop" data-l="${l.id}" role="dialog" aria-modal="true" aria-labelledby="dT">
+    <div class="top"><div><span class="layerlbl">${ZN[l.zone]}${l.zone==="eco"?" · "+kindLbl(e):""} · ${esc(l.an)} · pieza ${j+1} de ${l.e.length}</span><h3 id="dT">${esc(e.an)}</h3></div><button class="x" id="dX" aria-label="Cerrar">×</button></div>
+    <div class="sec analog"><i>En la ciudad</i><p>${esc(e.city)}</p></div>
+    <div class="sec"><i>Qué hace</i><p>${esc(e.what)}</p></div>
+    <div class="sec"><i>Por qué hace falta</i><p>${esc(e.why)}</p></div>
+    <div class="sec"><i>Nombre técnico</i><p><code>${esc(e.tech)}</code></p></div>
+    <div class="sec"><i>Descripción técnica</i><p>${esc(e.td)}</p></div>
+    <div class="dnav"><button class="btn" id="dP" ${j===0?"disabled":""}>← Anterior</button><button class="btn" id="dN" ${j===l.e.length-1?"disabled":""}>Siguiente →</button></div>
+  </div>`;
+  document.body.appendChild(s);
+  s.addEventListener("click",ev=>{if(ev.target===s)closeDetail();});
+  s.querySelector("#dX").onclick=()=>closeDetail();
+  s.querySelector("#dP").onclick=()=>{if(j>0)openDetail(id,j-1,view.querySelector(`.card[data-e="${j-1}"]`));};
+  s.querySelector("#dN").onclick=()=>{if(j<l.e.length-1)openDetail(id,j+1,view.querySelector(`.card[data-e="${j+1}"]`));};
+  s.querySelector("#dX").focus();
+}
+function closeDetail(silent){const s=document.getElementById("scrim"); if(s){s.remove(); if(!silent&&lastFocus)lastFocus.focus();}}
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){ if(document.getElementById("scrim")) closeDetail(); else if(state.level===1) go(0); }
+  const s=document.getElementById("scrim");
+  if(s&&e.key==="Tab"){const f=[...s.querySelectorAll("button:not([disabled])")];const a=f[0],z=f[f.length-1];
+    if(e.shiftKey&&document.activeElement===a){e.preventDefault();z.focus();} else if(!e.shiftKey&&document.activeElement===z){e.preventDefault();a.focus();}}
+});
+
+function go(level,id,anim){
+  closeDetail(true);
+  const was=state.level;
+  state.level=level; state.layer=id||null;
+  if(level===0){ renderOverview(was===1?"zoom-out":""); try{history.replaceState(null,"","#vision");}catch(_){} }
+  else { renderLayer(id, anim || (was===0?"zoom-in":"pop")); try{history.replaceState(null,"","#"+id);}catch(_){}
+    const h=view.querySelector(".crumbs"); if(h) h.scrollIntoView({block:"nearest"}); const t=view.querySelector("h2"); if(t){t.setAttribute("tabindex","-1");t.focus({preventScroll:true});} }
+}
+
+/* Tips técnicos al pasar el ratón */
+const tt=document.getElementById("ttip");
+function tipHTML(key){const p=key.split(":");
+  if(p[0]==="L"){const l=L[IDX[p[1]]];return `<span class="k">${ZN[l.zone]} · Nombre técnico de la capa</span><b>${esc(l.tech)}</b><p>${esc(l.td)}</p><span class="h">Pulsa para acercarte a esta capa</span>`;}
+  const l=L[IDX[p[1]]],e=l.e[+p[2]];return `<span class="k">${ZN[l.zone]}${l.zone==="eco"?" · "+kindLbl(e):""} · Nombre técnico</span><b>${esc(e.tech)}</b><p>${esc(e.td)}</p><span class="h">Pulsa para ver la ficha completa</span>`;}
+function placeTip(x,y){const r=tt.getBoundingClientRect(),m=12;let X=x+16,Y=y+18;if(X+r.width>innerWidth-m)X=x-r.width-16;if(X<m)X=m;if(Y+r.height>innerHeight-m)Y=y-r.height-14;if(Y<m)Y=m;tt.style.left=X+"px";tt.style.top=Y+"px";}
+let tipEl=null;
+view.addEventListener("pointerover",e=>{if(e.pointerType==="touch")return;const el=e.target.closest("[data-tip]");if(!el||el===tipEl)return;tipEl=el;tt.innerHTML=tipHTML(el.dataset.tip);tt.hidden=false;placeTip(e.clientX,e.clientY);});
+view.addEventListener("pointermove",e=>{if(tipEl&&e.pointerType!=="touch")placeTip(e.clientX,e.clientY);});
+view.addEventListener("pointerout",e=>{if(!tipEl)return;if(e.relatedTarget&&tipEl.contains(e.relatedTarget))return;tipEl=null;tt.hidden=true;});
+view.addEventListener("focusin",e=>{const el=e.target.closest("[data-tip]");if(!el)return;tipEl=el;tt.innerHTML=tipHTML(el.dataset.tip);tt.hidden=false;const b=el.getBoundingClientRect();placeTip(b.left+Math.min(b.width/2,160),b.bottom-6);});
+view.addEventListener("focusout",()=>{tipEl=null;tt.hidden=true;});
+view.addEventListener("click",()=>{tipEl=null;tt.hidden=true;},true);
+addEventListener("scroll",()=>{tipEl=null;tt.hidden=true;},{passive:true});
+
+const start=(location.hash||"").slice(1);
+if(IDX[start]!==undefined) go(1,start,""); else go(0);
+</script>
+<footer class="sitefoot">Prototipo de arquitectura de referencia. El archivo, las personas y los legajos del simulador son ficticios.</footer>
+<!-- trafico-contador (paas) -->
+<script>
+(function(){var E="https://epfszizoeedjjyogmqev.supabase.co/functions/v1/track",A="paas";
+if(/^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname))return;
+function uid(){return crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36)}
+function id(k,s){try{var t=s?sessionStorage:localStorage,v=t.getItem(k);if(!v){v=uid();t.setItem(k,v)}return v}catch(e){return null}}
+function send(o){var d=JSON.stringify(o);try{if(!(navigator.sendBeacon&&navigator.sendBeacon(E,new Blob([d],{type:"text/plain"}))))fetch(E,{method:"POST",body:d,keepalive:true})}catch(e){}}
+function depth(){var h=document.documentElement,b=document.body,sh=Math.max(h.scrollHeight,b?b.scrollHeight:0),vh=innerHeight||h.clientHeight;return sh<=vh+2?100:Math.min(100,Math.round(((scrollY||h.scrollTop)+vh)/sh*100))}
+var last,first=true,pv=null,act=0,secs=0,maxS=0,inter=false,sent="";
+function fin(){if(!pv)return;var k=secs+"|"+maxS+"|"+inter;if(k===sent)return;sent=k;send({ev:"fin",app:A,pv:pv,t:secs,s:maxS,i:inter})}
+function hit(){var p=location.pathname;if(p===last)return;fin();last=p;pv=uid();secs=0;inter=false;sent="";act=Date.now();maxS=depth();
+send({app:A,pv:pv,host:location.hostname,path:p,title:document.title,ref:first?document.referrer:"",lang:navigator.language,wd:navigator.webdriver===true,vid:id("_tv"),sid:id("_ts",1)});first=false}
+function on(){act=Date.now()}
+["click","keydown","touchstart"].forEach(function(e){addEventListener(e,function(){on();inter=true},{passive:true,capture:true})});
+["mousemove","wheel"].forEach(function(e){addEventListener(e,on,{passive:true})});
+addEventListener("scroll",function(){on();var d=depth();if(d>maxS)maxS=d},{passive:true});
+setInterval(function(){if(pv&&document.visibilityState==="visible"&&Date.now()-act<30000&&secs<3600)secs++},1000);
+addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")fin();else on()});
+addEventListener("pagehide",fin);
+var ps=history.pushState;history.pushState=function(){ps.apply(this,arguments);setTimeout(hit,50)};addEventListener("popstate",function(){setTimeout(hit,50)});
+if(document.readyState==="complete")hit();else addEventListener("load",hit);})();
+</script>
+</body>
+</html>

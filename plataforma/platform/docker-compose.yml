@@ -1,0 +1,116 @@
+# Servicios del walking skeleton · se ejecuta en el servidor Ubuntu
+# Parte 1: Kafka (KRaft, un nodo que hace de broker y de controlador)
+# Parte 4: puente NGSI-LD → CloudEvents
+# Parte 5: consumidores (procedencia y gestoría)
+name: paas
+
+services:
+  kafka:
+    image: apache/kafka:4.0.0
+    container_name: kafka
+    restart: unless-stopped
+    ports:
+      - "9092:9092"            # acceso desde el Mac (EXTERNAL)
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://${KAFKA_HOST:?Define KAFKA_HOST en platform/.env}:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+
+  kafka-init:
+    image: apache/kafka:4.0.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      "
+      for t in activos htr; do
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic $$t --partitions 3 --replication-factor 1
+      done
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --list
+      "
+
+  puente:
+    build:
+      context: ..
+      dockerfile: services/puente/Dockerfile
+    container_name: puente
+    restart: unless-stopped
+    environment:
+      KAFKA_BOOTSTRAP: kafka:29092
+    ports:
+      - "${PUENTE_PORT:-8080}:8080"   # puerto en el servidor (cámbialo en .env si el 8080 está ocupado)
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/salud')"]
+      interval: 10s
+      retries: 5
+
+
+  procedencia:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args: { SERVICIO: procedencia }
+    container_name: procedencia
+    restart: unless-stopped
+    environment:
+      KAFKA_BOOTSTRAP: kafka:29092
+      PROCEDENCIA_RUTA: /data/procedencia.ttl
+    volumes:
+      - procedencia-data:/data
+    ports:
+      - "${PROCEDENCIA_PORT:-8089}:8080"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/salud')"]
+      interval: 10s
+      retries: 5
+
+  gestoria:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args: { SERVICIO: gestoria }
+    container_name: gestoria
+    restart: unless-stopped
+    environment:
+      KAFKA_BOOTSTRAP: kafka:29092
+      GESTORIA_RUTA: /data/gestoria.db
+    volumes:
+      - gestoria-data:/data
+    ports:
+      - "${GESTORIA_PORT:-8090}:8080"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/salud')"]
+      interval: 10s
+      retries: 5
+
+volumes:
+  kafka-data:
+  procedencia-data:
+  gestoria-data:

@@ -1,0 +1,9 @@
+{
+  "name": "paas-patrimonio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Simulador y arquitectura de referencia del PaaS de patrimonio cultural",
+  "scripts": {
+    "dev": "npx serve ."
+  }
+}

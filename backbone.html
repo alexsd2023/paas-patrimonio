@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Walking Skeleton · PaaS Patrimonio</title>
+<meta name="description" content="Walking skeleton del backbone tras los pasos 0 a 8 de montaje, con versionado de código, datos y modelos: componentes por paso y flujo del test de extremo a extremo.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script>(function(){var ok=false;try{ok=sessionStorage.getItem("paas-auth")==="1"||localStorage.getItem("paas-auth")==="1";}catch(e){ok=true;}if(!ok){location.replace("/login?next="+encodeURIComponent(location.pathname+location.search+location.hash));}})();</script>
+<style>html{color-scheme:light}img{max-width:100%}[hidden]{display:none!important}body{margin:0}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F2F3F0; --panel:#FFFFFF; --ink:#1B2230; --muted:#5A6272; --faint:#B7BCC2; --line:#D5D8D2; --band:#E8EAE5;
+  --core:#2F7D6D; --core-soft:#E1EFEB;
+  --flow:#3F5C9A; --flow-soft:#E3E8F3;
+  --human:#B0582E;
+  --crit:#B3261E; --crit-soft:#F8DEDC; --ok:#2F7D6D;
+  --contract:#A8781F; --contract-soft:#F5EBD6;
+  --serif:"EB Garamond", Georgia, serif;
+  --sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#13171F; --panel:#1B212C; --ink:#E6E8EC; --muted:#9AA2B1; --faint:#4A5262; --line:#2E3645; --band:#20262F;
+    --core:#5FB8A4; --core-soft:#1C3530;
+    --flow:#8FA8DE; --flow-soft:#212B40;
+    --human:#E39B72;
+    --crit:#F08A82; --crit-soft:#3E1F1E; --ok:#5FB8A4;
+    --contract:#D9AE5C; --contract-soft:#3A2F1A;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#13171F; --panel:#1B212C; --ink:#E6E8EC; --muted:#9AA2B1; --faint:#4A5262; --line:#2E3645; --band:#20262F;
+  --core:#5FB8A4; --core-soft:#1C3530;
+  --flow:#8FA8DE; --flow-soft:#212B40;
+  --human:#E39B72;
+  --crit:#F08A82; --crit-soft:#3E1F1E; --ok:#5FB8A4;
+  --contract:#D9AE5C; --contract-soft:#3A2F1A;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;padding-inline:16px;padding-block:28px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-direction:column;gap:8px;max-width:800px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--core)}
+h1{font-family:var(--serif);font-weight:600;font-size:clamp(28px,4vw,40px);line-height:1.1;margin:0;text-wrap:balance}
+h2{font-family:var(--serif);font-weight:600;font-size:22px;margin:0}
+header p{margin:0;color:var(--muted);max-width:72ch}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.ctrl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.ctrl label{font-size:13px;font-weight:600}
+.ctrl input[type=range]{width:min(360px,100%);accent-color:var(--core)}
+.ctrl output{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.ticks{display:flex;gap:4px;flex-wrap:wrap}
+.tick{font:inherit;font-family:var(--mono);font-size:11px;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:4px;padding:2px 7px;cursor:pointer}
+.tick[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tick:focus-visible,input:focus-visible{outline:2px solid var(--flow);outline-offset:2px}
+.status{font-size:13px;color:var(--ink);margin:0}
+.status b{color:var(--core)}
+
+.scroll{overflow-x:auto}
+svg.dg{display:block;width:100%;min-width:760px;height:auto}
+.dg text{font-family:var(--sans);fill:var(--ink)}
+.dg .t{font-size:14px;font-weight:600}
+.dg .s{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
+.dg .lbl{font-family:var(--mono);font-size:10.5px;fill:var(--muted);letter-spacing:.06em}
+.dg .box rect.b{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+.dg .box.core rect.b{stroke:var(--core);stroke-width:2}
+.dg .box.own rect.b{stroke:var(--flow);stroke-width:2;stroke-dasharray:0}
+.dg .box.ext rect.b{fill:transparent;stroke:var(--muted);stroke-dasharray:5 4}
+.dg .contract rect{fill:var(--contract-soft);stroke:var(--contract);stroke-width:1.5}
+.dg .otel rect{fill:var(--band);stroke:var(--line);stroke-width:1.5}
+.dg .badge circle{fill:var(--ink)}
+.dg .badge text{fill:var(--bg);font-family:var(--mono);font-size:11px;font-weight:500;text-anchor:middle}
+.dg .own-tag{font-family:var(--mono);font-size:9.5px;fill:var(--flow)}
+.dg .frame{fill:none;stroke:var(--line);stroke-width:1.2;stroke-dasharray:3 4}
+.dg .group{fill:var(--flow-soft);stroke:none;opacity:.55}
+.dg .arrow{fill:none;stroke:var(--flow);stroke-width:1.8}
+.dg .arrow.human{stroke:var(--human);stroke-dasharray:6 4}
+.dg .n circle{fill:var(--panel);stroke:var(--flow);stroke-width:1.5}
+.dg .n.human circle{stroke:var(--human)}
+.dg .n text{font-family:var(--mono);font-size:10.5px;text-anchor:middle;fill:var(--flow);font-weight:500}
+.dg .n.human text{fill:var(--human)}
+.dg .dim{opacity:.16}
+.dg g{transition:opacity .25s}
+@media (prefers-reduced-motion: reduce){ .dg g{transition:none} }
+
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:22px;height:12px;border-radius:2px;border:2px solid var(--k);background:var(--ks,transparent)}
+.ln{width:22px;height:0;border-top:2px solid var(--k)}
+.ln.d{border-top-style:dashed}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;vertical-align:top;padding:7px 8px;border-bottom:1px solid var(--line)}
+th{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted)}
+tr.done td{color:var(--ink)}
+tr.todo td{color:var(--muted)}
+tr.cur td{background:var(--core-soft)}
+code{font-family:var(--mono);font-size:12px}
+@media (max-width:900px){ .two{grid-template-columns:1fr} }
+
+/* Ventana emergente */
+.dg [data-k]{cursor:help}
+.dg [data-k]:focus{outline:none}
+.dg .box:hover rect.b,.dg .box:focus rect.b,.dg .box.hot rect.b{stroke-width:3}
+.dg .contract:hover rect,.dg .contract:focus rect,.dg .otel:hover rect,.dg .otel:focus rect{stroke-width:2.5}
+.dg .contract:focus-visible rect,.dg .otel:focus-visible rect,.dg .box:focus-visible rect.b{stroke:var(--ink)}
+.tip{position:fixed;z-index:100;max-width:330px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 30px rgba(20,25,35,.18);padding:12px 14px;display:flex;flex-direction:column;gap:8px;pointer-events:none;font-size:13px;line-height:1.45}
+.tip h3{margin:0;font-family:var(--serif);font-size:18px;font-weight:600;line-height:1.15}
+.tip .kind{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tip .kind.bb{color:var(--core)}
+.tip p{margin:0}
+.tip .an{border-top:1px solid var(--line);padding-top:8px;display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:start}
+.tip .an i{font-style:normal;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--contract);padding-top:2px}
+.tip .an span{font-style:italic}
+
+/* ---- Test paso a paso ---- */
+.what{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.what div{display:flex;flex-direction:column;gap:4px;border-top:3px solid var(--core);padding-top:8px}
+.what b{font-family:var(--serif);font-size:18px;font-weight:600}
+.what span{font-size:13.5px;color:var(--muted)}
+.runlayout{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:16px;align-items:start}
+.runmain{display:flex;flex-direction:column;gap:12px;min-width:0}
+.runpanel{position:sticky;top:calc(env(safe-area-inset-top,0px) + 64px);display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);border-radius:8px;padding:14px;background:var(--bg);max-height:calc(100vh - 80px);overflow:auto}
+.runpanel h2{font-size:20px}
+.runpanel .pi{margin:0;font-size:13px;color:var(--muted)}
+.rbtns{display:flex;flex-wrap:wrap;gap:6px}
+.rb{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:5px;padding:6px 11px}
+.rb.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.rb:disabled{opacity:.4;cursor:default}
+.rb:focus-visible,.brk select:focus-visible{outline:2px solid var(--flow);outline-offset:2px}
+.brk{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+.brk select{font:inherit;font-size:12.5px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:3px 4px;max-width:100%}
+.tprog{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.tstep{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--flow);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.tstep.ok{border-left-color:var(--ok)}
+.tstep.bad{border-left-color:var(--crit);background:var(--crit-soft)}
+.tstep h3{margin:0;font-family:var(--serif);font-size:18px;font-weight:600;line-height:1.2;display:flex;gap:8px;align-items:baseline}
+.tstep h3 .num{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--bg);background:var(--flow);border-radius:999px;padding:1px 7px}
+.tstep .row{display:flex;flex-direction:column;gap:1px;font-size:13px}
+.tstep .row i{font-style:normal;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tstep .row.city span{font-family:var(--serif);font-style:italic;font-size:15px}
+.tstep pre{margin:0;font-family:var(--mono);font-size:11px;line-height:1.5;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:8px;overflow-x:auto;white-space:pre}
+.tstep .res{font-size:13px;font-weight:600}
+.tstep .res.ok{color:var(--ok)} .tstep .res.bad{color:var(--crit)} .tstep .res.pend{color:var(--muted);font-weight:400}
+.tlog{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;font-family:var(--mono);font-size:11px}
+.tlog li{display:grid;grid-template-columns:16px 1fr;gap:4px}
+.tlog li.ok b{color:var(--ok)} .tlog li.bad b{color:var(--crit)} .tlog li.int b{color:var(--muted)}
+.tlog li.end{margin-top:4px;font-weight:600}
+.dg.running .flow{opacity:.15}
+.dg.running .flow.done{opacity:.6}
+.dg.running .flow.hot{opacity:1}
+.dg .flow.hot path.arrow{stroke-width:3.4}
+.dg .flow.fail{opacity:1!important}
+.dg .flow.fail path.arrow{stroke:var(--crit);stroke-dasharray:5 4}
+.dg .box.fail rect.b{stroke:var(--crit);stroke-width:3;stroke-dasharray:6 4}
+.code{margin:0;font-family:var(--mono);font-size:12px;line-height:1.55;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:12px 0;overflow-x:auto}
+.code .cl{display:block;padding:0 14px;white-space:pre;border-left:3px solid transparent}
+.code .cl.cmt{color:var(--muted)}
+.code .cl.cur{background:var(--flow-soft);border-left-color:var(--flow)}
+.code .cl.ok{border-left-color:var(--ok)}
+.code .cl.bad{background:var(--crit-soft);border-left-color:var(--crit)}
+.two>.card{min-width:0;overflow-x:auto}
+@media (max-width:600px){td.num{white-space:normal}.two{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:1060px){.runlayout{grid-template-columns:1fr}.runpanel{position:static;max-height:none}}
+@media (max-width:700px){.what{grid-template-columns:1fr}}
+.intro-flow{display:flex;flex-direction:column;gap:8px;max-width:78ch;font-size:15px}
+.intro-flow p{margin:0;color:var(--ink)}
+.intro-flow ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:5px}
+.intro-flow ul{margin:4px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:2px}
+.intro-flow li{color:var(--ink)}
+.intro-flow li::marker{color:var(--core);font-family:var(--mono);font-size:13px}
+</style>
+<style>
+.sitenav .out{font:inherit;font-family:var(--sans);font-size:13px;color:var(--muted);background:none;border:1px solid var(--line);border-radius:5px;padding:4px 10px;cursor:pointer;margin-left:6px}
+.sitenav .out:hover{color:var(--ink);border-color:var(--ink)}
+.sitenav{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);margin-inline:-16px;padding:10px 16px;margin-top:-24px;margin-bottom:20px}
+.sitenav .in{max-width:1280px;margin:0 auto;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-content:space-between}
+.sitenav .brand{font-family:var(--serif);font-weight:600;font-size:18px;color:var(--ink);text-decoration:none}
+.sitenav nav{display:flex;flex-wrap:wrap;gap:4px}
+.sitenav nav a{font-family:var(--sans);font-size:13px;color:var(--muted);text-decoration:none;padding:5px 10px;border-radius:5px;border:1px solid transparent}
+.sitenav nav a:hover{color:var(--ink);border-color:var(--line)}
+.sitenav nav a[aria-current="page"]{color:var(--bg);background:var(--ink)}
+.sitenav a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.sitefoot{max-width:1280px;margin:32px auto 0;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;font-family:var(--sans)}
+</style>
+</head>
+<body>
+<div class="sitenav" role="banner"><div class="in"><a class="brand" href="/">PaaS Patrimonio</a><nav aria-label="Secciones"><a href="/">Visión general</a><a href="/arquitectura">Arquitectura funcional</a><a href="/simulador">Simulador</a><a href="/nucleo">Núcleo de integración (backbone)</a><a href="/backbone" aria-current="page">Walking Skeleton</a><a href="/stack">Stack tecnológico</a><button class="out" type="button" onclick="try{sessionStorage.removeItem('paas-auth');localStorage.removeItem('paas-auth');}catch(e){}location.replace('/login')">Salir</button></nav></div></div>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Backbone · esqueleto de extremo a extremo</div>
+    <h1>Walking Skeleton</h1>
+    <div class="intro-flow">
+      <p>Llega la archivera con un legajo y se identifica con su DNI en el registro civil (Keycloak).</p>
+      <ol>
+        <li>Entra por la puerta de la muralla (APISIX), que comprueba el DNI y la dirige a la sala de lectura.</li>
+        <li>La sala de lectura (adaptador IIIF) guarda las imágenes y las inscribe en el catastro.</li>
+        <li>El catastro (Scorpio) crea la ficha del nuevo legajo y avisa de la inscripción.</li>
+        <li>Correos (puente y Kafka) reparte la carta "ha llegado un legajo" a todos los apuntados:
+          <ul>
+            <li>la gestoría abre el expediente;</li>
+            <li>el notario levanta acta.</li>
+          </ul>
+        </li>
+        <li>La gestoría encarga la copia al taller (HTR), que hace la transcripción automática y la inscribe también en el catastro, que avisa de nuevo con "copia terminada".</li>
+        <li>La paleógrafa revisa y valida la copia. La gestoría cierra el expediente.</li>
+        <li>Con la copia validada, la editorial prepara la edición y ya es posible la lectura cercana.</li>
+      </ol>
+    </div>
+  </header>
+
+  <div class="card">
+    <h2>Qué es y cómo se comprueba</h2>
+    <div class="what">
+      <div><b>1 · Una pieza mínima de cada servicio</b><span>Se monta lo justo de cada servicio del núcleo: identidad, entrada, catastro, correo, gestoría, notario… Ninguna está terminada.</span></div>
+      <div><b>2 · Un test que hace de usuarios</b><span>Un programa automático hace de archivera y de paleógrafa y recorre la plataforma de punta a punta: 16 tramos.</span></div>
+      <div><b>3 · Si pasa, el esqueleto camina</b><span>Se ejecuta en cada cambio de código. Si algo se rompe, el test dice en qué tramo. Pulsa «Ejecutar el test» o rompe una pieza para verlo.</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ctrl">
+      <label for="step">Montado hasta el paso</label>
+      <input id="step" type="range" min="0" max="8" value="8" step="1">
+      <output id="stepOut" for="step">8 · Versionado y modelos</output>
+      <div class="ticks" id="ticks" role="group" aria-label="Ir a un paso"></div>
+    </div>
+    <p class="status" id="status"></p>
+    <div class="tip" id="tip" role="tooltip" hidden></div>
+
+    <div class="runlayout">
+    <div class="runmain">
+    <div class="scroll">
+    <svg class="dg" id="dg" viewBox="0 0 1120 730" role="img" aria-labelledby="dgTitle dgDesc">
+      <title id="dgTitle">Walking skeleton del backbone</title>
+      <desc id="dgDesc">Contratos arriba; cliente de pruebas, Keycloak y APISIX a la izquierda; módulos IIIF y HTR simulado con Temporal en el centro; abajo a la izquierda, Git, datos versionados con DVC y laboratorio de modelos; Scorpio, puente y Kafka a la derecha; procedencia y Fuseki al extremo; OpenTelemetry abajo.</desc>
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--flow)"/></marker>
+        <marker id="ahh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--human)"/></marker>
+      </defs>
+
+      <!-- Paso 0: contratos -->
+      <g class="contract" data-step="0">
+        <rect x="20" y="16" width="1080" height="54" rx="6"/>
+        <text class="t" x="40" y="40">Contratos</text>
+        <text class="s" x="40" y="58">contracts/ · @context JSON-LD · esquemas CloudEvents · claims del token (tenant, proyecto, roles) · ARK · OpenAPI</text>
+        <text class="s" x="1060" y="62" text-anchor="end">los usan todos los servicios</text>
+        <g class="badge"><circle cx="1078" cy="38" r="11"/><text x="1078" y="42">0</text></g>
+      </g>
+
+      <!-- Marco de Docker Compose -->
+      <rect class="frame" x="195" y="84" width="918" height="570" rx="8"/>
+      <text class="lbl" x="905" y="102">platform/docker-compose.yml</text>
+
+      <!-- Grupo de módulos -->
+      <g data-step="4">
+        <rect class="group" x="435" y="190" width="220" height="230" rx="8"/>
+        <text class="lbl" x="447" y="208">MÓDULOS · SDK</text>
+      </g>
+
+      <!-- Cliente / test e2e (siempre) -->
+      <g class="box ext" data-step="0" data-always="1">
+        <rect class="b" x="20" y="214" width="160" height="80" rx="6"/>
+        <text class="t" x="34" y="240">Test e2e (CI)</text>
+        <text class="s" x="34" y="258">tests/e2e/ · pytest</text>
+        <text class="s" x="34" y="274">hace de cliente y</text>
+        <text class="s" x="34" y="287">de paleógrafa</text>
+      </g>
+
+      <!-- Paso 1 -->
+      <g class="box core" data-step="1">
+        <rect class="b" x="210" y="100" width="190" height="64" rx="6"/>
+        <text class="t" x="224" y="126">Keycloak</text>
+        <text class="s" x="224" y="144">realm · organizaciones</text>
+        <text class="s" x="224" y="157">mappers de claims</text>
+        <g class="badge"><circle cx="388" cy="100" r="11"/><text x="388" y="104">1</text></g>
+      </g>
+      <g class="box core" data-step="1">
+        <rect class="b" x="210" y="220" width="190" height="64" rx="6"/>
+        <text class="t" x="224" y="246">APISIX</text>
+        <text class="s" x="224" y="264">openid-connect · X-Tenant</text>
+        <text class="s" x="224" y="277">límite por tenant</text>
+        <g class="badge"><circle cx="388" cy="220" r="11"/><text x="388" y="224">1</text></g>
+      </g>
+
+      <!-- Paso 6: adaptador IIIF -->
+      <g class="box own" data-step="6">
+        <rect class="b" x="450" y="220" width="190" height="64" rx="6"/>
+        <text class="t" x="464" y="246">Adaptador IIIF</text>
+        <text class="s" x="464" y="264">modules/iiif-adapter</text>
+        <text class="own-tag" x="464" y="277">código propio · usa el SDK</text>
+        <g class="badge"><circle cx="628" cy="220" r="11"/><text x="628" y="224">6</text></g>
+      </g>
+      <!-- Paso 4: HTR simulado -->
+      <g class="box own" data-step="4">
+        <rect class="b" x="450" y="340" width="190" height="64" rx="6"/>
+        <text class="t" x="464" y="366">HTR simulado</text>
+        <text class="s" x="464" y="384">modules/htr-mock</text>
+        <text class="own-tag" x="464" y="397">código propio</text>
+        <g class="badge"><circle cx="628" cy="340" r="11"/><text x="628" y="344">4</text></g>
+      </g>
+      <!-- Paso 4: Temporal -->
+      <g class="box core" data-step="4">
+        <rect class="b" x="450" y="470" width="190" height="64" rx="6"/>
+        <text class="t" x="464" y="496">Temporal + worker</text>
+        <text class="s" x="464" y="514">TranscripcionEstandar</text>
+        <text class="s" x="464" y="527">espera signal de validación</text>
+        <g class="badge"><circle cx="628" cy="470" r="11"/><text x="628" y="474">4</text></g>
+      </g>
+
+      <!-- Paso 2 -->
+      <g class="box core" data-step="2">
+        <rect class="b" x="700" y="220" width="190" height="64" rx="6"/>
+        <text class="t" x="714" y="246">Scorpio + PostgreSQL</text>
+        <text class="s" x="714" y="264">NGSI-LD · NGSILD-Tenant</text>
+        <text class="s" x="714" y="277">suscripciones</text>
+        <g class="badge"><circle cx="878" cy="220" r="11"/><text x="878" y="224">2</text></g>
+      </g>
+      <!-- Paso 3 -->
+      <g class="box own" data-step="3">
+        <rect class="b" x="700" y="340" width="190" height="64" rx="6"/>
+        <text class="t" x="714" y="366">Puente de eventos</text>
+        <text class="s" x="714" y="384">services/puente · NGSI→CE</text>
+        <text class="own-tag" x="714" y="397">código propio</text>
+        <g class="badge"><circle cx="878" cy="340" r="11"/><text x="878" y="344">3</text></g>
+      </g>
+      <g class="box core" data-step="3">
+        <rect class="b" x="700" y="470" width="190" height="64" rx="6"/>
+        <text class="t" x="714" y="496">Kafka (KRaft)</text>
+        <text class="s" x="714" y="514">topics: activos · htr</text>
+        <text class="s" x="714" y="527">CloudEvents + tenant</text>
+        <g class="badge"><circle cx="878" cy="470" r="11"/><text x="878" y="474">3</text></g>
+      </g>
+
+      <!-- Paso 5 -->
+      <g class="box own" data-step="5">
+        <rect class="b" x="930" y="470" width="170" height="64" rx="6"/>
+        <text class="t" x="944" y="496">Procedencia</text>
+        <text class="s" x="944" y="514">services/procedencia</text>
+        <text class="own-tag" x="944" y="527">código propio</text>
+        <g class="badge"><circle cx="1088" cy="470" r="11"/><text x="1088" y="474">5</text></g>
+      </g>
+      <g class="box core" data-step="5">
+        <rect class="b" x="930" y="580" width="170" height="60" rx="6"/>
+        <text class="t" x="944" y="605">Jena Fuseki</text>
+        <text class="s" x="944" y="623">grafo PROV-O · SPARQL</text>
+        <g class="badge"><circle cx="1088" cy="580" r="11"/><text x="1088" y="584">5</text></g>
+      </g>
+
+      <!-- Paso 7 -->
+      <g class="otel" data-step="7">
+        <rect x="20" y="668" width="1080" height="48" rx="6"/>
+        <text class="t" x="40" y="690">OpenTelemetry → Jaeger / Tempo</text>
+        <text class="s" x="40" y="707">todos los servicios exportan trazas; el contexto viaja por HTTP y por las cabeceras de Kafka · el flujo 1–16 se ve como una sola traza</text>
+        <g class="badge"><circle cx="1078" cy="690" r="11"/><text x="1078" y="694">7</text></g>
+      </g>
+
+      <!-- Paso 8: versionado de código, datos y modelos -->
+      <g class="box core" data-step="0">
+        <rect class="b" x="20" y="560" width="160" height="64" rx="6"/>
+        <text class="t" x="34" y="586">Git + CI</text>
+        <text class="s" x="34" y="604">código y contratos</text>
+        <text class="s" x="34" y="617">versión = commit SHA</text>
+        <g class="badge"><circle cx="168" cy="560" r="11"/><text x="168" y="564">0</text></g>
+      </g>
+      <g class="box core" data-step="8">
+        <rect class="b" x="210" y="560" width="190" height="64" rx="6"/>
+        <text class="t" x="224" y="586">Datos versionados</text>
+        <text class="s" x="224" y="604">DVC · remoto S3 por</text>
+        <text class="s" x="224" y="617">institución o comunidad</text>
+        <g class="badge"><circle cx="388" cy="560" r="11"/><text x="388" y="564">8</text></g>
+      </g>
+      <g class="box own" data-step="8">
+        <rect class="b" x="210" y="340" width="190" height="64" rx="6"/>
+        <text class="t" x="224" y="366">Lab. de modelos</text>
+        <text class="s" x="224" y="384">MLflow · pipeline dvc.yaml</text>
+        <text class="own-tag" x="224" y="397">entrena y registra versiones</text>
+        <g class="badge"><circle cx="388" cy="340" r="11"/><text x="388" y="344">8</text></g>
+      </g>
+
+      <!-- Flujos (data-need = pasos que deben existir) -->
+      <g class="flow" data-need="1"><path class="arrow" d="M100,214 V132 H206" marker-end="url(#ah)"/><g class="n"><circle cx="100" cy="170" r="10"/><text x="100" y="174">1</text></g></g>
+      <g class="flow" data-need="1"><path class="arrow" d="M180,252 H206" marker-end="url(#ah)"/><g class="n"><circle cx="193" cy="236" r="10"/><text x="193" y="240">2</text></g></g>
+      <g class="flow" data-need="1,6"><path class="arrow" d="M400,252 H446" marker-end="url(#ah)"/><g class="n"><circle cx="424" cy="236" r="10"/><text x="424" y="240">3</text></g></g>
+      <g class="flow" data-need="2,6"><path class="arrow" d="M640,252 H696" marker-end="url(#ah)"/><g class="n"><circle cx="668" cy="236" r="10"/><text x="668" y="240">4</text></g></g>
+      <g class="flow" data-need="2,3"><path class="arrow" d="M795,284 V336" marker-end="url(#ah)"/><g class="n"><circle cx="812" cy="312" r="10"/><text x="812" y="316">5</text></g></g>
+      <g class="flow" data-need="3"><path class="arrow" d="M795,404 V466" marker-end="url(#ah)"/><g class="n"><circle cx="812" cy="437" r="10"/><text x="812" y="441">6</text></g></g>
+      <g class="flow" data-need="3,4"><path class="arrow" d="M700,515 H644" marker-end="url(#ah)"/><g class="n"><circle cx="672" cy="531" r="10"/><text x="672" y="535">7</text></g></g>
+      <g class="flow" data-need="4"><path class="arrow" d="M545,470 V408" marker-end="url(#ah)"/><g class="n"><circle cx="528" cy="438" r="10"/><text x="528" y="442">8</text></g></g>
+      <g class="flow" data-need="2,4"><path class="arrow" d="M640,356 C672,356 672,272 696,272" marker-end="url(#ah)"/><g class="n"><circle cx="672" cy="314" r="10"/><text x="672" y="318">9</text></g></g>
+      <g class="flow" data-need="3,4"><path class="arrow" d="M640,390 C674,390 674,488 696,488" marker-end="url(#ah)"/><g class="n"><circle cx="675" cy="440" r="10"/><text x="675" y="444">10</text></g></g>
+      <g class="flow" data-need="3,5"><path class="arrow" d="M890,502 H926" marker-end="url(#ah)"/><g class="n"><circle cx="908" cy="486" r="10"/><text x="908" y="490">11</text></g></g>
+      <g class="flow" data-need="5"><path class="arrow" d="M1015,534 V576" marker-end="url(#ah)"/><g class="n"><circle cx="1032" cy="556" r="10"/><text x="1032" y="560">12</text></g></g>
+      <g class="flow" data-need="4"><path class="arrow human" d="M100,294 V500 H446" marker-end="url(#ahh)"/><g class="n human"><circle cx="100" cy="410" r="10"/><text x="100" y="414">13</text></g></g>
+      <g class="flow" data-need="8"><path class="arrow" d="M180,592 H206" marker-end="url(#ah)"/><g class="n"><circle cx="193" cy="576" r="10"/><text x="193" y="580">14</text></g></g>
+      <g class="flow" data-need="8"><path class="arrow" d="M305,560 V408" marker-end="url(#ah)"/><g class="n"><circle cx="322" cy="470" r="10"/><text x="322" y="474">15</text></g></g>
+      <g class="flow" data-need="4,8"><path class="arrow" d="M400,372 H446" marker-end="url(#ah)"/><g class="n"><circle cx="423" cy="356" r="10"/><text x="423" y="360">16</text></g></g>
+    </svg>
+    </div>
+
+    <div class="legend">
+      <span style="--k:var(--core)"><i class="sw"></i>Componente de terceros</span>
+      <span style="--k:var(--flow)"><i class="sw"></i>Código propio</span>
+      <span style="--k:var(--contract);--ks:var(--contract-soft)"><i class="sw"></i>Contratos</span>
+      <span style="--k:var(--flow)"><i class="ln"></i>Flujo del test e2e</span>
+      <span style="--k:var(--human)"><i class="ln d"></i>Validación humana simulada</span>
+    </div>
+    </div>
+    <aside class="runpanel" aria-label="El test paso a paso">
+      <h2>El test, paso a paso</h2>
+      <p class="pi">Un programa hace de archivera y de paleógrafa y recorre la plataforma. Cada tramo se ilumina en el diagrama.</p>
+      <div class="rbtns">
+        <button class="rb primary" id="tRun" type="button">▶ Ejecutar el test</button>
+        <button class="rb" id="tNext" type="button">Paso a paso →</button>
+        <button class="rb" id="tReset" type="button">⟲ Reiniciar</button>
+      </div>
+      <label class="brk" for="tBreak">Romper una pieza
+        <select id="tBreak">
+          <option value="">Ninguna (todo funciona)</option>
+          <option value="kc">Keycloak (registro civil)</option>
+          <option value="gw">APISIX (puerta de la muralla)</option>
+          <option value="iiif">Adaptador IIIF (sala de lectura)</option>
+          <option value="sc">Scorpio (catastro)</option>
+          <option value="br">Puente de eventos (oficina de Correos)</option>
+          <option value="kf">Kafka (Correos)</option>
+          <option value="tp">Temporal (gestoría)</option>
+          <option value="htr">HTR simulado (taller de copistas)</option>
+          <option value="pv">Procedencia (notario)</option>
+          <option value="lab">Laboratorio de modelos</option>
+        </select>
+      </label>
+      <span class="tprog" id="tProg">Tramo 0 de 16</span>
+      <div class="tstep" id="tStep" aria-live="polite"></div>
+      <ol class="tlog" id="tLog" aria-label="Resultado del test"></ol>
+    </aside>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>El código del test</h2>
+    <p class="status">Este es el test de extremo a extremo, escrito en Python (simplificado). Vive en <code>tests/e2e/</code> y se ejecuta en cada cambio de código. La línea del tramo en curso se resalta.</p>
+    <pre class="code" id="tCode" aria-label="Código del test"></pre>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <h2>El flujo del test de extremo a extremo</h2>
+      <table>
+        <thead><tr><th>#</th><th>Qué pasa</th></tr></thead>
+        <tbody id="flowRows">
+          <tr><td class="num">1</td><td>El test pide un token a Keycloak con <code>tenant</code>, <code>proyecto</code> y <code>roles</code>.</td></tr>
+          <tr><td class="num">2</td><td>Sube un legajo de prueba a <code>POST /api/v1/ingestas</code> con ese token.</td></tr>
+          <tr><td class="num">3</td><td>APISIX valida el token y enruta al adaptador IIIF con <code>X-Tenant</code>.</td></tr>
+          <tr><td class="num">4</td><td>El adaptador crea el <code>ActivoPatrimonial</code> en Scorpio con <code>NGSILD-Tenant</code>.</td></tr>
+          <tr><td class="num">5</td><td>La suscripción de Scorpio notifica al puente por HTTP.</td></tr>
+          <tr><td class="num">6</td><td>El puente publica <code>legajo.ingestado</code> como CloudEvent en Kafka.</td></tr>
+          <tr><td class="num">7</td><td>Un consumidor arranca el workflow <code>TranscripcionEstandar</code> en Temporal.</td></tr>
+          <tr><td class="num">8</td><td>El workflow ejecuta la actividad del HTR simulado.</td></tr>
+          <tr><td class="num">9</td><td>El HTR simulado registra la <code>Transcripcion</code> en Scorpio.</td></tr>
+          <tr><td class="num">10</td><td>Publica <code>htr.completado</code> en Kafka.</td></tr>
+          <tr><td class="num">11</td><td>Procedencia consume los eventos.</td></tr>
+          <tr><td class="num">12</td><td>Escribe las trazas PROV-O en Fuseki.</td></tr>
+          <tr><td class="num">13</td><td>El test envía la signal de validación y el workflow termina. Comprueba estado y procedencia.</td></tr>
+          <tr><td class="num">14</td><td>El commit del pipeline fija qué versión de los datos se usa: el fichero <code>.dvc</code> guarda su hash.</td></tr>
+          <tr><td class="num">15</td><td>El laboratorio entrena con ese dataset versionado y registra el modelo en MLflow con su CER, el hash de datos y el commit.</td></tr>
+          <tr><td class="num">16</td><td>Al promover una versión (<code>modelo.promovido</code>), el HTR la carga; cada <code>Transcripcion</code> guarda qué versión la produjo y procedencia enlaza modelo → dataset → commit.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Qué queda funcionando en cada paso</h2>
+      <table>
+        <thead><tr><th>Paso</th><th>Semana</th><th>Hecho cuando</th></tr></thead>
+        <tbody id="stepRows"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const STEPS=[
+  ["Contratos","1","El @context valida las entidades de ejemplo y los esquemas CloudEvents validan los eventos de ejemplo."],
+  ["Identidad y entrada","2","Con token válido se llega a un servicio de eco; sin token, 401."],
+  ["Registro canónico","3","Se crea y consulta un ActivoPatrimonial por tenant; la suscripción dispara."],
+  ["Bus y puente","3–4","Crear una entidad produce un CloudEvent en Kafka con su tenant."],
+  ["Motor de procesos","4–5","El evento arranca el workflow, llama al HTR simulado y espera la signal."],
+  ["Procedencia","5","Cada evento deja su tripleta PROV-O consultable por SPARQL."],
+  ["SDK y primer módulo","6–7","El adaptador IIIF, hecho con el SDK, cumple las cuatro reglas; el test e2e pasa en CI."],
+  ["Observabilidad","desde 1","El flujo 1–16 aparece como una sola traza en Jaeger o Tempo."],
+  ["Versionado y modelos","8–9","Una transcripción se rastrea hasta su versión de modelo, el hash del dataset DVC y el commit del pipeline."]
+];
+const $=id=>document.getElementById(id), svg=$("dg");
+const tb=$("stepRows");
+STEPS.forEach((s,i)=>{const tr=document.createElement("tr");tr.innerHTML=`<td class="num">${i} · ${s[0]}</td><td class="num">${s[1]}</td><td>${s[2]}</td>`;tb.appendChild(tr);});
+const ticks=$("ticks");
+STEPS.forEach((s,i)=>{const b=document.createElement("button");b.type="button";b.className="tick";b.textContent=i;b.title=s[0];b.onclick=()=>{$("step").value=i;render();};ticks.appendChild(b);});
+function render(){
+  const n=+$("step").value;
+  $("stepOut").textContent=`${n} · ${STEPS[n][0]}`;
+  svg.querySelectorAll("[data-step]").forEach(g=>{ g.classList.toggle("dim", !g.dataset.always && +g.dataset.step>n); });
+  let on=0; const flows=svg.querySelectorAll(".flow");
+  flows.forEach(g=>{const ok=g.dataset.need.split(",").every(x=>+x<=n); g.classList.toggle("dim",!ok); if(ok) on++;});
+  [...tb.rows].forEach((r,i)=>{r.className=i<n?"done":(i===n?"cur":"todo");});
+  ticks.querySelectorAll(".tick").forEach((b,i)=>b.setAttribute("aria-pressed",i===n));
+  $("status").innerHTML = on===flows.length
+    ? `<b>Esqueleto completo:</b> los 16 tramos del flujo funcionan y el test e2e puede pasar en CI.`
+    : `Tras el paso ${n}: <b>${on} de ${flows.length}</b> tramos del flujo funcionan. ${n<6?"Hasta el paso 6 el test puede crear las entidades directamente en Scorpio, sin pasar por el adaptador IIIF.":""}`;
+}
+$("step").addEventListener("input",render);
+render();
+
+/* ---- Ventanas emergentes: función y analogía urbana ---- */
+const INFO=[
+ {n:"Contratos",k:"Backbone · reglas comunes",f:"El @context del modelo canónico, los esquemas de eventos, los claims del token y los identificadores ARK. Todo servicio habla este mismo idioma.",a:"Las ordenanzas municipales y el callejero oficial: todos construyen y numeran igual."},
+ {n:"Módulos · SDK",k:"Donde se conectan los módulos",f:"El SDK resuelve las cuatro reglas del contrato (identidad, API, eventos, datos) para que un módulo nuevo se enchufe sin tocar el núcleo.",a:"La licencia de apertura: quien cumple los cuatro requisitos puede abrir su local en cualquier calle."},
+ {n:"Test e2e (CI)",k:"Prueba · fuera del backbone",f:"Recorre el flujo completo en cada cambio: pide token, sube un legajo, simula a la paleógrafa y comprueba estado y procedencia.",a:"La inspección municipal que recorre la ciudad cada noche para comprobar que todo funciona."},
+ {n:"Keycloak",k:"Backbone · identidad",f:"Emite los tokens con institución, proyecto y rol. También emitirá las credenciales verificables del Data Space.",a:"El registro civil que expide el DNI: dice quién eres y a qué institución perteneces."},
+ {n:"APISIX",k:"Backbone · entrada",f:"Punto único de entrada: valida el token, añade la institución a cada petición, limita el consumo y enruta al módulo correcto.",a:"Las puertas de la muralla con su guardia: comprueban el DNI, cobran el peaje y te indican la calle."},
+ {n:"Adaptador IIIF",k:"Módulo · primer inquilino",f:"Primer módulo real hecho con el SDK. Recibe imágenes, las sirve con IIIF y crea el ActivoPatrimonial en el registro.",a:"El primer edificio que abre sus puertas: la sala de lectura donde se ven las imágenes."},
+ {n:"HTR simulado",k:"Módulo de prueba",f:"Finge la transcripción para probar el flujo antes de tener Kraken. Registra una Transcripcion y avisa al bus.",a:"Un local de muestra: tiene cartel y horario para probar que calles y correo funcionan, aunque aún no venda nada."},
+ {n:"Temporal + worker",k:"Backbone · procesos",f:"Coordina procesos largos paso a paso: lanza el HTR, espera días la validación humana sin perder estado y continúa.",a:"La gestoría que lleva tu expediente: sabe en qué trámite está, espera las firmas y avisa al siguiente despacho."},
+ {n:"Scorpio + PostgreSQL",k:"Backbone · registro canónico",f:"La ficha oficial de cada activo: qué es, en qué fase está y dónde están sus imágenes y transcripciones (solo enlaces).",a:"El catastro y registro de la propiedad: la ficha oficial de cada bien, con su dirección y sus cargas."},
+ {n:"Puente de eventos",k:"Backbone · código propio",f:"Convierte cada cambio en el registro en un mensaje estándar (CloudEvent) y lo deposita en el bus.",a:"La oficina que, cada vez que se inscribe algo en el registro, redacta la carta y la echa al buzón."},
+ {n:"Kafka (KRaft)",k:"Backbone · bus de eventos",f:"Reparte los avisos a quien esté suscrito. Los módulos no se llaman entre sí: se escriben por aquí.",a:"El servicio de correos con apartados por tema: cada vecino recibe solo las cartas que le interesan."},
+ {n:"Procedencia",k:"Backbone · código propio",f:"Escucha todos los eventos y deja constancia de qué hizo cada máquina y qué validó cada persona, con fecha y versión.",a:"El notario que da fe de cada acto: quién, qué y cuándo."},
+ {n:"Jena Fuseki",k:"Backbone · almacén de procedencia",f:"Guarda el grafo PROV-O y permite consultarlo con SPARQL: toda la historia de un documento.",a:"Los libros del protocolo notarial, donde queda escrito para siempre cada acto."},
+ {n:"OpenTelemetry → Jaeger / Tempo",k:"Backbone · observabilidad",f:"Todos los servicios envían trazas enlazadas: un legajo se sigue de principio a fin como una sola traza, aunque pase por diez servicios.",a:"Las cámaras y contadores de tráfico: permiten seguir un vehículo por toda la ciudad y ver dónde se atasca."},
+ {n:"Git + CI",k:"Infraestructura · versionado de código",f:"Todo el código, los contratos y los pipelines viven en Git. Cada imagen desplegada lleva el commit del que sale, y los contratos usan versionado semántico estricto.",a:"El registro de obras con los planos de cada edificio, fechados y firmados."},
+ {n:"Datos versionados (DVC)",k:"Infraestructura · versionado de datos",f:"Versiona el ground truth y los conjuntos de entrenamiento y evaluación: en Git va una huella del dataset y los datos van a un almacén S3 propio de cada institución o comunidad. No sustituye a la preservación OAIS.",a:"El almacén de muestras: cada caja con su etiqueta y su fecha, y la llave de cada estante en manos de su dueño."},
+ {n:"Laboratorio de modelos",k:"Módulo · versionado de modelos",f:"Entrena los modelos HTR con un dataset y un commit concretos y los registra en MLflow con su calidad (CER), su licencia y su ficha. Promover una versión a producción puede requerir aprobación humana.",a:"El catálogo del gremio de copistas: cada técnica aprobada, con quién la enseñó, con qué ejemplos y desde cuándo."}
+];
+const tip=$("tip");
+const esc=t=>t.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+function fill(i){const d=INFO[i];tip.innerHTML=`<span class="kind${d.k.startsWith("Backbone")?" bb":""}">${esc(d.k)}</span><h3>${esc(d.n)}</h3><p>${esc(d.f)}</p><div class="an"><i>En la ciudad</i><span>${esc(d.a)}</span></div>`;tip.hidden=false;}
+function place(x,y){const r=tip.getBoundingClientRect(),m=12;let L=x+16,T=y+16;if(L+r.width>innerWidth-m)L=x-r.width-16;if(L<m)L=m;if(T+r.height>innerHeight-m)T=y-r.height-16;if(T<m)T=m;tip.style.left=L+"px";tip.style.top=T+"px";}
+let pinned=null;
+svg.querySelectorAll("[data-step]").forEach((g,i)=>{
+  if(!INFO[i]) return;
+  g.dataset.k=i; g.setAttribute("tabindex","0"); g.setAttribute("role","button"); g.setAttribute("aria-label",INFO[i].n+": "+INFO[i].f);
+  g.addEventListener("pointerenter",e=>{if(e.pointerType==="touch")return;fill(i);place(e.clientX,e.clientY);});
+  g.addEventListener("pointermove",e=>{if(e.pointerType==="touch"||pinned!==null)return;place(e.clientX,e.clientY);});
+  g.addEventListener("pointerleave",e=>{if(e.pointerType==="touch"||pinned!==null)return;tip.hidden=true;});
+  g.addEventListener("focus",()=>{fill(i);const b=g.getBoundingClientRect();place(b.left+b.width/2,b.bottom-8);});
+  g.addEventListener("blur",()=>{if(pinned===null)tip.hidden=true;});
+  g.addEventListener("click",e=>{e.stopPropagation();if(pinned===i){pinned=null;tip.hidden=true;return;}pinned=i;fill(i);place(e.clientX,e.clientY);});
+});
+document.addEventListener("click",()=>{pinned=null;tip.hidden=true;});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){pinned=null;tip.hidden=true;}});
+addEventListener("scroll",()=>{if(pinned===null)tip.hidden=true;},{passive:true});
+
+
+/* ===== Test de extremo a extremo, paso a paso ===== */
+const T=[
+ {f:1,k:[2,3],t:"Pedir el DNI",w:"El test se presenta como la archivera m.ortega y pide su credencial a Keycloak.",c:"La archivera va al registro civil y saca su DNI.",chk:"Que el DNI indica su institución (archivo-villanueva) y su papel (archivera).",code:['# 1 · La archivera saca su DNI','token = keycloak.login("m.ortega", rol="archivera")','assert token.tenant == "archivo-villanueva"'],b:["kc"]},
+ {f:2,k:[2,4],t:"Entrar por la puerta",w:"Con su token, el test sube un legajo de prueba de 3 imágenes a la pasarela. Comprueba también que sin token no se entra.",c:"La archivera llega a la puerta de la muralla con su legajo y la guardia mira su DNI.",chk:"Con token, la petición se acepta (202); sin token, se rechaza (401).",code:['# 2 · Entra por la puerta con un legajo de prueba','resp = api.post("/ingestas", legajo_prueba(3), token)','assert resp.status == 202','assert api.post("/ingestas", legajo_prueba(1)).status == 401'],b:["gw"]},
+ {f:3,k:[4,5],t:"Llegar a la sala de lectura",w:"La pasarela envía el legajo al adaptador IIIF, que guarda las imágenes y prepara el visor. El test no interviene aquí.",c:"La guardia indica la calle y el legajo llega a la sala de lectura.",chk:"Este tramo ocurre dentro del sistema; se comprueba en el tramo 4.",code:['# 3 · (dentro del sistema) puerta → sala de lectura'],b:["iiif"]},
+ {f:4,k:[5,8],t:"Abrir la ficha en el catastro",w:"El adaptador crea la ficha del legajo (ActivoPatrimonial) en Scorpio. El test espera hasta 10 segundos a que aparezca.",c:"La sala de lectura inscribe el legajo en el catastro.",chk:"Que la ficha existe, es de la institución correcta y enlaza con su visor IIIF.",code:['# 4 · El catastro abre la ficha del legajo','activo = registro.esperar("ActivoPatrimonial", signatura="TEST-001")','assert activo.tenant == "archivo-villanueva"','assert activo.manifiesto.endswith("/manifest")'],b:["iiif","sc"]},
+ {f:5,k:[8,9],t:"El catastro avisa",w:"La suscripción de Scorpio notifica el cambio al puente de eventos.",c:"El catastro avisa a la oficina de Correos de que hay una inscripción nueva.",chk:"Ocurre dentro del sistema; se comprueba en el tramo 6.",code:['# 5 · (dentro del sistema) catastro → oficina de Correos'],b:["br"]},
+ {f:6,k:[9,10],t:"Sale la carta",w:"El puente convierte el aviso en el evento estándar legajo.ingestado y lo publica en Kafka.",c:"La oficina redacta la carta «ha llegado un legajo» y la echa al buzón.",chk:"Que la carta llega en menos de 10 segundos y lleva el nombre de la institución.",code:['# 6 · Correos reparte la carta «ha llegado un legajo»','carta = bus.esperar("legajo.ingestado", sobre=activo.id, timeout=10)','assert carta.tenant == "archivo-villanueva"'],b:["br","kf"]},
+ {f:7,k:[10,7],t:"Se abre el expediente",w:"Un consumidor lee el evento y arranca el proceso TranscripcionEstandar en Temporal.",c:"La gestoría recibe la carta y abre el expediente.",chk:"Que hay un proceso en curso para ese legajo.",code:['# 7 · La gestoría abre el expediente','flujo = procesos.esperar_flujo(activo.id)','assert flujo.estado == "en curso"'],b:["tp"]},
+ {f:8,k:[7,6],t:"Encargo al taller",w:"Temporal encarga la transcripción al HTR simulado, que devuelve un texto de prueba.",c:"La gestoría encarga la copia al taller de copistas, el local de muestra.",chk:"Ocurre dentro del sistema; se comprueba en el tramo 9.",code:['# 8 · (dentro del sistema) gestoría → taller de copistas'],b:["htr"]},
+ {f:9,k:[6,8],t:"La copia, en el catastro",w:"El HTR registra la Transcripcion en Scorpio, pendiente de validación y con la versión de modelo que usó.",c:"El taller deja su copia anotada en el catastro, con la técnica que usó.",chk:"Que la transcripción existe, está pendiente de validar y dice qué modelo la produjo.",code:['# 9 · La copia queda en el catastro','trans = registro.esperar("Transcripcion", deActivo=activo.id)','assert trans.estado == "pendiente-validacion"','assert trans.modelo is not None'],b:["htr","sc"]},
+ {f:10,k:[6,10],t:"Carta: copia terminada",w:"El HTR publica el evento htr.completado en el bus.",c:"El taller envía la carta «copia terminada».",chk:"Que la carta llega.",code:['# 10 · Carta «copia terminada»','bus.esperar("htr.completado", sobre=activo.id, timeout=10)'],b:["kf","htr"]},
+ {f:11,k:[10,11],t:"El notario lee las cartas",w:"El servicio de procedencia escucha todos los eventos del bus.",c:"El notario lee cada carta que pasa por Correos.",chk:"Ocurre dentro del sistema; se comprueba en el tramo 12.",code:['# 11 · (dentro del sistema) Correos → notario'],b:["pv"]},
+ {f:12,k:[11,12],t:"Acta en los libros",w:"Procedencia escribe las actas PROV-O en Fuseki y el test las consulta.",c:"El notario anota cada acto en sus libros de protocolo.",chk:"Que constan el ingreso del legajo y la copia del taller.",code:['# 12 · El notario ha levantado acta','actas = procedencia.actas(activo.id)','assert {"ingreso", "htr"} <= actas.tipos'],b:["pv"]},
+ {f:13,k:[2,7],t:"La paleógrafa valida",w:"El test cambia de papel y hace de paleógrafa: envía la validación al proceso que estaba esperando, y el proceso termina.",c:"La paleógrafa firma la copia en la gestoría y el expediente se cierra.",chk:"Que el proceso termina completado y la transcripción queda validada.",code:['# 13 · El test hace de paleógrafa y firma','procesos.validar(flujo, por="paleografa-test")','assert procesos.esperar_fin(flujo).estado == "completado"','assert registro.leer(trans.id).estado == "validada"'],b:["tp"]},
+ {f:14,k:[14,15],t:"Planos y muestras",w:"El commit del pipeline de entrenamiento fija qué versión del dataset se usó (fichero .dvc).",c:"El registro de obras anota con qué cajas del almacén de muestras se trabajó.",chk:"Preparado de antemano; se comprueba en el tramo 16.",code:['# 14 · (preparado) commit → versión de los datos'],b:[]},
+ {f:15,k:[15,16],t:"El laboratorio aprende",w:"El laboratorio entrenó el modelo con ese dataset y lo registró en MLflow con su calidad, el hash de los datos y el commit.",c:"El laboratorio del taller anota la técnica: con qué muestras se aprendió y desde cuándo se usa.",chk:"Preparado de antemano; se comprueba en el tramo 16.",code:['# 15 · (preparado) datos → modelo registrado'],b:["lab"]},
+ {f:16,k:[16,6],t:"Rastrear la copia hasta su origen",w:"El test pregunta qué modelo produjo la transcripción y sigue la cadena hasta el dataset y el commit.",c:"Se puede saber qué técnica hizo la copia, con qué muestras se aprendió y con qué planos.",chk:"Que la cadena transcripción → modelo → dataset → commit está completa.",code:['# 16 · Rastrear la copia hasta su origen','ficha = modelos.ficha(trans.modelo)','assert ficha.dataset_hash and ficha.commit','assert procedencia.cadena(trans.id) == [trans.modelo, ficha.dataset_hash, ficha.commit]'],b:["lab"]}
+];
+const BRK={kc:["Keycloak no responde: no se puede obtener el DNI.",3],gw:["La pasarela responde 502: la puerta está cerrada.",4],iiif:["La ficha no aparece en 10 s: el adaptador IIIF no la creó.",5],sc:["Scorpio no responde: el catastro está cerrado.",8],br:["No llega la carta en 10 s: el puente no la publicó.",9],kf:["No llega la carta en 10 s: Kafka no está disponible.",10],tp:["No hay expediente: Temporal no arrancó el proceso.",7],htr:["No aparece la copia: el taller (HTR) no respondió.",6],pv:["No constan actas: el notario (procedencia) no escribió.",11],lab:["La cadena está incompleta: el modelo no está registrado en el laboratorio.",16]};
+const flowsG=[...svg.querySelectorAll(".flow")], boxesG=[...svg.querySelectorAll("[data-k]")];
+const tCode=$("tCode");
+(function buildCode(){
+  const head=['# tests/e2e/test_esqueleto.py · se ejecuta en cada cambio de código (CI)','def test_un_legajo_recorre_toda_la_plataforma():'];
+  let h=head.map(l=>`<span class="cl cmt">${esc2(l)}</span>`).join("");
+  T.forEach((st,i)=>{ st.code.forEach(l=>{ h+=`<span class="cl${l.trim().startsWith("#")?" cmt":""}" data-s="${i}">    ${esc2(l)}</span>`; }); });
+  h+=`<span class="cl cmt">    # Si se llega aquí, los 16 tramos funcionan: el esqueleto camina.</span>`;
+  tCode.innerHTML=h;
+})();
+function esc2(x){return x.replace(/&/g,"&amp;").replace(/</g,"&lt;");}
+let ti=-1, tTimer=null, tDone=false, pendingFail=null;
+const hasAssert=st=>st.code.some(l=>l.trim().startsWith("assert")||l.includes("esperar("));
+function clearMarks(){flowsG.forEach(g=>g.classList.remove("hot","done","fail"));boxesG.forEach(g=>g.classList.remove("hot","fail"));tCode.querySelectorAll(".cl").forEach(c=>c.classList.remove("cur","ok","bad"));}
+function tReset(){clearInterval(tTimer);tTimer=null;ti=-1;tDone=false;pendingFail=null;clearMarks();svg.classList.remove("running");$("tLog").innerHTML="";$("tProg").textContent="Tramo 0 de 16";
+  $("tStep").className="tstep";$("tStep").innerHTML=`<h3>Listo para empezar</h3><div class="row"><span>Pulsa «Ejecutar el test» para verlo recorrer los 16 tramos, o «Paso a paso» para avanzar a tu ritmo. Si eliges una pieza rota, verás en qué tramo lo detecta el test.</span></div>`;
+  $("tRun").disabled=false;$("tNext").disabled=false;$("tRun").textContent="▶ Ejecutar el test";}
+function ensureFull(){ if(+$("step").value!==8){$("step").value=8;render();} svg.classList.add("running"); }
+function logLine(cls,mark,text){const li=document.createElement("li");li.className=cls;li.innerHTML=`<b>${mark}</b><span>${text}</span>`;$("tLog").appendChild(li);li.scrollIntoView({block:"nearest"});}
+function showStep(i,state,msg){
+  const st=T[i]; const box=$("tStep");
+  box.className="tstep"+(state==="ok"?" ok":state==="bad"?" bad":"");
+  const res=state==="ok"?`<span class="res ok">✓ Comprobado</span>`:state==="bad"?`<span class="res bad">✗ ${esc2(msg)}</span>`:`<span class="res pend">Ocurre dentro del sistema: se comprobará más adelante.</span>`;
+  box.innerHTML=`<h3><span class="num">${st.f}</span>${esc2(st.t)}</h3>
+   <div class="row"><i>Qué ocurre</i><span>${esc2(st.w)}</span></div>
+   <div class="row city"><i>En la ciudad</i><span>${esc2(st.c)}</span></div>
+   <div class="row"><i>Qué comprueba el test</i><span>${esc2(st.chk)}</span></div>
+   <pre>${st.code.map(esc2).join("\n")}</pre>${res}`;
+}
+function tStepOnce(){
+  if(tDone) return;
+  ensureFull();
+  if(ti>=0){ flowsG[T[ti].f-1].classList.remove("hot"); flowsG[T[ti].f-1].classList.add("done"); T[ti].k.forEach(k=>boxesG[k]&&boxesG[k].classList.remove("hot")); tCode.querySelectorAll(`.cl[data-s="${ti}"]`).forEach(c=>{c.classList.remove("cur");c.classList.add("ok");}); }
+  ti++;
+  if(ti>=T.length){ finish(true); return; }
+  const st=T[ti], brk=$("tBreak").value;
+  flowsG[st.f-1].classList.add("hot"); st.k.forEach(k=>boxesG[k]&&boxesG[k].classList.add("hot"));
+  tCode.querySelectorAll(`.cl[data-s="${ti}"]`).forEach(c=>c.classList.add("cur"));
+  $("tProg").textContent=`Tramo ${st.f} de 16`;
+  if(brk && st.b.includes(brk) && !pendingFail){ pendingFail={i:ti,brk}; }
+  if(pendingFail && hasAssert(st)){
+    const src=T[pendingFail.i];
+    flowsG[src.f-1].classList.add("fail"); const bk=BRK[brk][1]; if(boxesG[bk]) boxesG[bk].classList.add("fail");
+    tCode.querySelectorAll(`.cl[data-s="${ti}"]`).forEach(c=>{c.classList.remove("cur");c.classList.add("bad");});
+    const msg=BRK[brk][0]+(pendingFail.i!==ti?` El fallo está en el tramo ${src.f}, pero se detecta aquí, en la primera comprobación.`:"");
+    showStep(ti,"bad",msg); logLine("bad","✗",`${st.f}. ${esc2(st.t)} — ${esc2(BRK[brk][0])}`);
+    finish(false); return;
+  }
+  if(hasAssert(st)){ showStep(ti,"ok"); logLine("ok","✓",`${st.f}. ${esc2(st.t)}`); }
+  else { showStep(ti,"int"); logLine("int","·",`${st.f}. ${esc2(st.t)} (dentro del sistema)`); }
+}
+function finish(ok){
+  clearInterval(tTimer);tTimer=null;tDone=true;$("tNext").disabled=true;$("tRun").disabled=false;$("tRun").textContent="▶ Ejecutar de nuevo";
+  if(ok){ flowsG.forEach(g=>g.classList.add("done")); $("tProg").textContent="16 de 16 tramos";
+    logLine("end ok","✓","16 de 16 tramos: el esqueleto camina.");
+    const box=$("tStep"); box.className="tstep ok"; box.innerHTML=`<h3>El esqueleto camina</h3><div class="row"><span>Los 16 tramos funcionan. Este mismo test se repite con cada cambio de código: mientras pase, cualquier mejora que se añada no rompe lo que ya funcionaba.</span></div><div class="row city"><i>En la ciudad</i><span>La inspección nocturna ha recorrido toda la calle y todo está en orden.</span></div>`; }
+  else { logLine("end bad","✗","Test fallido. Hay que arreglar esa pieza antes de seguir: así se detectan los fallos de conexión en cuanto aparecen."); }
+}
+$("tNext").onclick=()=>{ if(tTimer){clearInterval(tTimer);tTimer=null;$("tRun").textContent="▶ Continuar";} tStepOnce(); };
+$("tRun").onclick=()=>{ if(tDone) tReset(); if(tTimer){clearInterval(tTimer);tTimer=null;$("tRun").textContent="▶ Continuar";return;} $("tRun").textContent="❚❚ Pausa"; tStepOnce(); tTimer=setInterval(()=>{ if(tDone){clearInterval(tTimer);tTimer=null;return;} tStepOnce(); }, matchMedia("(prefers-reduced-motion: reduce)").matches?2600:2200); };
+$("tReset").onclick=tReset;
+$("tBreak").onchange=tReset;
+$("step").addEventListener("input",()=>{ if(svg.classList.contains("running")) tReset(); });
+tReset();
+</script>
+<footer class="sitefoot">Prototipo de arquitectura de referencia. El archivo, las personas y los legajos del simulador son ficticios.</footer>
+<!-- trafico-contador (paas) -->
+<script>
+(function(){var E="https://epfszizoeedjjyogmqev.supabase.co/functions/v1/track",A="paas";
+if(/^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname))return;
+function uid(){return crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36)}
+function id(k,s){try{var t=s?sessionStorage:localStorage,v=t.getItem(k);if(!v){v=uid();t.setItem(k,v)}return v}catch(e){return null}}
+function send(o){var d=JSON.stringify(o);try{if(!(navigator.sendBeacon&&navigator.sendBeacon(E,new Blob([d],{type:"text/plain"}))))fetch(E,{method:"POST",body:d,keepalive:true})}catch(e){}}
+function depth(){var h=document.documentElement,b=document.body,sh=Math.max(h.scrollHeight,b?b.scrollHeight:0),vh=innerHeight||h.clientHeight;return sh<=vh+2?100:Math.min(100,Math.round(((scrollY||h.scrollTop)+vh)/sh*100))}
+var last,first=true,pv=null,act=0,secs=0,maxS=0,inter=false,sent="";
+function fin(){if(!pv)return;var k=secs+"|"+maxS+"|"+inter;if(k===sent)return;sent=k;send({ev:"fin",app:A,pv:pv,t:secs,s:maxS,i:inter})}
+function hit(){var p=location.pathname;if(p===last)return;fin();last=p;pv=uid();secs=0;inter=false;sent="";act=Date.now();maxS=depth();
+send({app:A,pv:pv,host:location.hostname,path:p,title:document.title,ref:first?document.referrer:"",lang:navigator.language,wd:navigator.webdriver===true,vid:id("_tv"),sid:id("_ts",1)});first=false}
+function on(){act=Date.now()}
+["click","keydown","touchstart"].forEach(function(e){addEventListener(e,function(){on();inter=true},{passive:true,capture:true})});
+["mousemove","wheel"].forEach(function(e){addEventListener(e,on,{passive:true})});
+addEventListener("scroll",function(){on();var d=depth();if(d>maxS)maxS=d},{passive:true});
+setInterval(function(){if(pv&&document.visibilityState==="visible"&&Date.now()-act<30000&&secs<3600)secs++},1000);
+addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")fin();else on()});
+addEventListener("pagehide",fin);
+var ps=history.pushState;history.pushState=function(){ps.apply(this,arguments);setTimeout(hit,50)};addEventListener("popstate",function(){setTimeout(hit,50)});
+if(document.readyState==="complete")hit();else addEventListener("load",hit);})();
+</script>
+</body>
+</html>

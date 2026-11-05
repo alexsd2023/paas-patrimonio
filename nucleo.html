@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Núcleo de integración (backbone) · PaaS Patrimonio</title>
+<meta name="description" content="Núcleo de integración del PaaS de patrimonio cultural: identidad, entrada, registro canónico, eventos y procesos.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script>(function(){var ok=false;try{ok=sessionStorage.getItem("paas-auth")==="1"||localStorage.getItem("paas-auth")==="1";}catch(e){ok=true;}if(!ok){location.replace("/login?next="+encodeURIComponent(location.pathname+location.search+location.hash));}})();</script>
+<style>html{color-scheme:light}img{max-width:100%}[hidden]{display:none!important}body{margin:0}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F2F3F0; --panel:#FFFFFF; --ink:#1B2230; --muted:#5A6272; --line:#D5D8D2; --band:#E8EAE5;
+  --core:#2F7D6D; --core-soft:#E1EFEB;
+  --edge:#A8781F; --edge-soft:#F5EBD6;
+  --mod:#4A5A7A; --mod-soft:#E3E7EF;
+  --base:#6B5B7A; --base-soft:#ECE6F0;
+  --serif:"EB Garamond", Georgia, serif;
+  --sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#13171F; --panel:#1B212C; --ink:#E6E8EC; --muted:#9AA2B1; --line:#2E3645; --band:#20262F;
+    --core:#5FB8A4; --core-soft:#1C3530;
+    --edge:#D9AE5C; --edge-soft:#3A2F1A;
+    --mod:#93A6CC; --mod-soft:#232C3E;
+    --base:#B9A6CC; --base-soft:#2C2536;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#13171F; --panel:#1B212C; --ink:#E6E8EC; --muted:#9AA2B1; --line:#2E3645; --band:#20262F;
+  --core:#5FB8A4; --core-soft:#1C3530;
+  --edge:#D9AE5C; --edge-soft:#3A2F1A;
+  --mod:#93A6CC; --mod-soft:#232C3E;
+  --base:#B9A6CC; --base-soft:#2C2536;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;padding-inline:16px;padding-block:32px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+header{display:flex;flex-direction:column;gap:8px;max-width:780px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--core)}
+h1{font-family:var(--serif);font-weight:600;font-size:clamp(28px,4vw,40px);line-height:1.1;margin:0;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:70ch}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:20px;align-items:start}
+.stack{display:flex;flex-direction:column}
+
+.tier{border-radius:6px;border:1.5px solid var(--line);background:var(--panel);overflow:hidden}
+.tier-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line)}
+.tier-h h2{margin:0;font-family:var(--serif);font-size:20px;font-weight:600}
+.tier-h span{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.tier.edge{border-color:var(--edge)} .tier.edge .tier-h{background:var(--edge-soft)}
+.tier.core{border-color:var(--core);border-width:2.5px} .tier.core .tier-h{background:var(--core-soft)}
+.tier.mods{border-color:var(--mod)} .tier.mods .tier-h{background:var(--mod-soft)}
+.tier.base{border-color:var(--base)} .tier.base .tier-h{background:var(--base-soft)}
+.tier.ext{border-style:dashed;background:transparent}
+
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;padding:12px}
+.box{border:1px solid var(--line);border-radius:4px;padding:9px 10px;background:var(--bg);display:flex;flex-direction:column;gap:4px}
+.box b{font-size:13px;font-weight:600}
+.box small{color:var(--muted);font-size:12px;line-height:1.4}
+.tech{font-family:var(--mono);font-size:11px;color:var(--ink)}
+.core .box.key{border:1.5px solid var(--core);background:var(--core-soft)}
+
+.core-inner{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:10px;padding:12px}
+.core-col{display:flex;flex-direction:column;gap:10px}
+.hub{border:2px solid var(--core);border-radius:6px;padding:14px;background:var(--core-soft);display:flex;flex-direction:column;gap:8px}
+.hub h3{margin:0;font-family:var(--serif);font-size:19px;font-weight:600}
+.hub .tech{font-size:12px}
+.hub ul{margin:0;padding-left:18px;font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+.entities{display:flex;flex-wrap:wrap;gap:4px}
+.ent{font-family:var(--mono);font-size:10.5px;padding:1px 6px;border-radius:3px;background:var(--panel);border:1px solid var(--core);color:var(--core)}
+
+.bus{margin:0 12px 12px;border:1.5px solid var(--core);border-radius:4px;padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;background:var(--panel)}
+.bus b{font-size:13px}
+.bus .evs{display:flex;flex-wrap:wrap;gap:6px}
+.ev{font-family:var(--mono);font-size:10.5px;color:var(--muted);border:1px dashed var(--line);border-radius:3px;padding:0 5px}
+
+.link{display:flex;align-items:center;gap:10px;padding:6px 0 6px 40px;color:var(--muted);font-family:var(--mono);font-size:11px}
+.link svg path{stroke:var(--muted);fill:none}
+.link svg polygon{fill:var(--muted)}
+
+.mod{border:1px solid var(--line);border-radius:4px;padding:9px 10px;background:var(--bg);display:flex;flex-direction:column;gap:6px}
+.mod b{font-size:13px}
+.mod small{color:var(--muted);font-size:12px}
+.plugs{display:flex;gap:3px}
+.plug{font-family:var(--mono);font-size:9.5px;width:20px;height:18px;display:grid;place-items:center;border-radius:3px;background:var(--mod-soft);color:var(--mod);border:1px solid color-mix(in srgb,var(--mod) 40%,transparent)}
+.mod.new{border-style:dashed}
+
+aside{display:flex;flex-direction:column;gap:14px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.card h2{margin:0;font-family:var(--serif);font-size:19px;font-weight:600}
+.card p{margin:0;font-size:12px;color:var(--muted)}
+.rule{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:start}
+.rule .plug{width:28px;height:22px;font-size:11px}
+.rule b{font-size:13px;display:block}
+.rule small{font-size:12px;color:var(--muted)}
+ol.flow{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+ol.flow code{font-family:var(--mono);font-size:11px;color:var(--core)}
+
+@media (max-width:960px){
+  .grid{grid-template-columns:1fr}
+  aside{position:static}
+  .core-inner{grid-template-columns:1fr}
+}
+@media (max-width:560px){ .link{padding-left:12px} }
+</style>
+<style>
+.sitenav .out{font:inherit;font-family:var(--sans);font-size:13px;color:var(--muted);background:none;border:1px solid var(--line);border-radius:5px;padding:4px 10px;cursor:pointer;margin-left:6px}
+.sitenav .out:hover{color:var(--ink);border-color:var(--ink)}
+.sitenav{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);margin-inline:-16px;padding:10px 16px;margin-top:-24px;margin-bottom:20px}
+.sitenav .in{max-width:1280px;margin:0 auto;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-content:space-between}
+.sitenav .brand{font-family:var(--serif);font-weight:600;font-size:18px;color:var(--ink);text-decoration:none}
+.sitenav nav{display:flex;flex-wrap:wrap;gap:4px}
+.sitenav nav a{font-family:var(--sans);font-size:13px;color:var(--muted);text-decoration:none;padding:5px 10px;border-radius:5px;border:1px solid transparent}
+.sitenav nav a:hover{color:var(--ink);border-color:var(--line)}
+.sitenav nav a[aria-current="page"]{color:var(--bg);background:var(--ink)}
+.sitenav a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.sitefoot{max-width:1280px;margin:32px auto 0;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;font-family:var(--sans)}
+</style>
+</head>
+<body>
+<div class="sitenav" role="banner"><div class="in"><a class="brand" href="/">PaaS Patrimonio</a><nav aria-label="Secciones"><a href="/">Visión general</a><a href="/arquitectura">Arquitectura funcional</a><a href="/simulador">Simulador</a><a href="/nucleo" aria-current="page">Núcleo de integración (backbone)</a><a href="/backbone">Walking Skeleton</a><a href="/stack">Stack tecnológico</a><button class="out" type="button" onclick="try{sessionStorage.removeItem('paas-auth');localStorage.removeItem('paas-auth');}catch(e){}location.replace('/login')">Salir</button></nav></div></div>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Arquitectura de referencia · núcleo de plataforma</div>
+    <h1>Núcleo de integración (backbone)</h1>
+    <p>El núcleo no procesa documentos. Da identidad, entrada, registro del activo, eventos y procesos comunes, para que cualquier módulo funcional se conecte cumpliendo cuatro reglas.</p>
+  </header>
+
+  <div class="grid">
+    <div class="stack">
+
+      <section class="tier ext" aria-label="Consumidores">
+        <div class="tier-h"><h2>Ecosistema: quién participa</h2><span>no se construye, se cultiva · todo lo que hay debajo es infraestructura</span></div>
+        <div class="row">
+          <div class="box"><b>Personal de las instituciones</b><small>Archivistas, paleógrafos, editores</small></div>
+          <div class="box"><b>Desarrolladores (nivel PaaS)</b><small>Proyectos que construyen sobre las APIs</small></div>
+          <div class="box"><b>Otros participantes del Data Space</b><small>Universidades, otros conectores, Europeana</small></div>
+          <div class="box"><b>Comunidades de origen</b><small>Pueblos a los que conciernen los documentos: emiten credenciales, coaprueban políticas, anotan</small></div>
+        </div>
+      </section>
+
+      <div class="link"><svg width="14" height="22" viewBox="0 0 14 22" aria-hidden="true"><path d="M7 0V16" stroke-width="1.5"/><polygon points="2,15 12,15 7,22"/></svg>HTTPS · OIDC · Dataspace Protocol</div>
+
+      <section class="tier edge">
+        <div class="tier-h"><h2>Entrada</h2><span>un solo punto para todo el tráfico</span></div>
+        <div class="row">
+          <div class="box"><b>Pasarela de APIs</b><span class="tech">Apache APISIX</span><small>Valida tokens, limita por tenant, versiona APIs, mide consumo. También es el PEP del Data Space.</small></div>
+          <div class="box"><b>Conector del Data Space</b><span class="tech">FIWARE Data Space Connector</span><small>Credenciales verificables, políticas ODRL, catálogo DCAT, protocolo DSP</small></div>
+          <div class="box"><b>Proveedor OAI-PMH</b><span class="tech">OAI-PMH 2.0 · oai_dc · EDM · EAD</span><small>Recolección de metadatos por agregadores y Europeana, filtrada por las políticas</small></div>
+          <div class="box"><b>Portal de desarrolladores</b><span class="tech">Backstage · OpenAPI</span><small>Documentación de APIs y catálogo interno de módulos</small></div>
+        </div>
+      </section>
+
+      <div class="link"><svg width="14" height="22" viewBox="0 0 14 22" aria-hidden="true"><path d="M7 0V16" stroke-width="1.5"/><polygon points="2,15 12,15 7,22"/></svg>token con tenant · proyecto · rol</div>
+
+      <section class="tier core">
+        <div class="tier-h"><h2>Núcleo de integración</h2><span>lo que hace que todo sea una sola plataforma</span></div>
+        <div class="core-inner">
+          <div class="core-col">
+            <div class="box key"><b>Identidad única</b><span class="tech">Keycloak</span><small>OIDC para usuarios y módulos. Organizaciones = tenants. Emite también las credenciales verificables del Data Space.</small></div>
+            <div class="box"><b>Operador de tenants</b><span class="tech">operador Kubernetes propio</span><small>Al dar de alta un archivo crea su espacio, organización, almacenamiento y conector</small></div>
+          </div>
+
+          <div class="hub">
+            <h3>Registro canónico del activo</h3>
+            <span class="tech">Scorpio · NGSI-LD · PIDs (ARK / Handle / DOI)</span>
+            <ul>
+              <li>Ficha viva de cada activo: fase, módulos que lo han tocado, enlaces a sus resultados</li>
+              <li>Solo URIs: imágenes, TEI y grafos siguen en sus almacenes</li>
+              <li>Suscripciones que avisan al bus de cada cambio de estado</li>
+            </ul>
+            <div class="entities" aria-label="Modelo canónico">
+              <span class="ent">ActivoPatrimonial</span><span class="ent">Representacion</span><span class="ent">Transcripcion</span><span class="ent">Anotacion</span><span class="ent">Proceso</span><span class="ent">Politica</span>
+            </div>
+          </div>
+
+          <div class="core-col">
+            <div class="box key"><b>Motor de procesos</b><span class="tech">Temporal</span><small>Flujos largos con pausas humanas: espera días a la validación paleográfica sin perder estado</small></div>
+            <div class="box"><b>Servicio de procedencia</b><span class="tech">PROV-O · triplestore</span><small>Escucha el bus y registra qué hizo cada máquina y qué validó cada persona</small></div>
+          </div>
+        </div>
+        <div class="bus">
+          <b>Bus de eventos</b><span class="tech">Kafka (o NATS) · CloudEvents</span>
+          <div class="evs"><span class="ev">legajo.ingestado</span><span class="ev">htr.completado</span><span class="ev">transcripcion.validada</span><span class="ev">tei.publicado</span><span class="ev">coleccion.ofertada</span></div>
+        </div>
+      </section>
+
+      <div class="link"><svg width="14" height="22" viewBox="0 0 14 22" aria-hidden="true"><path d="M7 0V16" stroke-width="1.5"/><polygon points="2,15 12,15 7,22"/></svg>los módulos se conectan solo a través del contrato</div>
+
+      <section class="tier mods">
+        <div class="tier-h"><h2>Módulos funcionales</h2><span>intercambiables · propios o de terceros</span></div>
+        <div class="row">
+          <div class="mod"><b>Imágenes IIIF</b><small>Cantaloupe, Mirador</small><div class="plugs" aria-label="Cumple ID, API, EV, DAT"><span class="plug">ID</span><span class="plug">API</span><span class="plug">EV</span><span class="plug">DAT</span></div></div>
+          <div class="mod"><b>HTR</b><small>eScriptorium, Kraken, LLM</small><div class="plugs"><span class="plug">ID</span><span class="plug">API</span><span class="plug">EV</span><span class="plug">DAT</span></div></div>
+          <div class="mod"><b>Edición TEI</b><small>TEI Publisher, Saxon</small><div class="plugs"><span class="plug">ID</span><span class="plug">API</span><span class="plug">EV</span><span class="plug">DAT</span></div></div>
+          <div class="mod"><b>Archivo</b><small>AtoM · ISAD(G) · EAD</small><div class="plugs"><span class="plug">ID</span><span class="plug">API</span><span class="plug">EV</span><span class="plug">DAT</span></div></div>
+          <div class="mod"><b>Preservación OAIS</b><small>Archivematica · SIP/AIP/DIP · BagIt</small><div class="plugs"><span class="plug">ID</span><span class="plug">API</span><span class="plug">EV</span><span class="plug">DAT</span></div></div>
+          <div class="mod"><b>Semántica y búsqueda</b><small>NER, triplestore, OpenSearch</small><div class="plugs"><span class="plug">ID</span><span class="plug">API</span><span class="plug">EV</span><span class="plug">DAT</span></div></div>
+          <div class="mod"><b>Lectura cercana y lejana</b><small>Visores, Jupyter, redes</small><div class="plugs"><span class="plug">ID</span><span class="plug">API</span><span class="plug">EV</span><span class="plug">DAT</span></div></div>
+          <div class="mod new"><b>Futuro: 3D y museos</b><small>Mismo contrato, núcleo intacto</small><div class="plugs"><span class="plug">ID</span><span class="plug">API</span><span class="plug">EV</span><span class="plug">DAT</span></div></div>
+          <div class="mod new"><b>Futuro: conservación IoT</b><small>Sensores NGSI-LD nativos</small><div class="plugs"><span class="plug">ID</span><span class="plug">API</span><span class="plug">EV</span><span class="plug">DAT</span></div></div>
+        </div>
+      </section>
+
+      <div class="link"><svg width="14" height="22" viewBox="0 0 14 22" aria-hidden="true"><path d="M7 0V16" stroke-width="1.5"/><polygon points="2,15 12,15 7,22"/></svg>todo corre sobre</div>
+
+      <section class="tier base">
+        <div class="tier-h"><h2>Plataforma base</h2><span>ejecución, seguridad y operación</span></div>
+        <div class="row">
+          <div class="box"><b>Contenedores</b><span class="tech">Kubernetes · k3s en piloto</span><small>Namespaces o vCluster por institución</small></div>
+          <div class="box"><b>Despliegue</b><span class="tech">Helm · Argo CD · Harbor</span><small>GitOps: un módulo o un tenant es un commit</small></div>
+          <div class="box"><b>Red segura</b><span class="tech">Linkerd</span><small>mTLS entre módulos, reintentos</small></div>
+          <div class="box"><b>Observabilidad</b><span class="tech">OpenTelemetry · Prometheus · Grafana</span><small>Trazas de extremo a extremo</small></div>
+          <div class="box"><b>Secretos y políticas</b><span class="tech">OpenBao · Kyverno</span><small>Qué se despliega y con qué permisos</small></div>
+          <div class="box"><b>Almacenamiento común</b><span class="tech">S3 (Ceph) · PostgreSQL</span><small>Compartido por el núcleo y los módulos</small></div>
+          <div class="box"><b>Medición de uso</b><span class="tech">métricas por tenant</span><small>Páginas, horas de GPU, almacenamiento</small></div>
+        </div>
+      </section>
+    </div>
+
+    <aside>
+      <div class="card">
+        <h2>Contrato de integración</h2>
+        <p>Un módulo que cumple estas cuatro reglas entra en la plataforma sin tocar el núcleo.</p>
+        <div class="rule"><span class="plug">ID</span><div><b>Identidad</b><small>Acepta el token OIDC de Keycloak con tenant, proyecto y rol</small></div></div>
+        <div class="rule"><span class="plug">API</span><div><b>API</b><small>Expone OpenAPI detrás de APISIX</small></div></div>
+        <div class="rule"><span class="plug">EV</span><div><b>Eventos</b><small>Consume y publica CloudEvents en el bus</small></div></div>
+        <div class="rule"><span class="plug">DAT</span><div><b>Datos</b><small>Registra sus resultados en el Context Broker como NGSI-LD, con URI y procedencia</small></div></div>
+      </div>
+
+      <div class="card">
+        <h2>Un legajo por el núcleo</h2>
+        <ol class="flow">
+          <li>El archivo sube imágenes; el módulo IIIF crea el <code>ActivoPatrimonial</code> y emite <code>legajo.ingestado</code></li>
+          <li>Temporal arranca el proceso y llama al módulo HTR</li>
+          <li>HTR registra la <code>Transcripcion</code> y emite <code>htr.completado</code></li>
+          <li>Temporal espera la validación del paleógrafo</li>
+          <li><code>transcripcion.validada</code> dispara edición TEI y enriquecimiento</li>
+          <li>El archivo oferta la colección: el conector la publica con su política</li>
+          <li>Procedencia ha registrado cada paso escuchando el bus</li>
+        </ol>
+      </div>
+    </aside>
+  </div>
+</div>
+<footer class="sitefoot">Prototipo de arquitectura de referencia. El archivo, las personas y los legajos del simulador son ficticios.</footer>
+<!-- trafico-contador (paas) -->
+<script>
+(function(){var E="https://epfszizoeedjjyogmqev.supabase.co/functions/v1/track",A="paas";
+if(/^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname))return;
+function uid(){return crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36)}
+function id(k,s){try{var t=s?sessionStorage:localStorage,v=t.getItem(k);if(!v){v=uid();t.setItem(k,v)}return v}catch(e){return null}}
+function send(o){var d=JSON.stringify(o);try{if(!(navigator.sendBeacon&&navigator.sendBeacon(E,new Blob([d],{type:"text/plain"}))))fetch(E,{method:"POST",body:d,keepalive:true})}catch(e){}}
+function depth(){var h=document.documentElement,b=document.body,sh=Math.max(h.scrollHeight,b?b.scrollHeight:0),vh=innerHeight||h.clientHeight;return sh<=vh+2?100:Math.min(100,Math.round(((scrollY||h.scrollTop)+vh)/sh*100))}
+var last,first=true,pv=null,act=0,secs=0,maxS=0,inter=false,sent="";
+function fin(){if(!pv)return;var k=secs+"|"+maxS+"|"+inter;if(k===sent)return;sent=k;send({ev:"fin",app:A,pv:pv,t:secs,s:maxS,i:inter})}
+function hit(){var p=location.pathname;if(p===last)return;fin();last=p;pv=uid();secs=0;inter=false;sent="";act=Date.now();maxS=depth();
+send({app:A,pv:pv,host:location.hostname,path:p,title:document.title,ref:first?document.referrer:"",lang:navigator.language,wd:navigator.webdriver===true,vid:id("_tv"),sid:id("_ts",1)});first=false}
+function on(){act=Date.now()}
+["click","keydown","touchstart"].forEach(function(e){addEventListener(e,function(){on();inter=true},{passive:true,capture:true})});
+["mousemove","wheel"].forEach(function(e){addEventListener(e,on,{passive:true})});
+addEventListener("scroll",function(){on();var d=depth();if(d>maxS)maxS=d},{passive:true});
+setInterval(function(){if(pv&&document.visibilityState==="visible"&&Date.now()-act<30000&&secs<3600)secs++},1000);
+addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")fin();else on()});
+addEventListener("pagehide",fin);
+var ps=history.pushState;history.pushState=function(){ps.apply(this,arguments);setTimeout(hit,50)};addEventListener("popstate",function(){setTimeout(hit,50)});
+if(document.readyState==="complete")hit();else addEventListener("load",hit);})();
+</script>
+</body>
+</html>

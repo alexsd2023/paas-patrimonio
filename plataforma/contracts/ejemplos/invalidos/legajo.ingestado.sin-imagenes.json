@@ -1,0 +1,11 @@
+{
+  "specversion": "1.0",
+  "id": "33333333-3333-4333-8333-333333333333",
+  "source": "/tenants/archivo-villanueva/servicios/puente",
+  "type": "legajo.ingestado",
+  "time": "2026-11-05T10:15:00Z",
+  "subject": "urn:ngsi-ld:ActivoPatrimonial:archivo-villanueva:TEST-001",
+  "datacontenttype": "application/json",
+  "tenant": "archivo-villanueva",
+  "data": { "signatura": "TEST-001", "ark": "ark:/99999/av-test-001", "manifiesto": "https://iiif.local/iiif/3/archivo-villanueva/TEST-001/manifest", "imagenes": 0, "ingestadoPor": "m.ortega" }
+}

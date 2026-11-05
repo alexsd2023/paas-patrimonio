@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PaaS Documental Siglo XVI · PaaS Patrimonio</title>
+<meta name="description" content="Arquitectura funcional de referencia del PaaS para documentación histórica del siglo XVI.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script>(function(){var ok=false;try{ok=sessionStorage.getItem("paas-auth")==="1"||localStorage.getItem("paas-auth")==="1";}catch(e){ok=true;}if(!ok){location.replace("/login?next="+encodeURIComponent(location.pathname+location.search+location.hash));}})();</script>
+<style>html{color-scheme:light}img{max-width:100%}[hidden]{display:none!important}body{margin:0}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F2F3F0; --panel:#FFFFFF; --ink:#1B2230; --muted:#5A6272; --line:#D5D8D2;
+  --copper:#2F7D6D; --copper-soft:#E1EFEB;
+  --ochre:#A8781F; --ochre-soft:#F5EBD6;
+  --seal:#A23B3B; --seal-soft:#F5E1E0;
+  --slate:#4A5A7A; --slate-soft:#E3E7EF;
+  --band:#E8EAE5;
+  --serif:"EB Garamond", Georgia, "Times New Roman", serif;
+  --sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#13171F; --panel:#1B212C; --ink:#E6E8EC; --muted:#9AA2B1; --line:#2E3645;
+    --copper:#5FB8A4; --copper-soft:#1C3530;
+    --ochre:#D9AE5C; --ochre-soft:#3A2F1A;
+    --seal:#E07F7F; --seal-soft:#3C2224;
+    --slate:#93A6CC; --slate-soft:#232C3E;
+    --band:#20262F;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#13171F; --panel:#1B212C; --ink:#E6E8EC; --muted:#9AA2B1; --line:#2E3645;
+  --copper:#5FB8A4; --copper-soft:#1C3530;
+  --ochre:#D9AE5C; --ochre-soft:#3A2F1A;
+  --seal:#E07F7F; --seal-soft:#3C2224;
+  --slate:#93A6CC; --slate-soft:#232C3E;
+  --band:#20262F;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;padding-inline:16px;padding-block:32px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+header{display:flex;flex-direction:column;gap:8px;max-width:760px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--copper)}
+h1{font-family:var(--serif);font-weight:600;font-size:clamp(28px,4vw,40px);line-height:1.1;margin:0;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:68ch}
+
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+
+.tag{font-family:var(--mono);font-size:10.5px;padding:1px 6px;border-radius:3px;white-space:nowrap;border:1px solid transparent}
+.t-fw{background:var(--ochre-soft);color:var(--ochre);border-color:color-mix(in srgb,var(--ochre) 35%,transparent)}
+.t-std{background:var(--slate-soft);color:var(--slate);border-color:color-mix(in srgb,var(--slate) 35%,transparent)}
+.t-oss{background:var(--copper-soft);color:var(--copper);border-color:color-mix(in srgb,var(--copper) 35%,transparent)}
+.t-hum{background:var(--seal-soft);color:var(--seal);border-color:color-mix(in srgb,var(--seal) 35%,transparent)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:20px;align-items:start}
+.flow{display:flex;flex-direction:column}
+
+.layer{display:grid;grid-template-columns:150px minmax(0,1fr);background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.layer.ds{border-color:var(--ochre);border-width:1.5px}
+.lab{background:var(--band);padding:14px;display:flex;flex-direction:column;gap:4px;border-right:1px solid var(--line)}
+.lab .n{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.lab h2{font-family:var(--serif);font-size:19px;font-weight:600;line-height:1.15;margin:0}
+.lab p{margin:0;font-size:12px;color:var(--muted)}
+.comps{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;padding:12px}
+.c{border:1px solid var(--line);border-radius:4px;padding:9px 10px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
+.c b{font-weight:600;font-size:13px}
+.c small{color:var(--muted);font-size:12px;line-height:1.4}
+.tags{display:flex;flex-wrap:wrap;gap:4px}
+.c.hum{border-style:dashed;border-color:var(--seal)}
+.c.fw{border-color:var(--ochre)}
+
+.arrow{display:flex;align-items:center;gap:10px;padding:6px 0 6px 64px;color:var(--muted);font-family:var(--mono);font-size:11px}
+.arrow svg{flex:none}
+.arrow svg path{stroke:var(--muted);fill:none}
+.arrow svg polygon{fill:var(--muted)}
+
+.loop{margin:0 12px 12px;padding:8px 10px;border:1px dashed var(--seal);border-radius:4px;font-size:12px;color:var(--seal);display:flex;gap:8px;align-items:flex-start}
+.loop svg{flex:none;margin-top:2px}
+.loop svg path{stroke:var(--seal);fill:none}
+
+.split{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px}
+.split h3{margin:0 0 8px;font-family:var(--serif);font-size:16px;font-weight:600;display:flex;gap:8px;align-items:baseline}
+.split h3 em{font-family:var(--mono);font-style:normal;font-size:10.5px;color:var(--muted);font-weight:400}
+.split .col{display:flex;flex-direction:column;gap:8px}
+
+aside{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:10px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)}
+aside h2{font-family:var(--serif);font-size:19px;font-weight:600;margin:0}
+aside > p{margin:0;font-size:12px;color:var(--muted)}
+
+.consumers{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.cons{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:10px;display:flex;flex-direction:column;gap:4px}
+.cons b{font-size:13px}
+.cons small{color:var(--muted);font-size:12px}
+.section-h{font-family:var(--serif);font-size:22px;font-weight:600;margin:0}
+
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.note{border-top:2px solid var(--ink);padding-top:10px;display:flex;flex-direction:column;gap:6px}
+.note h3{margin:0;font-family:var(--serif);font-size:17px;font-weight:600}
+.note p{margin:0;color:var(--muted);font-size:13px}
+
+@media (max-width:900px){
+  .grid{grid-template-columns:1fr}
+  aside{position:static}
+}
+@media (max-width:620px){
+  .layer{grid-template-columns:1fr}
+  .lab{border-right:0;border-bottom:1px solid var(--line)}
+  .split{grid-template-columns:1fr}
+  .arrow{padding-left:20px}
+}
+</style>
+<style>
+.sitenav .out{font:inherit;font-family:var(--sans);font-size:13px;color:var(--muted);background:none;border:1px solid var(--line);border-radius:5px;padding:4px 10px;cursor:pointer;margin-left:6px}
+.sitenav .out:hover{color:var(--ink);border-color:var(--ink)}
+.sitenav{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);margin-inline:-16px;padding:10px 16px;margin-top:-24px;margin-bottom:20px}
+.sitenav .in{max-width:1280px;margin:0 auto;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-content:space-between}
+.sitenav .brand{font-family:var(--serif);font-weight:600;font-size:18px;color:var(--ink);text-decoration:none}
+.sitenav nav{display:flex;flex-wrap:wrap;gap:4px}
+.sitenav nav a{font-family:var(--sans);font-size:13px;color:var(--muted);text-decoration:none;padding:5px 10px;border-radius:5px;border:1px solid transparent}
+.sitenav nav a:hover{color:var(--ink);border-color:var(--line)}
+.sitenav nav a[aria-current="page"]{color:var(--bg);background:var(--ink)}
+.sitenav a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.sitefoot{max-width:1280px;margin:32px auto 0;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;font-family:var(--sans)}
+</style>
+</head>
+<body>
+<div class="sitenav" role="banner"><div class="in"><a class="brand" href="/">PaaS Patrimonio</a><nav aria-label="Secciones"><a href="/">Visión general</a><a href="/arquitectura" aria-current="page">Arquitectura funcional</a><a href="/simulador">Simulador</a><a href="/nucleo">Núcleo de integración (backbone)</a><a href="/backbone">Walking Skeleton</a><a href="/stack">Stack tecnológico</a><button class="out" type="button" onclick="try{sessionStorage.removeItem('paas-auth');localStorage.removeItem('paas-auth');}catch(e){}location.replace('/login')">Salir</button></nav></div></div>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Arquitectura de referencia · v0.1</div>
+    <h1>PaaS para documentación histórica del siglo XVI</h1>
+    <p>Del legajo físico a la edición digital metadatada, con lectura cercana y lejana. Los datos se comparten con soberanía a través de un Data Space basado en FIWARE, compatible con el espacio europeo de datos de patrimonio cultural.</p>
+  </header>
+
+  <div class="legend" aria-label="Leyenda">
+    <span><i class="tag t-fw">FIWARE / Data Space</i> componente del ecosistema FIWARE, IDSA o Gaia-X</span>
+    <span><i class="tag t-std">Estándar</i> formato o modelo abierto</span>
+    <span><i class="tag t-oss">OSS</i> herramienta de código abierto</span>
+    <span><i class="tag t-hum">Humano</i> validación experta</span>
+  </div>
+
+  <div class="grid">
+    <div class="flow">
+
+      <!-- 1 -->
+      <section class="layer">
+        <div class="lab"><span class="n">01</span><h2>Ingesta y digitalización</h2><p>Del original a imagen servible</p></div>
+        <div class="comps">
+          <div class="c"><b>Captura</b><small>Escáner cenital o cámara, perfiles de color, cartas de referencia</small><div class="tags"><span class="tag t-std">TIFF / JPEG2000</span></div></div>
+          <div class="c"><b>Control de calidad</b><small>Resolución, nitidez, páginas ausentes, orden de folios</small><div class="tags"><span class="tag t-oss">validador propio</span></div></div>
+          <div class="c"><b>Almacén de objetos</b><small>Másters y derivados, por institución (multi-tenant)</small><div class="tags"><span class="tag t-oss">S3 / MinIO</span></div></div>
+          <div class="c"><b>Servidor de imágenes</b><small>Zoom profundo y recortes por región</small><div class="tags"><span class="tag t-std">IIIF Image API</span><span class="tag t-oss">Cantaloupe</span></div></div>
+          <div class="c"><b>Manifiestos</b><small>Estructura del legajo: folios, recto/verso, piezas</small><div class="tags"><span class="tag t-std">IIIF Presentation 3</span></div></div>
+        </div>
+      </section>
+
+      <div class="arrow"><svg width="14" height="22" viewBox="0 0 14 22" aria-hidden="true"><path d="M7 0V16" stroke-width="1.5"/><polygon points="2,15 12,15 7,22"/></svg>imágenes + manifiesto IIIF</div>
+
+      <!-- 2 -->
+      <section class="layer">
+        <div class="lab"><span class="n">02</span><h2>Reconocimiento del texto</h2><p>Pipeline orquestado por lotes</p></div>
+        <div class="comps">
+          <div class="c"><b>Análisis de maquetación</b><small>Regiones, líneas, marginalia, rúbricas, signos notariales</small><div class="tags"><span class="tag t-oss">Kraken</span><span class="tag t-std">PAGE-XML / ALTO</span></div></div>
+          <div class="c"><b>HTR</b><small>Modelos por tipo de letra: procesal, cortesana, humanística, itálica</small><div class="tags"><span class="tag t-oss">eScriptorium</span><span class="tag t-oss">Kraken</span></div></div>
+          <div class="c"><b>Post-corrección asistida</b><small>LLM de visión propone y marca la confianza; nunca sobrescribe sin marcar</small><div class="tags"><span class="tag t-oss">LLM</span></div></div>
+          <div class="c hum"><b>Revisión paleográfica</b><small>Validación línea a línea sobre la imagen; muestreo por lote</small><div class="tags"><span class="tag t-hum">paleógrafo</span></div></div>
+          <div class="c"><b>Orquestador</b><small>Colas, reintentos, versionado de modelos y de salidas</small><div class="tags"><span class="tag t-oss">Airflow / Prefect</span></div></div>
+        </div>
+        <div class="loop"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-2-4M11 1v3h3" stroke-width="1.5"/></svg><span>Las correcciones validadas se convierten en datos de entrenamiento: cada fondo mejora el modelo de su tipo de letra (ground truth).</span></div>
+      </section>
+
+      <div class="arrow"><svg width="14" height="22" viewBox="0 0 14 22" aria-hidden="true"><path d="M7 0V16" stroke-width="1.5"/><polygon points="2,15 12,15 7,22"/></svg>transcripción alineada con la imagen</div>
+
+      <!-- 3 -->
+      <section class="layer">
+        <div class="lab"><span class="n">03</span><h2>Edición y codificación</h2><p>Texto como documento académico</p></div>
+        <div class="comps">
+          <div class="c"><b>Transcripción paleográfica</b><small>Fiel al original: abreviaturas, grafías, tachados</small><div class="tags"><span class="tag t-std">TEI &lt;choice&gt;</span></div></div>
+          <div class="c"><b>Versión normalizada</b><small>Desarrollo de abreviaturas, ortografía y puntuación modernas</small><div class="tags"><span class="tag t-oss">normalizador + LLM</span></div></div>
+          <div class="c"><b>Codificación TEI</b><small>Estructura diplomática, fechas, partes, cláusulas</small><div class="tags"><span class="tag t-std">TEI-XML P5</span></div></div>
+          <div class="c hum"><b>Edición crítica</b><small>Notas, aparato, decisiones editoriales firmadas</small><div class="tags"><span class="tag t-hum">editor</span></div></div>
+        </div>
+      </section>
+
+      <div class="arrow"><svg width="14" height="22" viewBox="0 0 14 22" aria-hidden="true"><path d="M7 0V16" stroke-width="1.5"/><polygon points="2,15 12,15 7,22"/></svg>documento TEI</div>
+
+      <!-- 4 -->
+      <section class="layer">
+        <div class="lab"><span class="n">04</span><h2>Metadatos y enriquecimiento</h2><p>Descripción, entidades y grafo</p></div>
+        <div class="comps">
+          <div class="c"><b>Descripción archivística</b><small>Fondo, serie, unidad documental; signatura y procedencia</small><div class="tags"><span class="tag t-std">ISAD(G)</span><span class="tag t-std">RiC-O</span><span class="tag t-std">Dublin Core</span></div></div>
+          <div class="c"><b>Estructura y preservación</b><small>Empaquetado del objeto digital y su historial</small><div class="tags"><span class="tag t-std">METS / MODS</span><span class="tag t-std">PREMIS</span></div></div>
+          <div class="c"><b>Entidades nombradas</b><small>Personas, lugares, oficios, monedas, instituciones, fechas</small><div class="tags"><span class="tag t-oss">NER histórico + LLM</span></div></div>
+          <div class="c"><b>Enlazado</b><small>Desambiguación contra autoridades y nomenclátores históricos</small><div class="tags"><span class="tag t-std">Wikidata</span><span class="tag t-std">GeoNames</span><span class="tag t-std">VIAF</span></div></div>
+          <div class="c"><b>Grafo de conocimiento</b><small>Eventos, actores, relaciones entre documentos</small><div class="tags"><span class="tag t-std">CIDOC-CRM</span><span class="tag t-oss">triplestore</span></div></div>
+          <div class="c"><b>Índices</b><small>Texto completo, facetas e índice semántico (vectores)</small><div class="tags"><span class="tag t-oss">OpenSearch</span></div></div>
+        </div>
+      </section>
+
+      <div class="arrow"><svg width="14" height="22" viewBox="0 0 14 22" aria-hidden="true"><path d="M7 0V16" stroke-width="1.5"/><polygon points="2,15 12,15 7,22"/></svg>corpus enriquecido</div>
+
+      <!-- 5 -->
+      <section class="layer">
+        <div class="lab"><span class="n">05</span><h2>Lectura e investigación</h2><p>Dos escalas sobre el mismo corpus</p></div>
+        <div class="split">
+          <div class="col">
+            <h3>Lectura cercana <em>un documento</em></h3>
+            <div class="c"><b>Visor sincronizado</b><small>Imagen y transcripción enlazadas línea a línea</small><div class="tags"><span class="tag t-oss">Mirador</span><span class="tag t-oss">TEI Publisher</span></div></div>
+            <div class="c"><b>Anotación colaborativa</b><small>Comentarios y etiquetas sobre regiones de imagen o texto</small><div class="tags"><span class="tag t-std">W3C Web Annotation</span></div></div>
+            <div class="c"><b>Comparación de versiones</b><small>Paleográfica frente a normalizada; aparato crítico</small><div class="tags"><span class="tag t-std">TEI</span></div></div>
+          </div>
+          <div class="col">
+            <h3>Lectura lejana <em>el corpus</em></h3>
+            <div class="c"><b>Búsqueda y consultas</b><small>Facetas, variantes gráficas, consultas al grafo</small><div class="tags"><span class="tag t-std">SPARQL</span></div></div>
+            <div class="c"><b>Análisis textual</b><small>Modelado de temas, fórmulas notariales, estilometría</small><div class="tags"><span class="tag t-oss">notebooks</span></div></div>
+            <div class="c"><b>Redes, mapas y cronologías</b><small>Quién aparece con quién, dónde y cuándo</small><div class="tags"><span class="tag t-oss">grafo + visualización</span></div></div>
+            <div class="c"><b>Extracción estructurada</b><small>Partes, objeto, importes y plazos de escrituras en tablas</small><div class="tags"><span class="tag t-oss">LLM</span></div></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="arrow"><svg width="14" height="22" viewBox="0 0 14 22" aria-hidden="true"><path d="M7 0V16" stroke-width="1.5"/><polygon points="2,15 12,15 7,22"/></svg>publicación bajo políticas</div>
+
+      <!-- 6 -->
+      <section class="layer ds">
+        <div class="lab"><span class="n">06</span><h2>Data Space</h2><p>Compartir sin ceder el control</p></div>
+        <div class="comps">
+          <div class="c fw"><b>Conector</b><small>Un conector gestionado por institución, desplegado por la plataforma</small><div class="tags"><span class="tag t-fw">FIWARE Data Space Connector</span><span class="tag t-std">Dataspace Protocol</span></div></div>
+          <div class="c fw"><b>Identidad y confianza</b><small>Credenciales verificables de instituciones e investigadores</small><div class="tags"><span class="tag t-fw">Keycloak / VC</span><span class="tag t-std">did / OID4VC</span></div></div>
+          <div class="c fw"><b>Políticas de uso</b><small>Solo consulta, sin reentrenamiento de IA, embargo, cita obligatoria</small><div class="tags"><span class="tag t-std">ODRL</span><span class="tag t-fw">PDP / PEP</span></div></div>
+          <div class="c fw"><b>Catálogo federado</b><small>Qué corpus, modelos HTR y servicios ofrece cada participante</small><div class="tags"><span class="tag t-std">DCAT-AP</span></div></div>
+          <div class="c"><b>Recolección OAI-PMH</b><small>Agregadores y Europeana recolectan metadatos; solo lo que las políticas permiten, con registros borrados</small><div class="tags"><span class="tag t-std">OAI-PMH 2.0</span><span class="tag t-std">oai_dc · EDM</span></div></div>
+          <div class="c fw"><b>Pasarela Europeana</b><small>Exportación de metadatos y enlaces IIIF al espacio común europeo</small><div class="tags"><span class="tag t-std">EDM</span></div></div>
+        </div>
+      </section>
+    </div>
+
+    <aside aria-label="Servicios transversales">
+      <h2>Servicios transversales</h2>
+      <p>Comunes a todas las capas y a todas las instituciones.</p>
+      <div class="c fw"><b>Estado del flujo</b><small>Cada legajo como entidad: fase, lote, incidencias. También sensores de conservación del original.</small><div class="tags"><span class="tag t-fw">Orion-LD</span><span class="tag t-std">NGSI-LD</span></div></div>
+      <div class="c"><b>Procedencia y trazabilidad</b><small>Qué hizo la máquina, qué validó una persona, con qué versión de modelo</small><div class="tags"><span class="tag t-std">PROV-O</span></div></div>
+      <div class="c"><b>Preservación digital</b><small>Paquetes SIP, AIP y DIP; fixity periódica; identificación y migración de formatos</small><div class="tags"><span class="tag t-std">OAIS (ISO 14721)</span><span class="tag t-std">BagIt</span><span class="tag t-std">PREMIS</span><span class="tag t-oss">Archivematica</span></div></div>
+      <div class="c"><b>Identidad de usuarios</b><small>Roles por institución: digitalizador, paleógrafo, editor, investigador</small><div class="tags"><span class="tag t-oss">Keycloak</span></div></div>
+      <div class="c"><b>APIs públicas</b><small>IIIF, búsqueda, TEI, SPARQL y NGSI-LD documentadas</small><div class="tags"><span class="tag t-std">OpenAPI</span></div></div>
+      <div class="c"><b>Infraestructura</b><small>Multi-tenant, GPU para HTR bajo demanda, observabilidad</small><div class="tags"><span class="tag t-oss">Kubernetes</span><span class="tag t-oss">Prometheus</span></div></div>
+    </aside>
+  </div>
+
+  <section style="display:flex;flex-direction:column;gap:12px">
+    <h2 class="section-h">Quién usa la plataforma</h2>
+    <div class="consumers">
+      <div class="cons"><b>Archivos y bibliotecas</b><small>Suben fondos, validan, publican y fijan las condiciones de uso</small></div>
+      <div class="cons"><b>Grupos de investigación</b><small>Transcriben con sus paleógrafos y analizan corpus propios y ajenos</small></div>
+      <div class="cons"><b>Europeana y agregadores</b><small>Reciben metadatos EDM y enlaces IIIF</small></div>
+      <div class="cons"><b>Terceros autorizados</b><small>Editoriales, turismo, educación e industrias creativas, bajo licencia</small></div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div class="note"><h3>Decisión clave: FIWARE como capa de compartición</h3><p>El procesamiento documental no pasa por el Context Broker. FIWARE aporta el conector, la identidad y las políticas (capa 06) y, de forma secundaria, el estado del flujo en NGSI-LD.</p></div>
+    <div class="note"><h3>El activo diferencial</h3><p>Los modelos HTR afinados por tipo de letra y de documento, y el ground truth validado. Pueden ofrecerse también en el catálogo del Data Space con sus propias políticas.</p></div>
+    <div class="note"><h3>IA con trazabilidad</h3><p>Toda salida generada por LLM queda marcada con modelo, versión y nivel de confianza, y no pasa a la edición sin validación humana.</p></div>
+  </section>
+</div>
+<footer class="sitefoot">Prototipo de arquitectura de referencia. El archivo, las personas y los legajos del simulador son ficticios.</footer>
+<!-- trafico-contador (paas) -->
+<script>
+(function(){var E="https://epfszizoeedjjyogmqev.supabase.co/functions/v1/track",A="paas";
+if(/^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname))return;
+function uid(){return crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36)}
+function id(k,s){try{var t=s?sessionStorage:localStorage,v=t.getItem(k);if(!v){v=uid();t.setItem(k,v)}return v}catch(e){return null}}
+function send(o){var d=JSON.stringify(o);try{if(!(navigator.sendBeacon&&navigator.sendBeacon(E,new Blob([d],{type:"text/plain"}))))fetch(E,{method:"POST",body:d,keepalive:true})}catch(e){}}
+function depth(){var h=document.documentElement,b=document.body,sh=Math.max(h.scrollHeight,b?b.scrollHeight:0),vh=innerHeight||h.clientHeight;return sh<=vh+2?100:Math.min(100,Math.round(((scrollY||h.scrollTop)+vh)/sh*100))}
+var last,first=true,pv=null,act=0,secs=0,maxS=0,inter=false,sent="";
+function fin(){if(!pv)return;var k=secs+"|"+maxS+"|"+inter;if(k===sent)return;sent=k;send({ev:"fin",app:A,pv:pv,t:secs,s:maxS,i:inter})}
+function hit(){var p=location.pathname;if(p===last)return;fin();last=p;pv=uid();secs=0;inter=false;sent="";act=Date.now();maxS=depth();
+send({app:A,pv:pv,host:location.hostname,path:p,title:document.title,ref:first?document.referrer:"",lang:navigator.language,wd:navigator.webdriver===true,vid:id("_tv"),sid:id("_ts",1)});first=false}
+function on(){act=Date.now()}
+["click","keydown","touchstart"].forEach(function(e){addEventListener(e,function(){on();inter=true},{passive:true,capture:true})});
+["mousemove","wheel"].forEach(function(e){addEventListener(e,on,{passive:true})});
+addEventListener("scroll",function(){on();var d=depth();if(d>maxS)maxS=d},{passive:true});
+setInterval(function(){if(pv&&document.visibilityState==="visible"&&Date.now()-act<30000&&secs<3600)secs++},1000);
+addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")fin();else on()});
+addEventListener("pagehide",fin);
+var ps=history.pushState;history.pushState=function(){ps.apply(this,arguments);setTimeout(hit,50)};addEventListener("popstate",function(){setTimeout(hit,50)});
+if(document.readyState==="complete")hit();else addEventListener("load",hit);})();
+</script>
+</body>
+</html>
