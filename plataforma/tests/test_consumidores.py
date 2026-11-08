@@ -60,11 +60,45 @@ class ExpedientesFalsos:
         return {"activo": activo, "validadoPor": por, "estado": "validacion-recibida"}
 
 
-def test_gestoria_un_proceso_por_legajo_y_validacion():
+class VerificadorFalso:
+    """Tokens de juguete: el texto del token dice quién eres."""
+    from sdk.identidad import Identidad
+    PERSONAS = {
+        "tok-ortega": Identidad("m.ortega", "archivo-villanueva", ["archivera"]),
+        "tok-paleo": Identidad("paleografa-test", "archivo-villanueva", ["paleografa"]),
+        "tok-otro": Identidad("p.otro", "otro-archivo", ["paleografa"]),
+    }
+
+    def verificar(self, token):
+        from sdk.identidad import NoAutorizado
+        if token not in self.PERSONAS:
+            raise NoAutorizado(401, "token no válido")
+        return self.PERSONAS[token]
+
+
+def _cab(t):
+    return {"Authorization": f"Bearer {t}"}
+
+
+def test_gestoria_un_proceso_por_legajo_y_firma_con_identidad():
     exp = ExpedientesFalsos()
     assert exp.abrir(ingreso) is True and exp.abrir(ingreso) is False and exp.abrir(htr) is False
-    c = TestClient(app_gestoria(exp))
-    assert c.get("/expedientes", params={"activo": ACTIVO}).json()[0]["estado"] == "pendiente-validacion"
-    assert c.post("/expedientes/validar", json={"activo": ACTIVO, "por": "paleografa-test"}).status_code == 200
-    assert c.post("/expedientes/validar", json={"activo": ACTIVO, "por": "otra"}).status_code == 409
-    assert c.post("/expedientes/validar", json={"activo": ACTIVO + "X", "por": "p"}).status_code == 404
+    c = TestClient(app_gestoria(exp, verificador=VerificadorFalso()))
+    assert c.get("/expedientes", params={"activo": ACTIVO}).status_code == 401           # sin token
+    assert c.get("/expedientes", params={"activo": ACTIVO}, headers=_cab("tok-otro")).status_code == 403
+    r = c.get("/expedientes", params={"activo": ACTIVO}, headers=_cab("tok-ortega"))
+    assert r.json()[0]["estado"] == "pendiente-validacion"
+    v = lambda t, a=ACTIVO: c.post("/expedientes/validar", json={"activo": a, "por": "quien-sea"}, headers=_cab(t))  # noqa: E731
+    assert v("tok-ortega").status_code == 403      # no es paleógrafa
+    assert v("tok-otro").status_code == 403        # otra institución
+    assert v("tok-falso").status_code == 401
+    r = v("tok-paleo")
+    assert r.status_code == 200 and r.json()["validadoPor"] == "paleografa-test"  # firma el token, no el cuerpo
+    assert v("tok-paleo").status_code == 409       # segunda firma
+    assert v("tok-paleo", ACTIVO + "X").status_code == 404
+    assert c.get("/yo", headers=_cab("tok-paleo")).json()["tenant"] == "archivo-villanueva"
+
+
+def test_gestoria_sin_identidad_configurada_no_atiende():
+    c = TestClient(app_gestoria(ExpedientesFalsos()))
+    assert c.get("/yo", headers=_cab("tok-ortega")).status_code == 503

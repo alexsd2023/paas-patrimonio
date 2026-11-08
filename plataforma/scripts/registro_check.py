@@ -28,7 +28,8 @@ def env(k):
     return (os.environ.get(k) or sys.exit(f"Falta {k} en plataforma/.env")).rstrip("/")
 
 
-SCORPIO, PROC, GEST = env("SCORPIO_URL"), env("PROCEDENCIA_URL"), env("GESTORIA_URL")
+SCORPIO, PROC = env("SCORPIO_URL"), env("PROCEDENCIA_URL")
+from _comun import expedientes  # noqa: E402  (la gestoría se consulta por la puerta, con token)
 T, OTRO = "archivo-villanueva", "otro-archivo"
 SIG = f"TEST-{uuid.uuid4().hex[:6].upper()}"
 
@@ -77,7 +78,7 @@ print(f"✓ Aislamiento: {OTRO} no ve el legajo")
 
 q = urllib.parse.quote(ficha["id"], safe="")
 exp = esperar("La gestoría abre el expediente (aviso del catastro → puente → Kafka)",
-              lambda: get(f"{GEST}/expedientes?activo={q}"), lambda v: len(v) == 1)
+              lambda: expedientes(ficha["id"]), lambda v: len(v) == 1)
 print(f"✓ Gestoría: expediente {exp[0]['proceso']} {exp[0]['estado']}")
 actas = esperar("El notario levanta acta de ingreso",
                 lambda: get(f"{PROC}/actas?activo={q}"), lambda v: any(a["tipo"] == "ingreso" for a in v))

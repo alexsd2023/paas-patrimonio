@@ -25,6 +25,7 @@ def env(k):
 
 
 KAFKA, PUENTE, PROC, GEST = env("KAFKA_BOOTSTRAP"), env("PUENTE_URL"), env("PROCEDENCIA_URL"), env("GESTORIA_URL")
+from _comun import expedientes  # noqa: E402  (la gestoría se consulta por la puerta, con token)
 T = "archivo-villanueva"
 SIG = f"TEST-{uuid.uuid4().hex[:6].upper()}"
 ACTIVO = f"urn:ngsi-ld:ActivoPatrimonial:{T}:{SIG}"
@@ -44,9 +45,12 @@ def http(url, cuerpo=None):
 def esperar(desc, leer, cumple, segundos=20):
     fin = time.time() + segundos
     while time.time() < fin:
-        valor = leer()
-        if cumple(valor):
-            return valor
+        try:
+            valor = leer()
+            if cumple(valor):
+                return valor
+        except OSError as e:
+            valor = str(e)
         time.sleep(1)
     sys.exit(f"✗ {desc}: no ocurrió en {segundos} s (último valor: {valor})")
 
@@ -73,8 +77,8 @@ Publicador(KAFKA, client_id="consumidores-check").publicar(nuevo_evento(
 print("✓ Carta htr.completado enviada")
 
 q = urllib.parse.quote(ACTIVO, safe="")
-exp = esperar("La gestoría abre el expediente", lambda: http(f"{GEST}/expedientes?activo={q}"), lambda v: len(v) == 1)
-print(f"✓ Gestoría: expediente {exp[0]['proceso']} {exp[0]['estado']}")
+exp = esperar("La gestoría abre el expediente", lambda: expedientes(ACTIVO), lambda v: len(v) == 1)
+print(f"✓ Gestoría: expediente {exp[0]['proceso']} ({exp[0]['estado']})")
 actas = esperar("El notario levanta las dos actas", lambda: http(f"{PROC}/actas?activo={q}"),
                 lambda v: [a["tipo"] for a in v] == ["ingreso", "htr"])
 print(f"✓ Notario: actas {', '.join(a['tipo'] for a in actas)} · agentes de la copia: {', '.join(actas[1]['agentes'])}")
@@ -82,7 +86,7 @@ print(f"✓ Notario: actas {', '.join(a['tipo'] for a in actas)} · agentes de l
 # 3 · Carta repetida: nadie duplica nada
 http(f"{PUENTE}/ngsi-ld/notificaciones/{T}", aviso)
 time.sleep(3)
-n_exp, n_act = len(http(f"{GEST}/expedientes?activo={q}")), len(http(f"{PROC}/actas?activo={q}"))
+n_exp, n_act = len(expedientes(ACTIVO)), len(http(f"{PROC}/actas?activo={q}"))
 if (n_exp, n_act) != (1, 2):
     sys.exit(f"✗ Tras repetir la carta: {n_exp} expedientes y {n_act} actas (esperado 1 y 2)")
 print("✓ Carta repetida: sigue habiendo 1 expediente y 2 actas")

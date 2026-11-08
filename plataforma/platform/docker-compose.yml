@@ -4,6 +4,7 @@
 # Parte 5: consumidores (procedencia y gestoría)
 # Parte 6: catastro (Scorpio + PostGIS) y su suscripción al puente
 # Parte 7: procesos (Temporal), taller de copistas (HTR simulado) y su trabajador
+# Parte 8: la puerta (Keycloak + APISIX)
 name: paas
 
 services:
@@ -100,6 +101,8 @@ services:
     environment:
       KAFKA_BOOTSTRAP: kafka:29092
       TEMPORAL: temporal:7233
+      KEYCLOAK_JWKS: http://keycloak:8080/realms/paas/protocol/openid-connect/certs
+      KEYCLOAK_ISSUER: ${KEYCLOAK_PUBLICO:?Define KEYCLOAK_PUBLICO en platform/.env}/realms/paas
     volumes:
       - gestoria-data:/data
     ports:
@@ -207,6 +210,44 @@ services:
       temporal:
         condition: service_started
       htr:
+        condition: service_healthy
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    container_name: keycloak
+    restart: unless-stopped
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # Emisor fijo = dirección pública (la que usa el Mac para pedir tokens);
+      # los contenedores llegan por la red interna (keycloak:8080) gracias a backchannel-dynamic.
+      KC_HOSTNAME: ${KEYCLOAK_PUBLICO:?Define KEYCLOAK_PUBLICO en platform/.env}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./keycloak/realm-paas.json:/opt/keycloak/data/import/realm-paas.json:ro
+    ports:
+      - "${KEYCLOAK_PORT:-8180}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 10s
+      retries: 30
+
+  apisix:
+    image: apache/apisix:3.11.0-debian
+    container_name: apisix
+    restart: unless-stopped
+    environment:
+      APISIX_STAND_ALONE: "true"   # el arranque de la imagen escribe su propio config.yaml en modo standalone
+    volumes:
+      - ./apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    ports:
+      - "${APISIX_PORT:-9080}:9080"   # la puerta: única entrada para usuarios
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      gestoria:
         condition: service_healthy
 
 volumes:

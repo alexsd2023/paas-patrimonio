@@ -1,0 +1,62 @@
+{
+  "realm": "paas",
+  "displayName": "PaaS Patrimonio",
+  "enabled": true,
+  "sslRequired": "none",
+  "accessTokenLifespan": 900,
+  "roles": {
+    "realm": [
+      { "name": "archivera", "description": "Sube legajos y gestiona su fondo" },
+      { "name": "paleografa", "description": "Valida transcripciones" }
+    ]
+  },
+  "groups": [
+    { "name": "archivo-villanueva", "attributes": { "nombre": ["Archivo de Villanueva"] } },
+    { "name": "otro-archivo", "attributes": { "nombre": ["Institución de control"] } }
+  ],
+  "clients": [
+    {
+      "clientId": "paas-cli",
+      "name": "Scripts, tests y clientes de línea de comandos",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": false,
+      "protocolMappers": [
+        {
+          "name": "tenant",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "tenant",
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "m.ortega", "enabled": true, "emailVerified": true,
+      "email": "m.ortega@archivo-villanueva.example", "firstName": "M.", "lastName": "Ortega",
+      "credentials": [{ "type": "password", "value": "archivera", "temporary": false }],
+      "realmRoles": ["archivera"], "groups": ["/archivo-villanueva"]
+    },
+    {
+      "username": "paleografa-test", "enabled": true, "emailVerified": true,
+      "email": "paleografa@archivo-villanueva.example", "firstName": "Paleógrafa", "lastName": "De pruebas",
+      "credentials": [{ "type": "password", "value": "paleografa", "temporary": false }],
+      "realmRoles": ["paleografa"], "groups": ["/archivo-villanueva"]
+    },
+    {
+      "username": "p.otro", "enabled": true, "emailVerified": true,
+      "email": "p.otro@otro-archivo.example", "firstName": "P.", "lastName": "Otro",
+      "credentials": [{ "type": "password", "value": "paleografa", "temporary": false }],
+      "realmRoles": ["paleografa"], "groups": ["/otro-archivo"]
+    }
+  ]
+}

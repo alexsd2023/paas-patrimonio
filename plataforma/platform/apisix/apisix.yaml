@@ -1,0 +1,23 @@
+# La puerta de la muralla. Toda petición a /api/v1/* necesita un token válido de Keycloak.
+# APISIX comprueba firma, caducidad y emisor (JWKS) y reenvía al servicio; sin token, 401.
+routes:
+  - id: gestoria
+    uris:
+      - /api/v1/expedientes
+      - /api/v1/expedientes/*
+      - /api/v1/yo
+    upstream:
+      type: roundrobin
+      nodes:
+        "gestoria:8080": 1
+    plugins:
+      openid-connect:
+        client_id: paas-cli
+        client_secret: no-se-usa-con-bearer-only
+        discovery: http://keycloak:8080/realms/paas/.well-known/openid-configuration
+        bearer_only: true
+        use_jwks: true
+        realm: paas
+      proxy-rewrite:
+        regex_uri: ["^/api/v1/(.*)", "/$1"]
+#END
