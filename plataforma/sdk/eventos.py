@@ -29,6 +29,7 @@ from .contratos import ContratoInvalido, errores, validar
 TOPIC_POR_TIPO = {
     "legajo.ingestado": "activos",
     "htr.completado": "htr",
+    "transcripcion.validada": "htr",
 }
 _SOBRE = ["specversion", "id", "source", "type", "time", "subject", "tenant", "traceparent"]
 

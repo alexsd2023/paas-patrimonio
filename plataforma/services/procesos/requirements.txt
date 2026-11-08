@@ -1,0 +1,6 @@
+temporalio>=1.7
+confluent-kafka>=2.3
+jsonschema>=4.17
+# el Dockerfile común arranca uvicorn; este servicio usa command: python -m services.procesos.worker
+fastapi>=0.110
+uvicorn>=0.29

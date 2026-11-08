@@ -3,6 +3,7 @@
 # Parte 4: puente NGSI-LD → CloudEvents
 # Parte 5: consumidores (procedencia y gestoría)
 # Parte 6: catastro (Scorpio + PostGIS) y su suscripción al puente
+# Parte 7: procesos (Temporal), taller de copistas (HTR simulado) y su trabajador
 name: paas
 
 services:
@@ -98,7 +99,7 @@ services:
     restart: unless-stopped
     environment:
       KAFKA_BOOTSTRAP: kafka:29092
-      GESTORIA_RUTA: /data/gestoria.db
+      TEMPORAL: temporal:7233
     volumes:
       - gestoria-data:/data
     ports:
@@ -106,6 +107,8 @@ services:
     depends_on:
       kafka-init:
         condition: service_completed_successfully
+      temporal:
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/salud')"]
       interval: 10s
@@ -155,8 +158,60 @@ services:
       puente:
         condition: service_healthy
 
+  temporal:
+    image: temporalio/temporal:latest
+    container_name: temporal
+    restart: unless-stopped
+    user: "0:0"    # para poder escribir en el volumen /data
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--db-filename", "/data/temporal.db"]
+    volumes:
+      - temporal-data:/data
+    ports:
+      - "${TEMPORAL_UI_PORT:-8233}:8233"   # interfaz web de Temporal (ver los procesos)
+
+  htr:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args: { SERVICIO: htr }
+    container_name: htr
+    restart: unless-stopped
+    environment:
+      SCORPIO_URL: http://scorpio:9090
+      KAFKA_BOOTSTRAP: kafka:29092
+      MODELO: htr-mock@0.1
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      scorpio:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/salud')"]
+      interval: 10s
+      retries: 5
+
+  procesos:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args: { SERVICIO: procesos }
+    container_name: procesos
+    restart: unless-stopped
+    command: ["python", "-m", "services.procesos.worker"]
+    environment:
+      TEMPORAL: temporal:7233
+      HTR_URL: http://htr:8080
+      SCORPIO_URL: http://scorpio:9090
+      KAFKA_BOOTSTRAP: kafka:29092
+    depends_on:
+      temporal:
+        condition: service_started
+      htr:
+        condition: service_healthy
+
 volumes:
   kafka-data:
   procedencia-data:
   gestoria-data:
   scorpio-db:
+  temporal-data:

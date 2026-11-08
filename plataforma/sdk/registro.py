@@ -33,6 +33,27 @@ def entidad_activo(tenant: str, *, signatura: str, ark: str, manifiesto: str,
     }
 
 
+def urn_transcripcion(activo: str, n: int = 1) -> str:
+    """urn:ngsi-ld:ActivoPatrimonial:<tenant>:<sig>  →  urn:ngsi-ld:Transcripcion:<tenant>:<sig>-t<n>"""
+    _, _, _, tenant, sig = activo.split(":", 4)
+    return f"urn:ngsi-ld:Transcripcion:{tenant}:{sig}-t{n}"
+
+
+def entidad_transcripcion(activo: str, *, modelo: str, lineas: int, texto: str,
+                          confianza: float) -> Dict[str, Any]:
+    prop = lambda v: {"type": "Property", "value": v}  # noqa: E731
+    return {
+        "id": urn_transcripcion(activo),
+        "type": "Transcripcion",
+        "deActivo": {"type": "Relationship", "object": activo},
+        "estado": prop("pendiente-validacion"),
+        "modelo": prop(modelo),
+        "lineas": prop(lineas),
+        "confianza": prop(confianza),
+        "texto": prop(texto),
+    }
+
+
 class Registro:
     def __init__(self, url: str, timeout: float = 10.0):
         self.url, self.timeout = url.rstrip("/"), timeout
@@ -69,6 +90,11 @@ class Registro:
     def leer(self, tenant: str, entidad_id: str) -> Optional[Dict[str, Any]]:
         estado, cuerpo = self._req("GET", f"{ENTIDADES}/{urllib.parse.quote(entidad_id, safe='')}", tenant)
         return cuerpo if estado == 200 else None
+
+    def anadir_atributos(self, tenant: str, entidad_id: str, attrs: Dict[str, Any]) -> int:
+        """Añade o sustituye atributos (POST …/attrs). 204 si todo bien."""
+        ruta = f"{ENTIDADES}/{urllib.parse.quote(entidad_id, safe='')}/attrs"
+        return self._req("POST", ruta, tenant, attrs)[0]
 
     def borrar(self, tenant: str, entidad_id: str) -> int:
         return self._req("DELETE", f"{ENTIDADES}/{urllib.parse.quote(entidad_id, safe='')}", tenant)[0]

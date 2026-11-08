@@ -45,3 +45,4 @@ Desde el Mac, en `plataforma/`:
 | 4 · Puente | `python scripts/puente_check.py` |
 | 5 · Consumidores | `python scripts/consumidores_check.py` |
 | 6 · Catastro | `python scripts/registro_check.py` |
+| 7 · Procesos | `python scripts/proceso_check.py` (procesos visibles en http://servidor:8233) |

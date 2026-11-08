@@ -1,0 +1,16 @@
+{
+  "specversion": "1.0",
+  "id": "c4e1b7a2-5d93-4f6e-8a10-7b2c3d4e5f66",
+  "source": "/tenants/archivo-villanueva/servicios/procesos",
+  "type": "transcripcion.validada",
+  "time": "2026-11-08T11:02:00Z",
+  "subject": "urn:ngsi-ld:Transcripcion:archivo-villanueva:TEST-001-t1",
+  "datacontenttype": "application/json",
+  "tenant": "archivo-villanueva",
+  "data": {
+    "activo": "urn:ngsi-ld:ActivoPatrimonial:archivo-villanueva:TEST-001",
+    "estado": "validada",
+    "modelo": "htr-mock@0.1",
+    "validadoPor": "paleografa-test"
+  }
+}

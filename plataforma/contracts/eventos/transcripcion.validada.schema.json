@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/eventos/transcripcion.validada.schema.json",
+  "title": "transcripcion.validada · la paleógrafa firma la copia",
+  "description": "Lo emite el proceso de transcripción cuando recibe la validación humana. Escena 5 del caso, tramo 13.",
+  "type": "object",
+  "properties": {
+    "type": { "const": "transcripcion.validada" },
+    "subject": { "pattern": "^urn:ngsi-ld:Transcripcion:" },
+    "data": {
+      "type": "object",
+      "required": ["activo", "estado", "modelo", "validadoPor"],
+      "properties": {
+        "activo": { "type": "string", "pattern": "^urn:ngsi-ld:ActivoPatrimonial:" },
+        "estado": { "const": "validada" },
+        "modelo": { "type": "string", "pattern": "^[a-z0-9-]+@[0-9]+(\\.[0-9]+)*$" },
+        "validadoPor": { "type": "string", "minLength": 1, "description": "La persona que valida (nunca un modelo)" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

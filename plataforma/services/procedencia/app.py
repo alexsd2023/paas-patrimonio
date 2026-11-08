@@ -76,6 +76,15 @@ class Registro:
                 g.add((trans, PROV.wasDerivedFrom, activo))
                 g.add((modelo, RDF.type, PROV.SoftwareAgent))
                 g.add((act, PROV.wasAssociatedWith, modelo))
+            elif ev["type"] == "transcripcion.validada":
+                trans, activo = URIRef(ev["subject"]), URIRef(data["activo"])
+                persona = URIRef(f"urn:paas:usuario:{tenant}:{data['validadoPor']}")
+                g.add((act, PAAS.tipoActa, Literal("validacion")))
+                g.add((act, PAAS.sobre, activo))
+                g.add((act, PROV.used, trans))
+                g.add((persona, RDF.type, PROV.Person))
+                g.add((act, PROV.wasAssociatedWith, persona))
+                g.add((trans, PROV.wasAttributedTo, persona))
             else:
                 g.add((act, PAAS.tipoActa, Literal(ev["type"])))
                 g.add((act, PAAS.sobre, URIRef(ev["subject"])))

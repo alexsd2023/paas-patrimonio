@@ -10,7 +10,7 @@ from sdk.eventos import a_kafka, de_kafka, nuevo_evento
 EJ = Path(__file__).resolve().parents[1] / "contracts" / "ejemplos"
 
 
-@pytest.mark.parametrize("nombre", ["legajo.ingestado", "htr.completado"])
+@pytest.mark.parametrize("nombre", ["legajo.ingestado", "htr.completado", "transcripcion.validada"])
 def test_ida_y_vuelta_por_kafka(nombre):
     ev = json.loads((EJ / f"{nombre}.json").read_text(encoding="utf-8"))
     topic, clave, valor, cab = a_kafka(ev)
