@@ -2,6 +2,7 @@
 # Parte 1: Kafka (KRaft, un nodo que hace de broker y de controlador)
 # Parte 4: puente NGSI-LD → CloudEvents
 # Parte 5: consumidores (procedencia y gestoría)
+# Parte 6: catastro (Scorpio + PostGIS) y su suscripción al puente
 name: paas
 
 services:
@@ -110,7 +111,52 @@ services:
       interval: 10s
       retries: 5
 
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: scorpio-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ngb
+      POSTGRES_PASSWORD: ngb
+      POSTGRES_DB: ngb
+    volumes:
+      - scorpio-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ngb -d ngb"]
+      interval: 5s
+      retries: 30
+
+  scorpio:
+    image: scorpiobroker/all-in-one-runner:java-latest
+    container_name: scorpio
+    restart: unless-stopped
+    environment:
+      DBHOST: postgres
+    ports:
+      - "${SCORPIO_PORT:-9090}:9090"   # catastro, accesible desde el Mac para las pruebas
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  suscripciones:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args: { SERVICIO: suscripciones }
+    restart: "no"
+    command: ["python", "-m", "services.suscripciones.crear"]
+    environment:
+      SCORPIO_URL: http://scorpio:9090
+      PUENTE_INTERNO: http://puente:8080
+      TENANTS: archivo-villanueva,otro-archivo
+    depends_on:
+      scorpio:
+        condition: service_started
+      puente:
+        condition: service_healthy
+
 volumes:
   kafka-data:
   procedencia-data:
   gestoria-data:
+  scorpio-db:

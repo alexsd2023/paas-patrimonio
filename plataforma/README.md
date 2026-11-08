@@ -44,3 +44,4 @@ Desde el Mac, en `plataforma/`:
 | 3 · Librería | `python -m pytest tests` y `python scripts/eventos_check.py` |
 | 4 · Puente | `python scripts/puente_check.py` |
 | 5 · Consumidores | `python scripts/consumidores_check.py` |
+| 6 · Catastro | `python scripts/registro_check.py` |
