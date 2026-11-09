@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/tipos/transcripcion.schema.json",
+  "title": "transcripcion",
+  "type": "object",
+  "description": "Texto transcrito de un documento histórico (por el HTR o por una persona).",
+  "required": [
+    "texto"
+  ],
+  "properties": {
+    "texto": {
+      "type": "string"
+    },
+    "lineas": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "activo": {
+      "type": "string"
+    },
+    "idioma": {
+      "type": "string"
+    }
+  },
+  "x-es-un": "texto"
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/tipos/texto-modernizado.schema.json",
+  "title": "texto-modernizado",
+  "type": "object",
+  "description": "Transcripción en grafía moderna, con el original y los cambios hechos.",
+  "required": [
+    "texto",
+    "original"
+  ],
+  "properties": {
+    "texto": {
+      "type": "string"
+    },
+    "original": {
+      "type": "string"
+    },
+    "cambios": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "original",
+          "moderno"
+        ],
+        "properties": {
+          "original": {
+            "type": "string"
+          },
+          "moderno": {
+            "type": "string"
+          },
+          "inicio": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "activo": {
+      "type": "string"
+    }
+  },
+  "x-es-un": "transcripcion"
+}

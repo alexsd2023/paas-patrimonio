@@ -20,6 +20,9 @@ SUB_ID = "urn:ngsi-ld:Subscription:puente-activos"
 MARGEN_ARRANQUE = int(os.environ.get("MARGEN_ARRANQUE", "20"))
 
 
+SUB_DEPOSITOS = "urn:ngsi-ld:Subscription:puente-depositos"
+
+
 def suscripcion(tenant: str) -> dict:
     return {
         "id": SUB_ID,
@@ -30,6 +33,24 @@ def suscripcion(tenant: str) -> dict:
             "endpoint": {"uri": f"{PUENTE}/ngsi-ld/notificaciones/{tenant}", "accept": "application/json"},
         },
     }
+
+
+def suscripcion_depositos(tenant: str) -> dict:
+    """Gemelo digital: cada lectura nueva de un depósito (→ deposito.medicion).
+    Solo vigila temperatura y humedad: los cambios de estado que escribe conservación no avisan."""
+    return {
+        "id": SUB_DEPOSITOS,
+        "type": "Subscription",
+        "description": "Avisa al puente de cada lectura de los sensores de un depósito",
+        "entities": [{"type": "Deposito"}],
+        "watchedAttributes": ["temperatura", "humedad"],
+        "notification": {
+            "endpoint": {"uri": f"{PUENTE}/ngsi-ld/notificaciones/{tenant}", "accept": "application/json"},
+        },
+    }
+
+
+SUSCRIPCIONES_PUENTE = [(SUB_ID, suscripcion), (SUB_DEPOSITOS, suscripcion_depositos)]
 
 
 def main() -> int:
@@ -50,16 +71,17 @@ def main() -> int:
         marca = {"id": f"urn:ngsi-ld:Tenant:{t}", "type": "Tenant"}
         reg.crear(t, marca)
         reg.borrar(t, marca["id"])
-        # 2 · Borrar la suscripción anterior, si la había
-        existia = reg.suscripcion(t, SUB_ID) is not None
-        if existia:
-            reg._req("DELETE", f"{SUSCRIPCIONES}/{urllib.parse.quote(SUB_ID, safe='')}", t)
-        # 3 · Crearla de nuevo
-        estado, cuerpo = reg.crear_suscripcion(t, suscripcion(t))
-        if estado not in (201, 204):
-            print(f"✗ {t}: no se pudo crear la suscripción ({estado}): {cuerpo}", flush=True)
-            return 1
-        print(f"✓ {t}: suscripción {'recreada' if existia else 'creada'} → {PUENTE}/ngsi-ld/notificaciones/{t}", flush=True)
+        for sub_id, hacer in SUSCRIPCIONES_PUENTE:
+            # 2 · Borrar la suscripción anterior, si la había
+            existia = reg.suscripcion(t, sub_id) is not None
+            if existia:
+                reg._req("DELETE", f"{SUSCRIPCIONES}/{urllib.parse.quote(sub_id, safe='')}", t)
+            # 3 · Crearla de nuevo
+            estado, cuerpo = reg.crear_suscripcion(t, hacer(t))
+            if estado not in (201, 204):
+                print(f"✗ {t}: no se pudo crear {sub_id} ({estado}): {cuerpo}", flush=True)
+                return 1
+            print(f"✓ {t}: {sub_id.split(':')[-1]} {'recreada' if existia else 'creada'}", flush=True)
     return 0
 
 

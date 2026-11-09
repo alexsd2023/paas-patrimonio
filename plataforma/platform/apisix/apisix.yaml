@@ -1,5 +1,7 @@
-# La puerta de la muralla. Toda petición a /api/v1/* necesita un token válido de Keycloak.
-# APISIX comprueba firma, caducidad y emisor (JWKS) y reenvía al servicio; sin token, 401.
+# La puerta de la muralla. /api/v1/* necesita un token válido de Keycloak (si no, 401);
+# APISIX comprueba firma, caducidad y emisor (JWKS) y reenvía al servicio, que lo vuelve a comprobar.
+# /panel tiene su propio inicio de sesión (usuarios de Keycloak).
+# /iiif/* es lectura pública de imágenes y manifiestos (las políticas de uso llegarán con el Data Space).
 routes:
   - id: gestoria
     uris:
@@ -20,4 +22,156 @@ routes:
         realm: paas
       proxy-rewrite:
         regex_uri: ["^/api/v1/(.*)", "/$1"]
+
+  - id: ingestas
+    uri: /api/v1/ingestas
+    methods: ["POST"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "iiif:8080": 1
+    plugins:
+      openid-connect:
+        client_id: paas-cli
+        client_secret: no-se-usa-con-bearer-only
+        discovery: http://keycloak:8080/realms/paas/.well-known/openid-configuration
+        bearer_only: true
+        use_jwks: true
+        realm: paas
+      proxy-rewrite:
+        uri: /ingestas
+
+  - id: iiif-lectura
+    uri: /iiif/*
+    methods: ["GET", "HEAD", "OPTIONS"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "iiif:8080": 1
+  - id: catalogo
+    # Catálogo: capacidades (servicios y flujos) y conectores, para los ciudadanos de la plataforma, con su token
+    uris:
+      - /api/v1/servicios
+      - /api/v1/servicios/*
+      - /api/v1/trabajos/*
+      - /api/v1/uso
+      - /api/v1/plantillas
+      - /api/v1/flujos
+      - /api/v1/flujos/*
+      - /api/v1/conectores
+      - /api/v1/conectores/*
+      - /api/v1/ejecuciones/*
+      - /api/v1/registros/*
+    upstream:
+      type: roundrobin
+      nodes:
+        "catalogo:8080": 1
+    plugins:
+      openid-connect:
+        client_id: paas-cli
+        client_secret: no-se-usa-con-bearer-only
+        discovery: http://keycloak:8080/realms/paas/.well-known/openid-configuration
+        bearer_only: true
+        use_jwks: true
+        realm: paas
+      proxy-rewrite:
+        regex_uri: ["^/api/v1/(.*)", "/$1"]
+
+  # ---- consolas técnicas del núcleo, dentro de la consola (/panel/<herramienta>) y solo con sesión ----
+  - id: consola-jaeger
+    # Trazas · Jaeger (QUERY_BASE_PATH=/panel/jaeger)
+    priority: 10
+    uris: ["/panel/jaeger", "/panel/jaeger/*"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "jaeger:16686": 1
+    plugins:
+      forward-auth:          # la consola comprueba la sesión (cookie) o el token antes de dejar pasar
+        uri: http://panel:8080/panel/api/autorizar
+        request_method: GET
+        request_headers: ["Cookie", "Authorization"]
+        client_headers: ["Location"]
+
+  - id: consola-temporal
+    # Procesos · Temporal (--ui-public-path /panel/temporal)
+    priority: 10
+    uris: ["/panel/temporal", "/panel/temporal/*"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "temporal:8233": 1
+    plugins:
+      forward-auth:          # la consola comprueba la sesión (cookie) o el token antes de dejar pasar
+        uri: http://panel:8080/panel/api/autorizar
+        request_method: GET
+        request_headers: ["Cookie", "Authorization"]
+        client_headers: ["Location"]
+
+  - id: consola-kafka
+    # Correos · Kafka UI (SERVER_SERVLET_CONTEXT_PATH=/panel/kafka)
+    priority: 10
+    uris: ["/panel/kafka", "/panel/kafka/*"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "kafka-ui:8080": 1
+    plugins:
+      forward-auth:          # la consola comprueba la sesión (cookie) o el token antes de dejar pasar
+        uri: http://panel:8080/panel/api/autorizar
+        request_method: GET
+        request_headers: ["Cookie", "Authorization"]
+        client_headers: ["Location"]
+      response-rewrite:      # Kafka UI se niega a ir en un marco (DENY); aquí ya va protegida por sesión
+        headers:
+          remove: ["X-Frame-Options"]
+
+  - id: consola-mlflow
+    # Modelos · MLflow: su interfaz usa rutas relativas; la API sigue en la raíz para el HTR y los scripts
+    priority: 10
+    uris: ["/panel/mlflow", "/panel/mlflow/*"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "mlflow:5000": 1
+    plugins:
+      forward-auth:          # la consola comprueba la sesión (cookie) o el token antes de dejar pasar
+        uri: http://panel:8080/panel/api/autorizar
+        request_method: GET
+        request_headers: ["Cookie", "Authorization"]
+        client_headers: ["Location"]
+      proxy-rewrite:
+        regex_uri: ["^/panel/mlflow/?(.*)", "/$1"]
+
+  - id: consola-fuseki
+    # Notario · Fuseki
+    priority: 10
+    uris: ["/panel/fuseki", "/panel/fuseki/*"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "fuseki:3030": 1
+    plugins:
+      forward-auth:          # la consola comprueba la sesión (cookie) o el token antes de dejar pasar
+        uri: http://panel:8080/panel/api/autorizar
+        request_method: GET
+        request_headers: ["Cookie", "Authorization"]
+        client_headers: ["Location"]
+      proxy-rewrite:
+        regex_uri: ["^/panel/fuseki/?(.*)", "/$1"]
+
+  - id: panel
+    uris: ["/panel", "/panel/*"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "panel:8080": 1
+  - id: raiz
+    # la raíz lleva a la consola
+    uri: /
+    methods: ["GET", "HEAD"]
+    plugins:
+      redirect:
+        uri: /panel
+        ret_code: 302
 #END

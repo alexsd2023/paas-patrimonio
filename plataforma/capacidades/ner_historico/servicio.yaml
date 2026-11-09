@@ -1,0 +1,29 @@
+# Reconocimiento de entidades del equipo de Lancaster, publicado en Hugging Face (spaCy).
+# Es un servicio EXTERNO: la plataforma no lo despliega, lo llama a través de adaptador.py.
+id: ner-historico
+nombre: Entidades en documentos históricos
+resumen: Marca personas, lugares y otras entidades en una transcripción, línea a línea (spaCy)
+autor: Lancaster · Fleets of New Spain
+tipo: tarea
+entrada: transcripcion
+salida: transcripcion-anotada
+version: 1.3.0
+modo: externo
+url: https://alezsd-lancaster-ner-api.hf.space
+externo:
+  ruta: /annotate/text
+  token_env: NER_TOKEN      # el token va en platform/.env, nunca aquí
+  max_caracteres: 3000
+  espera_s: 120             # los Spaces gratuitos tardan en despertar
+parametros:
+  modelo:
+    tipo: texto
+    descripcion: "ruler: entidades generales · toponyms: topónimos (DECM)"
+    valores: [ruler, toponyms]
+    defecto: ruler
+  etiquetas:
+    tipo: lista
+    descripcion: Quedarse solo con estas etiquetas, p. ej. Persona, Localización (vacío = todas)
+    defecto: null
+acceso: [registrado]
+cuota: {trabajos_dia: 500}

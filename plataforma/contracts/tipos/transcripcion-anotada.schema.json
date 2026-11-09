@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/tipos/transcripcion-anotada.schema.json",
+  "title": "transcripcion-anotada",
+  "type": "object",
+  "description": "Transcripción con entidades marcadas por posición de carácter.",
+  "required": [
+    "texto",
+    "entidades"
+  ],
+  "properties": {
+    "texto": {
+      "type": "string"
+    },
+    "entidades": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "tipo",
+          "texto",
+          "inicio",
+          "fin"
+        ],
+        "properties": {
+          "tipo": {
+            "type": "string"
+          },
+          "texto": {
+            "type": "string"
+          },
+          "inicio": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "fin": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confianza": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    "activo": {
+      "type": "string"
+    }
+  },
+  "x-es-un": "transcripcion"
+}

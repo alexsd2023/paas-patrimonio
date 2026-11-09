@@ -1,0 +1,17 @@
+# PLANTILLA de servicio. No la edites aquí: crea uno nuevo con
+#   python scripts/nuevo_servicio.py mi-servicio "Nombre visible" --modo interno|externo
+id: __ID__
+nombre: __NOMBRE__
+resumen: Qué hace, en una línea
+autor: Quién lo mantiene
+tipo: tarea                  # tarea (procesa un documento) | consulta (pregunta → respuesta, p. ej. un RAG)
+entrada: transcripcion       # uno de contracts/tipos: texto, transcripcion, transcripcion-anotada, texto-modernizado, pregunta
+salida: transcripcion        # idem; respuesta para un RAG
+version: 0.1.0
+modo: __MODO__               # interno: un contenedor tuyo (app.py) · externo: una API que ya existe (adaptador.py)
+# url: https://...           # obligatoria si es externo; si es interno, por defecto http://srv-<id>:8080
+# externo: {ruta: /predict, token_env: MI_TOKEN, espera_s: 60}
+parametros: {}
+#  modelo: {tipo: texto, valores: [a, b], defecto: a, descripcion: "..."}
+acceso: [registrado]         # registrado · rol:<rol> · institucion:<id>
+cuota: {trabajos_dia: 1000}

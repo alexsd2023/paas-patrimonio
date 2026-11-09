@@ -1,0 +1,16 @@
+# Producto: el gemelo digital del archivo (depósitos, cajas, sensores y conservación).
+id: gemelo
+orden: 2
+nombre: Gemelo del archivo
+color: "#D9A23B"
+resumen: Depósitos y cajas con sus sensores · lecturas cada 5 s, alertas de conservación y legajos afectados
+usa: [identidad, correos, catastro, notario, trazas]
+# Capacidades del catálogo que necesita (capacidades/<id>)
+requiere: []
+# Contenedores propios del producto (docker compose); no son del núcleo
+contenedores: [sensores, conservacion]
+# Buzones del bus en los que publica o lee
+buzones: [sensores, conservacion]
+vistas:
+  - {id: depositos, nombre: Depósitos}
+  - {id: cajas, nombre: Cajas y legajos, ruta: cajas}

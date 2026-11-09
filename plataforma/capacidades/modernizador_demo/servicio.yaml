@@ -1,0 +1,17 @@
+# Modernizador de DEMOSTRACIÓN: unas pocas reglas de grafía para enseñar el encadenado de servicios.
+# Se sustituye por el modernizador paleográfico real con la misma plantilla.
+id: modernizador-demo
+nombre: Modernizador de grafía (demostración)
+resumen: Pasa una transcripción a grafía moderna con reglas sencillas y dice qué ha cambiado
+autor: Equipo del PaaS
+tipo: tarea
+entrada: transcripcion
+salida: texto-modernizado
+version: 0.1.0
+modo: interno
+parametros:
+  conservar_mayusculas:
+    tipo: booleano
+    defecto: true
+acceso: [registrado]
+cuota: {trabajos_dia: 2000}

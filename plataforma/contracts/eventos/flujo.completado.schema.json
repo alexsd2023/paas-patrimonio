@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/eventos/flujo.completado.schema.json",
+  "title": "flujo.completado · un flujo de servicios terminó y su resultado está en el catastro",
+  "description": "Lo emite el catálogo al publicar el resultado de un flujo. Dice qué versiones de qué servicios lo procesaron y quién firmó.",
+  "type": "object",
+  "properties": {
+    "type": { "const": "flujo.completado" },
+    "subject": { "pattern": "^urn:ngsi-ld:ResultadoFlujo:" },
+    "data": {
+      "type": "object",
+      "required": ["flujo", "nombre", "tipo", "servicios", "firmas"],
+      "properties": {
+        "flujo": { "type": "string", "minLength": 1 },
+        "nombre": { "type": "string", "minLength": 1 },
+        "tipo": { "type": "string", "description": "Tipo del documento resultante (contracts/tipos)" },
+        "activo": { "type": "string", "pattern": "^urn:ngsi-ld:ActivoPatrimonial:" },
+        "servicios": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["servicio", "version"],
+          "properties": { "servicio": { "type": "string" }, "version": { "type": "string" } }, "additionalProperties": false } },
+        "firmas": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["rol", "usuario"],
+          "properties": { "rol": { "type": "string" }, "usuario": { "type": "string", "minLength": 1, "description": "Siempre una persona" } }, "additionalProperties": false } }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/eventos/conservacion.alerta.schema.json",
+  "title": "conservacion.alerta · un depósito se sale de sus umbrales",
+  "description": "Lo emite el servicio de conservación cuando la temperatura o la humedad de un depósito salen del rango. Lleva los legajos afectados.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "conservacion.alerta"
+    },
+    "subject": {
+      "pattern": "^urn:ngsi-ld:Deposito:"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "variable",
+        "valor",
+        "limite",
+        "legajos",
+        "observadoEn"
+      ],
+      "properties": {
+        "variable": {
+          "enum": [
+            "temperatura",
+            "humedad"
+          ]
+        },
+        "valor": {
+          "type": "number"
+        },
+        "limite": {
+          "type": "number"
+        },
+        "sentido": {
+          "enum": [
+            "alta",
+            "baja"
+          ]
+        },
+        "nombre": {
+          "type": "string"
+        },
+        "legajos": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^urn:ngsi-ld:ActivoPatrimonial:"
+          }
+        },
+        "observadoEn": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "specversion": "1.0",
+  "id": "d1e0a1b2-0000-4000-8000-000000000002",
+  "source": "/tenants/archivo-villanueva/servicios/conservacion",
+  "type": "conservacion.alerta",
+  "time": "2026-11-08T19:00:00Z",
+  "subject": "urn:ngsi-ld:Deposito:archivo-villanueva:D1",
+  "datacontenttype": "application/json",
+  "tenant": "archivo-villanueva",
+  "data": {
+    "variable": "humedad",
+    "valor": 61.0,
+    "limite": 55,
+    "sentido": "alta",
+    "nombre": "Depósito 1 · sótano",
+    "legajos": [
+      "urn:ngsi-ld:ActivoPatrimonial:archivo-villanueva:TEST-001"
+    ],
+    "observadoEn": "2026-11-08T19:01:00Z"
+  }
+}

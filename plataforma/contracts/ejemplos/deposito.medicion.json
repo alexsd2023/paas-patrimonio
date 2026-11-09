@@ -1,0 +1,22 @@
+{
+  "specversion": "1.0",
+  "id": "d1e0a1b2-0000-4000-8000-000000000001",
+  "source": "/tenants/archivo-villanueva/servicios/puente",
+  "type": "deposito.medicion",
+  "time": "2026-11-08T19:00:00Z",
+  "subject": "urn:ngsi-ld:Deposito:archivo-villanueva:D1",
+  "datacontenttype": "application/json",
+  "tenant": "archivo-villanueva",
+  "data": {
+    "temperatura": 17.4,
+    "humedad": 46.2,
+    "observadoEn": "2026-11-08T19:00:00Z",
+    "nombre": "Depósito 1 · sótano",
+    "umbrales": {
+      "temperaturaMin": 14,
+      "temperaturaMax": 20,
+      "humedadMin": 35,
+      "humedadMax": 55
+    }
+  }
+}

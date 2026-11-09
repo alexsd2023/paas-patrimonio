@@ -3,7 +3,8 @@
 Scorpio (el catastro) avisa por HTTP cada vez que se inscribe una entidad; el puente
 redacta la carta estándar y la echa al bus. En el esqueleto solo traduce una cosa:
 
-    ActivoPatrimonial nuevo  →  legajo.ingestado  (topic activos)
+    ActivoPatrimonial nuevo         →  legajo.ingestado   (topic activos)
+    Deposito con lectura nueva      →  deposito.medicion  (topic sensores)   · gemelo digital
 
 Endpoints
     POST /ngsi-ld/notificaciones/{tenant}   destino de la suscripción de Scorpio
@@ -27,6 +28,7 @@ from fastapi import Body, FastAPI, Header, HTTPException
 
 from sdk.contratos import ContratoInvalido
 from sdk.eventos import Publicador, nuevo_evento
+from sdk.trazas import configurar, tramo
 
 log = logging.getLogger("puente")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -45,8 +47,34 @@ def valor(attr: Any) -> Any:
     return attr
 
 
+UMBRALES = ["temperaturaMin", "temperaturaMax", "humedadMin", "humedadMax"]
+
+
+def observado(attr: Any) -> Optional[str]:
+    return attr.get("observedAt") if isinstance(attr, dict) else None
+
+
+def medicion(entidad: Dict[str, Any], tenant: str) -> Optional[dict]:
+    """Lectura de sensores de un depósito → deposito.medicion (o None si aún no hay lectura)."""
+    if "temperatura" not in entidad or "humedad" not in entidad:
+        return None
+    cuando = observado(entidad["humedad"]) or observado(entidad["temperatura"])
+    if not cuando:
+        return None
+    data = {"temperatura": float(valor(entidad["temperatura"])), "humedad": float(valor(entidad["humedad"])),
+            "observadoEn": cuando, "umbrales": {k: float(valor(entidad[k])) for k in UMBRALES if k in entidad}}
+    if "nombre" in entidad:
+        data["nombre"] = valor(entidad["nombre"])
+    return nuevo_evento(
+        "deposito.medicion",
+        id=str(uuid.uuid5(ESPACIO_IDS, f"deposito.medicion|{entidad.get('id')}|{cuando}")),
+        tenant=tenant, subject=entidad.get("id", ""), source=f"/tenants/{tenant}/servicios/puente", data=data)
+
+
 def a_evento(entidad: Dict[str, Any], tenant: str) -> Optional[dict]:
     """Traduce una entidad notificada a su CloudEvent, o None si no le toca carta."""
+    if str(entidad.get("type", "")).endswith("Deposito"):
+        return medicion(entidad, tenant)
     if not str(entidad.get("type", "")).endswith("ActivoPatrimonial"):
         return None
     data = {k: valor(entidad[k]) for k in CAMPOS_LEGAJO if k in entidad}
@@ -92,8 +120,12 @@ def crear_app(publicador=None) -> FastAPI:
             if ev is None:
                 ignorados += 1
                 continue
+            traza = valor(entidad.get("traza"))
             try:
-                pub().publicar(ev)
+                with tramo(f"aviso del catastro → {ev['type']}", padre={"traceparent": traza} if traza else None,
+                           paas__legajo=ev["subject"] if ev["type"] == "legajo.ingestado" else None,
+                           paas__tenant=tenant):
+                    pub().publicar(ev)
             except Exception as e:  # Kafka caído, timeout…
                 log.error("no se pudo publicar %s: %s", ev["id"], e)
                 raise HTTPException(503, f"Kafka no disponible: {e}")
@@ -105,3 +137,4 @@ def crear_app(publicador=None) -> FastAPI:
 
 
 app = crear_app()
+configurar("puente", app)

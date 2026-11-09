@@ -1,0 +1,44 @@
+# Ajustes para la prueba de punta a punta (proyecto «paas-ci»): ningún puerto publicado (no choca con la
+# plataforma de desarrollo) y el contenedor «e2e», que recorre todo desde dentro de la red.
+# Uso (en plataforma/):
+#   docker compose -p paas-ci --env-file platform/ci.env -f platform/docker-compose.yml -f platform/ci.override.yml up -d --build
+#   docker compose ... --profile e2e up --build --exit-code-from e2e e2e
+services:
+  kafka:
+    ports: !reset []
+  puente:
+    ports: !reset []
+  procedencia:
+    ports: !reset []
+  gestoria:
+    ports: !reset []
+  mlflow:
+    ports: !reset []
+  scorpio:
+    ports: !reset []
+  keycloak:
+    ports: !reset []
+  apisix:
+    ports: !reset []
+  fuseki:
+    ports: !reset []
+  jaeger:
+    ports: !reset []
+  e2e:
+    profiles: ["e2e"]
+    build:
+      context: ..
+      dockerfile: tests_e2e/Dockerfile
+    environment:
+      KAFKA_BOOTSTRAP: kafka:29092
+      PUENTE_URL: http://puente:8080
+      PROCEDENCIA_URL: http://procedencia:8080
+      GESTORIA_URL: http://gestoria:8080
+      SCORPIO_URL: http://scorpio:9090
+      KEYCLOAK_URL: http://keycloak:8080
+      API_URL: http://apisix:9080
+      FUSEKI_URL: http://fuseki:3030
+      JAEGER_URL: http://jaeger:16686/panel/jaeger
+      MLFLOW_URL: http://mlflow:5000
+      OAI_ENDPOINT: http://e2e:8000/oai.xml       # repositorio OAI-PMH de prueba servido por el propio e2e
+      MLFLOW_DISABLE_AGENT_HINT: "1"

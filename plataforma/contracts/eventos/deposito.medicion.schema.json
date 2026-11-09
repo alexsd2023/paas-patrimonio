@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/eventos/deposito.medicion.schema.json",
+  "title": "deposito.medicion · lectura de los sensores de un depósito",
+  "description": "Lo emite el puente cuando el catastro registra una lectura nueva de temperatura y humedad de un depósito.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "deposito.medicion"
+    },
+    "subject": {
+      "pattern": "^urn:ngsi-ld:Deposito:"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "temperatura",
+        "humedad",
+        "observadoEn",
+        "umbrales"
+      ],
+      "properties": {
+        "temperatura": {
+          "type": "number",
+          "minimum": -30,
+          "maximum": 60
+        },
+        "humedad": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "observadoEn": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "nombre": {
+          "type": "string"
+        },
+        "umbrales": {
+          "type": "object",
+          "required": [
+            "temperaturaMin",
+            "temperaturaMax",
+            "humedadMin",
+            "humedadMax"
+          ],
+          "properties": {
+            "temperaturaMin": {
+              "type": "number"
+            },
+            "temperaturaMax": {
+              "type": "number"
+            },
+            "humedadMin": {
+              "type": "number"
+            },
+            "humedadMax": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

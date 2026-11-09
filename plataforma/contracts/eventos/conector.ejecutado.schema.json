@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/eventos/conector.ejecutado.schema.json",
+  "title": "conector.ejecutado · un conector terminó de traer (o llevar) datos de una institución",
+  "description": "Lo emite el catálogo al terminar una ejecución de un conector. Los productos que lean lo que el conector escribe pueden reaccionar a ella.",
+  "type": "object",
+  "properties": {
+    "type": { "const": "conector.ejecutado" },
+    "subject": { "pattern": "^urn:ngsi-ld:EjecucionConector:" },
+    "data": {
+      "type": "object",
+      "required": ["conector", "version", "sentido", "usuario"],
+      "properties": {
+        "conector": { "type": "string", "minLength": 1 },
+        "version": { "type": "string" },
+        "sentido": { "enum": ["entrada", "salida"] },
+        "escribe": { "type": "array", "items": { "type": "string" }, "description": "Tipos del catastro que ha escrito" },
+        "usuario": { "type": "string", "minLength": 1 },
+        "nuevos": { "type": "integer", "minimum": 0 },
+        "actualizados": { "type": "integer", "minimum": 0 },
+        "borrados": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

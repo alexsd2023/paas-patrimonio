@@ -1,0 +1,18 @@
+{
+  "specversion": "1.0",
+  "id": "flujo-completado-3f9a1c2b7d10",
+  "source": "/tenants/archivo-villanueva/servicios/catalogo",
+  "type": "flujo.completado",
+  "time": "2026-11-09T12:30:00.000Z",
+  "subject": "urn:ngsi-ld:ResultadoFlujo:archivo-villanueva:3f9a1c2b7d10",
+  "datacontenttype": "application/json",
+  "tenant": "archivo-villanueva",
+  "data": {
+    "flujo": "3f9a1c2b7d10",
+    "nombre": "Modernizar y anotar",
+    "tipo": "transcripcion-anotada",
+    "activo": "urn:ngsi-ld:ActivoPatrimonial:archivo-villanueva:TEST-394158",
+    "servicios": [{"servicio": "modernizador-demo", "version": "0.1.0"}, {"servicio": "ner-historico", "version": "1.0.0"}],
+    "firmas": [{"rol": "paleografa", "usuario": "paleografa-test"}]
+  }
+}

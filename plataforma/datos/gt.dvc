@@ -1,0 +1,6 @@
+outs:
+- md5: 01372b35bdc908b75b2762c213c3f1df.dir
+  size: 4788
+  nfiles: 1
+  hash: md5
+  path: gt

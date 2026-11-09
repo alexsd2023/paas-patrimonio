@@ -1,0 +1,8 @@
+# Plantilla de flujo: marcar las entidades de una transcripción y que una paleógrafa las revise.
+nombre: Entidades de una transcripción
+entrada: transcripcion
+pasos:
+  - servicio: ner-historico
+  - firma: paleografa
+    instrucciones: Revisa que las entidades marcadas son correctas
+publicar: true

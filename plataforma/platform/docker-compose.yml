@@ -5,12 +5,16 @@
 # Parte 6: catastro (Scorpio + PostGIS) y su suscripción al puente
 # Parte 7: procesos (Temporal), taller de copistas (HTR simulado) y su trabajador
 # Parte 8: la puerta (Keycloak + APISIX)
+# Parte 9: la sala de lectura (adaptador IIIF)
+# Vistas: panel del esqueleto (por la puerta, /panel) y Kafka UI (cartas del bus)
+# Gemelo digital: sensores simulados de los depósitos y servicio de conservación
+# Parte 10: el libro del notario en Jena Fuseki (un grafo por institución)
+# Parte 11: trazas (OpenTelemetry → Jaeger)
 name: paas
 
 services:
   kafka:
     image: apache/kafka:4.0.0
-    container_name: kafka
     restart: unless-stopped
     ports:
       - "9092:9092"            # acceso desde el Mac (EXTERNAL)
@@ -44,7 +48,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command: |
       "
-      for t in activos htr; do
+      for t in activos htr sensores conservacion flujos conectores; do
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic $$t --partitions 3 --replication-factor 1
       done
       /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --list
@@ -54,9 +58,10 @@ services:
     build:
       context: ..
       dockerfile: services/puente/Dockerfile
-    container_name: puente
     restart: unless-stopped
     environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: puente
       KAFKA_BOOTSTRAP: kafka:29092
     ports:
       - "${PUENTE_PORT:-8080}:8080"   # puerto en el servidor (cámbialo en .env si el 8080 está ocupado)
@@ -74,11 +79,16 @@ services:
       context: ..
       dockerfile: services/Dockerfile
       args: { SERVICIO: procedencia }
-    container_name: procedencia
     restart: unless-stopped
     environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: procedencia
       KAFKA_BOOTSTRAP: kafka:29092
-      PROCEDENCIA_RUTA: /data/procedencia.ttl
+      PROCEDENCIA_RUTA: /data/procedencia.ttl     # solo se usa si no hay Fuseki
+      FUSEKI_URL: http://fuseki:3030
+      FUSEKI_DATASET: paas
+      FUSEKI_USUARIO: admin
+      FUSEKI_CLAVE: ${FUSEKI_ADMIN_PASSWORD:-admin}
     volumes:
       - procedencia-data:/data
     ports:
@@ -96,9 +106,10 @@ services:
       context: ..
       dockerfile: services/Dockerfile
       args: { SERVICIO: gestoria }
-    container_name: gestoria
     restart: unless-stopped
     environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: gestoria
       KAFKA_BOOTSTRAP: kafka:29092
       TEMPORAL: temporal:7233
       KEYCLOAK_JWKS: http://keycloak:8080/realms/paas/protocol/openid-connect/certs
@@ -117,9 +128,70 @@ services:
       interval: 10s
       retries: 5
 
+  catalogo:
+    # Núcleo: catálogo de capacidades (servicios, motor de flujos con su worker) y de conectores
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args: { SERVICIO: catalogo }
+    restart: unless-stopped
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: catalogo
+      KAFKA_BOOTSTRAP: kafka:29092
+      TEMPORAL: temporal:7233
+      SCORPIO_URL: http://scorpio:9090
+      KEYCLOAK_JWKS: http://keycloak:8080/realms/paas/protocol/openid-connect/certs
+      KEYCLOAK_ISSUER: ${KEYCLOAK_PUBLICO:?Define KEYCLOAK_PUBLICO en platform/.env}/realms/paas
+      CATALOGO_DB: /data/flujos.db
+      CONECTORES_DB: /data/conectores.db
+      NER_TOKEN: ${NER_TOKEN:-}          # token del NER de Lancaster (servicio externo)
+    volumes:
+      - catalogo-data:/data
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      temporal:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/salud')"]
+      interval: 10s
+      retries: 5
+
+  srv-modernizador-demo:
+    # Capacidad (servicio interno del catálogo), hecha con la plantilla: capacidades/modernizador_demo
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args: { CARPETA: capacidades, SERVICIO: modernizador_demo }
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/salud')"]
+      interval: 10s
+      retries: 5
+
+  mlflow:
+    # Núcleo: registro de modelos. Cada versión dice de qué datos (DVC) y de qué run sale; el alias
+    # «produccion» decide qué modelo usa cada servicio (hoy el HTR) sin reiniciar nada.
+    build:
+      context: ./mlflow
+    restart: unless-stopped
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000 --workers 2
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts --serve-artifacts
+      --allowed-hosts "${MLFLOW_HOSTS:-mlflow,mlflow:5000,localhost,localhost:*,127.0.0.1:*,192.168.*,10.*,172.*}"
+    volumes:
+      - mlflow-data:/mlflow
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 15s
+      retries: 10
+
   postgres:
     image: postgis/postgis:16-3.4
-    container_name: scorpio-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ngb
@@ -134,7 +206,6 @@ services:
 
   scorpio:
     image: scorpiobroker/all-in-one-runner:java-latest
-    container_name: scorpio
     restart: unless-stopped
     environment:
       DBHOST: postgres
@@ -163,27 +234,31 @@ services:
 
   temporal:
     image: temporalio/temporal:latest
-    container_name: temporal
     restart: unless-stopped
     user: "0:0"    # para poder escribir en el volumen /data
-    command: ["server", "start-dev", "--ip", "0.0.0.0", "--db-filename", "/data/temporal.db"]
+    # La interfaz web vive en /panel/temporal, detrás de la puerta (dentro de la consola); sin puerto propio.
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--db-filename", "/data/temporal.db",
+              "--ui-public-path", "/panel/temporal"]
     volumes:
       - temporal-data:/data
-    ports:
-      - "${TEMPORAL_UI_PORT:-8233}:8233"   # interfaz web de Temporal (ver los procesos)
 
   htr:
     build:
       context: ..
       dockerfile: services/Dockerfile
       args: { SERVICIO: htr }
-    container_name: htr
     restart: unless-stopped
     environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: htr
       SCORPIO_URL: http://scorpio:9090
       KAFKA_BOOTSTRAP: kafka:29092
-      MODELO: htr-mock@0.1
+      MODELO: htr-mock@0.1                       # solo si no hay modelo en producción en MLflow
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      HTR_MODELO: htr-paleografico
     depends_on:
+      mlflow:
+        condition: service_started
       kafka-init:
         condition: service_completed_successfully
       scorpio:
@@ -198,10 +273,11 @@ services:
       context: ..
       dockerfile: services/Dockerfile
       args: { SERVICIO: procesos }
-    container_name: procesos
     restart: unless-stopped
     command: ["python", "-m", "services.procesos.worker"]
     environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: procesos
       TEMPORAL: temporal:7233
       HTR_URL: http://htr:8080
       SCORPIO_URL: http://scorpio:9090
@@ -214,7 +290,6 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.0.7
-    container_name: keycloak
     restart: unless-stopped
     command: ["start-dev", "--import-realm"]
     environment:
@@ -236,7 +311,6 @@ services:
 
   apisix:
     image: apache/apisix:3.11.0-debian
-    container_name: apisix
     restart: unless-stopped
     environment:
       APISIX_STAND_ALONE: "true"   # el arranque de la imagen escribe su propio config.yaml en modo standalone
@@ -249,10 +323,147 @@ services:
         condition: service_healthy
       gestoria:
         condition: service_healthy
+      iiif:
+        condition: service_healthy
+      panel:
+        condition: service_healthy
+
+  iiif:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args: { SERVICIO: iiif }
+    restart: unless-stopped
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: iiif
+      SCORPIO_URL: http://scorpio:9090
+      KEYCLOAK_JWKS: http://keycloak:8080/realms/paas/protocol/openid-connect/certs
+      KEYCLOAK_ISSUER: ${KEYCLOAK_PUBLICO:?Define KEYCLOAK_PUBLICO en platform/.env}/realms/paas
+      IIIF_PUBLICO: ${API_PUBLICO:?Define API_PUBLICO en platform/.env}   # las URL de manifiestos e imágenes
+      IIIF_DATOS: /data
+    volumes:
+      - iiif-data:/data
+    depends_on:
+      scorpio:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/salud')"]
+      interval: 10s
+      retries: 5
+
+  panel:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args: { SERVICIO: panel }
+    restart: unless-stopped
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: panel
+      SCORPIO_URL: http://scorpio:9090
+      TEMPORAL: temporal:7233
+      KEYCLOAK_INTERNO: http://keycloak:8080
+      KEYCLOAK_JWKS: http://keycloak:8080/realms/paas/protocol/openid-connect/certs
+      KEYCLOAK_ISSUER: ${KEYCLOAK_PUBLICO:?Define KEYCLOAK_PUBLICO en platform/.env}/realms/paas
+      API_PUBLICO: ${API_PUBLICO:?Define API_PUBLICO en platform/.env}
+      CONSERVACION_INTERNO: http://conservacion:8080
+      SENSORES_INTERNO: http://sensores:8080
+      # consola del núcleo: mira los buzones del bus y enlaza las consolas de cada pieza
+      KAFKA_BOOTSTRAP: kafka:29092
+      SCORPIO_PUBLICO: ${SCORPIO_PUBLICO:-}
+      KEYCLOAK_PUBLICO: ${KEYCLOAK_PUBLICO}
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/panel')"]
+      interval: 10s
+      retries: 5
+
+  kafka-ui:
+    image: kafbat/kafka-ui:v1.1.0
+    restart: unless-stopped
+    environment:
+      KAFKA_CLUSTERS_0_NAME: paas
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_READONLY: "true"      # solo mirar: no se pueden borrar ni enviar mensajes
+      DYNAMIC_CONFIG_ENABLED: "false"
+      SERVER_SERVLET_CONTEXT_PATH: /panel/kafka   # vive en /panel/kafka, detrás de la puerta; sin puerto propio
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  sensores:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args: { SERVICIO: sensores }
+    restart: unless-stopped
+    environment:
+      SCORPIO_URL: http://scorpio:9090
+      INTERVALO: "5"            # segundos entre lecturas
+    depends_on:
+      scorpio:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/salud')"]
+      interval: 10s
+      retries: 5
+
+  conservacion:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args: { SERVICIO: conservacion }
+    restart: unless-stopped
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: conservacion
+      SCORPIO_URL: http://scorpio:9090
+      KAFKA_BOOTSTRAP: kafka:29092
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/salud')"]
+      interval: 10s
+      retries: 5
+
+  fuseki:
+    image: stain/jena-fuseki:latest
+    restart: unless-stopped
+    environment:
+      ADMIN_PASSWORD: ${FUSEKI_ADMIN_PASSWORD:-admin}
+      TDB: "2"
+      FUSEKI_DATASET_1: paas
+      JVM_ARGS: -Xmx1g
+    volumes:
+      - fuseki-data:/fuseki
+    ports:
+      - "${FUSEKI_PORT:-3030}:3030"   # interfaz web y SPARQL (red local)
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      MEMORY_MAX_TRACES: "20000"     # en memoria: las trazas se pierden al reiniciar
+      QUERY_BASE_PATH: /panel/jaeger # la interfaz vive en /panel/jaeger (dentro de la consola)
+    ports:
+      - "${JAEGER_PORT:-16686}:16686"   # API para traza_check desde el Mac: http://servidor:16686/panel/jaeger
 
 volumes:
+  mlflow-data:
+  catalogo-data:
   kafka-data:
   procedencia-data:
   gestoria-data:
   scorpio-db:
   temporal-data:
+  iiif-data:
+  fuseki-data:

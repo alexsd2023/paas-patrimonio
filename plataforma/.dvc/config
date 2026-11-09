@@ -1,0 +1,4 @@
+[core]
+    remote = servidor
+['remote "servidor"']
+    url = ssh://alexander@192.168.1.30/home/alexander/paas-dvc

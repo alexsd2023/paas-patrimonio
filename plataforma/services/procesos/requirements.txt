@@ -4,3 +4,9 @@ jsonschema>=4.17
 # el Dockerfile común arranca uvicorn; este servicio usa command: python -m services.procesos.worker
 fastapi>=0.110
 uvicorn>=0.29
+opentelemetry-api>=1.24
+opentelemetry-sdk>=1.24
+opentelemetry-exporter-otlp-proto-http>=1.24
+opentelemetry-instrumentation-fastapi>=0.45b0
+opentelemetry-instrumentation-urllib>=0.45b0
+opentelemetry-instrumentation-httpx>=0.45b0

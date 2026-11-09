@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/tipos/pregunta.schema.json",
+  "title": "pregunta",
+  "type": "object",
+  "description": "Una pregunta en lenguaje natural para un servicio de consulta (RAG).",
+  "required": [
+    "pregunta"
+  ],
+  "properties": {
+    "pregunta": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/tipos/texto.schema.json",
+  "title": "texto",
+  "type": "object",
+  "description": "Cualquier texto. Es la raíz: todo documento con «texto» encaja aquí.",
+  "required": [
+    "texto"
+  ],
+  "properties": {
+    "texto": {
+      "type": "string"
+    },
+    "idioma": {
+      "type": "string"
+    }
+  }
+}

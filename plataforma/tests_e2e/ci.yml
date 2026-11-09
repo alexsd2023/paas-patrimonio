@@ -1,0 +1,68 @@
+# Integración continua del walking skeleton (parte 13).
+#   pruebas        → en GitHub, en cada push y pull request: las pruebas rápidas (pytest), sin plataforma.
+#   punta-a-punta  → en Turing (runner propio con la etiqueta «turing»): levanta la plataforma entera en un
+#                    proyecto aislado («paas-ci», sin puertos publicados), la recorre y la apaga.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: plataforma
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: plataforma/requirements.txt
+      - name: Dependencias
+        run: pip install -r requirements.txt pytest
+      - name: Pruebas rápidas
+        env:
+          MLFLOW_DISABLE_AGENT_HINT: "1"
+        run: python -m pytest -q tests
+
+  punta-a-punta:
+    needs: pruebas
+    # nunca con código de forks: el runner es tu servidor
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, turing]
+    timeout-minutes: 60
+    concurrency:
+      group: e2e-turing
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: plataforma
+    env:
+      COMPOSE: docker compose -p paas-ci --env-file platform/ci.env -f platform/docker-compose.yml -f platform/ci.override.yml
+    steps:
+      - uses: actions/checkout@v4
+      - name: Limpiar restos de una ejecución anterior
+        run: $COMPOSE --profile e2e down -v --remove-orphans || true
+      - name: Levantar la plataforma (proyecto aislado paas-ci)
+        run: $COMPOSE up -d --build
+      - name: Recorrerla de punta a punta
+        run: $COMPOSE --profile e2e up --build --exit-code-from e2e e2e
+      - name: Registros de los servicios (si algo falla)
+        if: failure()
+        run: |
+          $COMPOSE ps -a > registros-e2e.txt
+          $COMPOSE logs --no-color --tail 150 >> registros-e2e.txt
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: registros-e2e
+          path: plataforma/registros-e2e.txt
+      - name: Apagar y borrar el entorno de prueba
+        if: always()
+        run: $COMPOSE --profile e2e down -v --remove-orphans

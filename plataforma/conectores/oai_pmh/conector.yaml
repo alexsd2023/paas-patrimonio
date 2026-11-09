@@ -1,0 +1,27 @@
+# Cosecha OAI-PMH: trae los registros Dublin Core de un repositorio existente (archivo, biblioteca,
+# repositorio institucional) y los inscribe en el catastro de la institución como RegistroCatalografico.
+id: oai-pmh
+nombre: Cosecha OAI-PMH
+resumen: Trae registros Dublin Core de un repositorio OAI-PMH existente al catastro de tu institución
+autor: Equipo del PaaS
+sentido: entrada
+version: 0.1.0
+configuracion:
+  endpoint:
+    tipo: url
+    obligatorio: true
+    descripcion: Dirección base OAI-PMH del repositorio (la que responde a ?verb=Identify)
+  conjunto:
+    tipo: texto
+    descripcion: setSpec para cosechar solo una colección (vacío = todo)
+  desde:
+    tipo: texto
+    descripcion: Solo registros modificados desde esta fecha (AAAA-MM-DD)
+  maximo:
+    tipo: entero
+    defecto: 200
+    minimo: 1
+    maximo: 5000
+    descripcion: Como mucho estos registros por ejecución
+escribe: [RegistroCatalografico]
+acceso: [rol:archivera]

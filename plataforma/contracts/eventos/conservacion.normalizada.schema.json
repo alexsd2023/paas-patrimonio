@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/eventos/conservacion.normalizada.schema.json",
+  "title": "conservacion.normalizada · el depósito vuelve a sus umbrales",
+  "description": "Lo emite el servicio de conservación cuando la variable que estaba en alerta vuelve al rango.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "conservacion.normalizada"
+    },
+    "subject": {
+      "pattern": "^urn:ngsi-ld:Deposito:"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "variable",
+        "valor",
+        "legajos",
+        "observadoEn"
+      ],
+      "properties": {
+        "variable": {
+          "enum": [
+            "temperatura",
+            "humedad"
+          ]
+        },
+        "valor": {
+          "type": "number"
+        },
+        "nombre": {
+          "type": "string"
+        },
+        "legajos": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^urn:ngsi-ld:ActivoPatrimonial:"
+          }
+        },
+        "observadoEn": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

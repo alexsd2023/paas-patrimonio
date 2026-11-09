@@ -1,0 +1,8 @@
+# A diferencia de las imágenes de los servicios, esta SÍ lleva scripts/ y tests_e2e/
+.venv
+.env
+**/__pycache__
+.pytest_cache
+*.db
+datos/gt
+.dvc/cache

@@ -10,6 +10,9 @@ Todo evento del bus es un **CloudEvent 1.0** que cumple dos esquemas:
 | `legajo.ingestado` | puente (al crear un ActivoPatrimonial) | `activos` | 3 / 6 |
 | `htr.completado` | módulo HTR | `htr` | 4 / 10 |
 | `transcripcion.validada` | proceso de transcripción (Temporal) | `htr` | 5 / 13 |
+| `deposito.medicion` | puente (al registrar el catastro una lectura de sensores) | `sensores` | gemelo |
+| `conservacion.alerta` | servicio de conservación | `conservacion` | gemelo |
+| `conservacion.normalizada` | servicio de conservación | `conservacion` | gemelo |
 
 ## Cómo viaja por Kafka (modo binario)
 

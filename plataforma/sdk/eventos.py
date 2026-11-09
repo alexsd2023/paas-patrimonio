@@ -25,11 +25,17 @@ from datetime import datetime, timezone
 from typing import Iterable, Iterator, List, Optional, Tuple
 
 from .contratos import ContratoInvalido, errores, validar
+from .trazas import inyectar, legajo_de, tramo
 
 TOPIC_POR_TIPO = {
     "legajo.ingestado": "activos",
     "htr.completado": "htr",
     "transcripcion.validada": "htr",
+    "deposito.medicion": "sensores",
+    "conservacion.alerta": "conservacion",
+    "conservacion.normalizada": "conservacion",
+    "flujo.completado": "flujos",
+    "conector.ejecutado": "conectores",
 }
 _SOBRE = ["specversion", "id", "source", "type", "time", "subject", "tenant", "traceparent"]
 
@@ -75,8 +81,6 @@ def de_kafka(valor: Optional[bytes], cabeceras: Optional[Iterable[Tuple[str, byt
     if "ce_type" not in cab:
         raise ContratoInvalido(["no es un CloudEvent (falta la cabecera ce_type)"])
     ev = {k: cab["ce_" + k] for k in _SOBRE if k != "traceparent" and "ce_" + k in cab}
-    if "traceparent" in cab:
-        ev["traceparent"] = cab["traceparent"]
     ev["datacontenttype"] = cab.get("content-type", "application/json")
     try:
         ev["data"] = json.loads(valor) if valor else None
@@ -97,9 +101,13 @@ class Publicador:
         """Valida, envía y espera confirmación del broker. Lanza excepción si algo falla."""
         topic, clave, valor, cabeceras = a_kafka(evento)
         resultado = {}
-        self._p.produce(topic, key=clave, value=valor, headers=cabeceras,
-                        on_delivery=lambda err, msg: resultado.update(err=err))
-        self._p.flush(timeout)
+        with tramo(f"enviar {evento['type']}", tipo="envio", messaging__system="kafka",
+                   messaging__destination__name=topic, paas__legajo=legajo_de(evento), paas__tenant=evento["tenant"]):
+            if not any(k == "traceparent" for k, _ in cabeceras):
+                cabeceras += [(k, v.encode()) for k, v in inyectar({}).items()]
+            self._p.produce(topic, key=clave, value=valor, headers=cabeceras,
+                            on_delivery=lambda err, msg: resultado.update(err=err))
+            self._p.flush(timeout)
         if not resultado:
             raise TimeoutError(f"Kafka no confirmó el evento {evento['id']} en {timeout} s")
         if resultado["err"]:
@@ -138,7 +146,12 @@ class Consumidor:
                     self._c.commit(message=msg, asynchronous=False)
                     continue
                 if self._tipos is None or ev["type"] in self._tipos:
-                    yield ev                      # el servicio procesa aquí
+                    padre = {k: (v.decode() if isinstance(v, bytes) else v) for k, v in (msg.headers() or [])
+                             if k in ("traceparent", "tracestate")}
+                    with tramo(f"recibir {ev['type']}", padre=padre, tipo="recepcion", messaging__system="kafka",
+                               messaging__destination__name=msg.topic(), paas__legajo=legajo_de(ev),
+                               paas__tenant=ev["tenant"]):
+                        yield ev                  # el servicio procesa aquí, dentro de la traza
                 self._c.commit(message=msg, asynchronous=False)
         finally:
             self._c.close()

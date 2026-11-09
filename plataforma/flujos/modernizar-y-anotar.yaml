@@ -1,0 +1,11 @@
+# Plantilla de flujo: modernizar la grafía, revisar, marcar entidades sobre el texto moderno y revisar.
+nombre: Modernizar y anotar
+entrada: transcripcion
+pasos:
+  - servicio: modernizador-demo
+  - firma: paleografa
+    instrucciones: Revisa la grafía modernizada antes de anotarla
+  - servicio: ner-historico
+  - firma: paleografa
+    instrucciones: Revisa las entidades
+publicar: true

@@ -8,6 +8,7 @@ from temporalio.worker import Worker
 
 from services.procesos.actividades import registrar_validacion, transcribir
 from services.procesos.flujo import TranscripcionEstandar
+from sdk.trazas import configurar, interceptores_temporal
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger("procesos")
@@ -15,10 +16,11 @@ COLA = "transcripcion"
 
 
 async def main() -> None:
+    configurar("procesos")
     direccion = os.environ.get("TEMPORAL", "temporal:7233")
     while True:
         try:
-            cliente = await Client.connect(direccion)
+            cliente = await Client.connect(direccion, interceptors=interceptores_temporal())
             break
         except Exception as e:  # Temporal aún arrancando
             log.info("esperando a Temporal en %s (%s)", direccion, e)

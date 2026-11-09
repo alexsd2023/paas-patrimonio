@@ -24,6 +24,7 @@ from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query
 from sdk.identidad import Identidad, NoAutorizado, Verificador, token_de
 
 from sdk.servicio import lanzar_consumidor
+from sdk.trazas import con_contexto, configurar, contexto_actual, interceptores_temporal
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger("gestoria")
@@ -50,12 +51,13 @@ class ExpedientesTemporal:
         self._cliente = None
 
     def _call(self, coro, timeout: float = 30):
-        return asyncio.run_coroutine_threadsafe(coro, self._loop).result(timeout)
+        # el bucle de Temporal vive en otro hilo: le pasamos el contexto de la traza actual
+        return asyncio.run_coroutine_threadsafe(con_contexto(contexto_actual(), coro), self._loop).result(timeout)
 
     async def _cli(self):
         if self._cliente is None:
             from temporalio.client import Client
-            self._cliente = await Client.connect(self.direccion)
+            self._cliente = await Client.connect(self.direccion, interceptors=interceptores_temporal())
         return self._cliente
 
     # --- abrir (desde el bus) ---
@@ -173,3 +175,4 @@ def _verificador() -> Optional[Verificador]:
 
 app = crear_app(ExpedientesTemporal(os.environ.get("TEMPORAL", "temporal:7233")),
                 os.environ.get("KAFKA_BOOTSTRAP"), _verificador())
+configurar("gestoria", app)

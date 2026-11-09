@@ -1,0 +1,38 @@
+# Producto: el legajo de la archivera.
+# La consola del núcleo lee este fichero para pintar la barra lateral, el catálogo y la cabecera del producto.
+id: legajo
+orden: 1
+nombre: Legajo de la archivera
+color: "#3FA594"
+resumen: Del legajo entregado a la copia validada · sala de lectura, gestoría y taller de copistas
+# Piezas del núcleo que usa (ver services/panel/productos.py · PIEZAS_NUCLEO)
+usa: [identidad, puerta, imagenes, correos, catastro, procesos, notario, trazas, modelos]
+# Capacidades del catálogo que necesita (capacidades/<id>)
+requiere: []
+# Contenedores propios del producto (docker compose); no son del núcleo
+contenedores: [iiif, gestoria, htr, procesos]
+# Buzones del bus en los que publica o lee
+buzones: [activos, htr]
+vistas:
+  - {id: legajos, nombre: Legajos}
+  - {id: entregar, nombre: Entregar, ruta: entregar}
+  - {id: validar, nombre: Validar, ruta: validar}
+  - {id: tramos, nombre: Tramos, ruta: tramos}
+# El recorrido del producto en el walking skeleton: qué pieza del núcleo aporta cada tramo
+tramos:
+  - {pieza: identidad, texto: La archivera entra con su cuenta y su institución, hecho: true}
+  - {pieza: puerta, texto: Entrega el legajo por la API, hecho: true}
+  - {pieza: imagenes, texto: Los folios quedan publicados como IIIF, hecho: true}
+  - {pieza: catastro, texto: Ficha del legajo en el catastro, hecho: true}
+  - {pieza: correos, texto: Sale la carta legajo.ingestado, hecho: true}
+  - {pieza: correos, texto: El puente comprueba el contrato, hecho: true}
+  - {pieza: notario, texto: Se abre su libro de actas, hecho: true}
+  - {pieza: procesos, texto: La gestoría abre el expediente de transcripción, hecho: true}
+  - {pieza: procesos, texto: El taller (HTR) hace la copia, hecho: true}
+  - {pieza: correos, texto: Sale la carta htr.completado, hecho: true}
+  - {pieza: identidad, texto: La paleógrafa firma la copia, hecho: true}
+  - {pieza: notario, texto: Acta de la validación en el grafo de la institución, hecho: true}
+  - {pieza: trazas, texto: Todo el recorrido en una sola traza, hecho: true}
+  - {pieza: modelos, texto: Datos de entrenamiento versionados con DVC, hecho: true}
+  - {pieza: modelos, texto: Modelo HTR registrado en MLflow con sus métricas y sus datos, hecho: true}
+  - {pieza: notario, texto: La copia y su acta citan modelo, run y datos, hecho: true}

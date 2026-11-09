@@ -1,0 +1,12 @@
+{
+  "specversion": "1.0",
+  "id": "conector-ejecutado-5e1b2c9d0a77",
+  "source": "/tenants/archivo-villanueva/servicios/catalogo",
+  "type": "conector.ejecutado",
+  "time": "2026-11-09T14:10:00.000Z",
+  "subject": "urn:ngsi-ld:EjecucionConector:archivo-villanueva:5e1b2c9d0a77",
+  "datacontenttype": "application/json",
+  "tenant": "archivo-villanueva",
+  "data": {"conector": "oai-pmh", "version": "0.1.0", "sentido": "entrada", "escribe": ["RegistroCatalografico"],
+           "usuario": "m.ortega", "nuevos": 180, "actualizados": 20, "borrados": 3}
+}

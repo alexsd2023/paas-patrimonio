@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/tipos/respuesta.schema.json",
+  "title": "respuesta",
+  "type": "object",
+  "description": "Respuesta de un servicio de consulta, con las fuentes que la sostienen.",
+  "required": [
+    "respuesta",
+    "fuentes"
+  ],
+  "properties": {
+    "respuesta": {
+      "type": "string"
+    },
+    "fuentes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "activo": {
+            "type": "string"
+          },
+          "fragmento": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
