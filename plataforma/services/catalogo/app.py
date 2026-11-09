@@ -42,6 +42,7 @@ from fastapi import Body, Depends, FastAPI, Header, HTTPException
 from sdk.identidad import Identidad, NoAutorizado, Verificador, token_de
 from sdk.servicios import RAIZ, DocumentoInvalido
 from services.catalogo.catalogo import Catalogo, CuotaAgotada, SinPermiso, Trabajos, descubrir
+from services.catalogo.secretos import PLATAFORMA
 from services.catalogo.recetas import RecetaInvalida, planificar
 from sdk.conectores import ConfiguracionInvalida
 
@@ -337,6 +338,56 @@ def crear_app(*, verificador, catalogo: Catalogo, flujos, indice: Indice, planti
         return [{"id": e["id"], **{k: v(e, k) for k in ("titulo", "creadores", "fechas", "tipos", "origen",
                                                          "identificadorOai", "cosechadoEn")}} for e in filas]
 
+    # ---------- secretos de las capacidades ----------
+    def secretos_de(sid: str, quien: Identidad):
+        if catalogo.secretos is None:
+            raise HTTPException(503, "este catálogo no guarda secretos")
+        try:
+            return catalogo.comprobar(sid, quien.roles, quien.tenant)
+        except KeyError:
+            raise HTTPException(404, f"no hay ningún servicio {sid}")
+        except SinPermiso as e:
+            raise HTTPException(403, str(e))
+
+    @app.get("/secretos")
+    def ver_secretos(quien: Identidad = Depends(yo)):
+        """Qué secretos piden las capacidades que veo y cuáles están puestos. Nunca devuelve valores."""
+        if catalogo.secretos is None:
+            return []
+        return [{"servicio": m.id, "nombre": m.nombre, "secretos": catalogo.secretos.estado(m, quien.tenant)}
+                for m in catalogo.visibles(quien.roles, quien.tenant) if m.secretos]
+
+    def ambito_y_dueno(m, nombre: str, ambito: str, quien: Identidad) -> str:
+        d = next((x for x in m.secretos if x["nombre"] == nombre), None)
+        if not d:
+            raise HTTPException(404, f"{m.id} no declara ningún secreto {nombre}")
+        if ambito not in ("institucion", "plataforma") or d["ambito"] not in (ambito, "ambos"):
+            raise HTTPException(422, f"{nombre} es de ámbito {d['ambito']}")
+        if ambito == "plataforma":
+            if not quien.tiene("admin-paas"):
+                raise HTTPException(403, "los secretos de la plataforma los pone el equipo del PaaS (admin-paas)")
+            return PLATAFORMA
+        if not quien.tiene("admin-institucion"):
+            raise HTTPException(403, "hace falta el rol admin-institucion")
+        return quien.tenant
+
+    @app.put("/secretos/{sid}/{nombre}")
+    def poner_secreto(sid: str, nombre: str, peticion: Dict[str, Any] = Body(...), quien: Identidad = Depends(yo)):
+        m = secretos_de(sid, quien)
+        dueno = ambito_y_dueno(m, nombre, str(peticion.get("ambito", "institucion")), quien)
+        valor = str(peticion.get("valor") or "")
+        if not valor.strip() or len(valor) > 4096:
+            raise HTTPException(422, "el valor no puede estar vacío (ni pasar de 4096 caracteres)")
+        catalogo.secretos.poner(m.id, dueno, nombre, valor.strip(), quien.usuario)
+        log.info("%s pone el secreto %s de %s (%s)", quien.usuario, nombre, m.id, dueno or "plataforma")
+        return {"servicio": m.id, "secretos": catalogo.secretos.estado(m, quien.tenant)}
+
+    @app.delete("/secretos/{sid}/{nombre}")
+    def quitar_secreto(sid: str, nombre: str, ambito: str = "institucion", quien: Identidad = Depends(yo)):
+        m = secretos_de(sid, quien)
+        catalogo.secretos.quitar(m.id, ambito_y_dueno(m, nombre, ambito, quien), nombre)
+        return {"servicio": m.id, "secretos": catalogo.secretos.estado(m, quien.tenant)}
+
     @app.exception_handler(CuotaAgotada)
     async def cuota(_req, exc):
         from fastapi.responses import JSONResponse
@@ -349,7 +400,8 @@ def _crear() -> FastAPI:
     from sdk.registro import Registro
     from services.catalogo.actividades import Actividades
     jwks, emisor = os.environ.get("KEYCLOAK_JWKS"), os.environ.get("KEYCLOAK_ISSUER")
-    catalogo = Catalogo(descubrir())
+    from services.catalogo.secretos import Secretos
+    catalogo = Catalogo(descubrir(), secretos=Secretos(os.environ.get("SECRETOS_DB")))
     flujos = FlujosTemporal(os.environ.get("TEMPORAL", "temporal:7233"))
     publicador = None
     if os.environ.get("KAFKA_BOOTSTRAP"):

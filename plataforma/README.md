@@ -135,3 +135,35 @@ el servidor los comandos que muestra, con `--labels turing` en `config.sh`; desp
 `sudo ./svc.sh start`. El usuario del runner tiene que poder usar docker (grupo `docker`). Hace falta
 Docker Compose 2.24 o posterior (`docker compose version`).
 
+
+## Instituciones sin intermediarios (autoservicio)
+
+Una institución entra y trabaja sola, sin que el equipo del PaaS toque Keycloak ni ficheros:
+
+1. **Alta** en `/panel/alta` (enlace en la pantalla de entrada): crea su grupo en Keycloak y su primera
+   administradora (rol `admin-institucion`), y entra directamente. Con `REGISTRO=cerrado` el alta se cierra.
+2. **Mi institución** (`/panel/institucion`), para quien la administra:
+   - *Productos*: activa los que quiera. Una institución nueva empieza sin ninguno; las que ya existían lo
+     tienen todo. Un producto sin activar no sale en la barra y su URL responde 403.
+   - *Personas*: invita a su equipo con roles `archivera`, `paleografa` o `admin-institucion` (nunca `admin-paas`).
+   - *Credenciales de API*: crea un cliente `app-<institución>-<nombre>` para que un sistema use la API con
+     `client_credentials`, siempre con la identidad de la institución. El secreto se muestra una vez.
+   - *Secretos*: los tokens que piden las capacidades (p. ej. `NER_TOKEN`), cifrados; nunca se vuelven a leer.
+     Los de la plataforma los pone `admin.paas` (contraseña inicial `admin-paas`: cámbiala).
+3. Por API, lo mismo en `/api/v1/institucion/{yo,activaciones,usuarios,credenciales}` y `/api/v1/secretos`.
+
+Piezas: `services/instituciones` (usa la API de administración de Keycloak con el cliente confidencial
+`paas-gestion`, que solo puede gestionar usuarios, grupos y clientes del realm `paas`) y
+`services/catalogo/secretos.py`. Comprobación: `python scripts/institucion_check.py` (también en la e2e).
+
+**Al desplegar por primera vez** (en `platform/.env` del servidor):
+
+```bash
+echo "PAAS_GESTION_SECRET=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')" >> .env
+echo "CATALOGO_CLAVE=$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')" >> .env
+echo "REGISTRO=abierto" >> .env
+```
+
+Keycloak guarda ahora sus datos en el volumen `keycloak-data`: las instituciones dadas de alta sobreviven a
+recrear el contenedor. El realm se importa solo si no existe, así que **los cambios futuros en
+`realm-paas.json` ya no se aplican solos**: se hacen en Keycloak o borrando el volumen (se pierden las altas).

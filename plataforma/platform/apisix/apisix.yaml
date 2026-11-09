@@ -62,6 +62,8 @@ routes:
       - /api/v1/conectores/*
       - /api/v1/ejecuciones/*
       - /api/v1/registros/*
+      - /api/v1/secretos
+      - /api/v1/secretos/*
     upstream:
       type: roundrobin
       nodes:
@@ -76,6 +78,24 @@ routes:
         realm: paas
       proxy-rewrite:
         regex_uri: ["^/api/v1/(.*)", "/$1"]
+
+  - id: instituciones
+    # Mi institución por API (personas, productos activados, credenciales). El alta se hace en /panel/alta.
+    uris: ["/api/v1/institucion/*"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "instituciones:8080": 1
+    plugins:
+      openid-connect:
+        client_id: paas-cli
+        client_secret: no-se-usa-con-bearer-only
+        discovery: http://keycloak:8080/realms/paas/.well-known/openid-configuration
+        bearer_only: true
+        use_jwks: true
+        realm: paas
+      proxy-rewrite:
+        regex_uri: ["^/api/v1/institucion/(.*)", "/$1"]
 
   # ---- consolas técnicas del núcleo, dentro de la consola (/panel/<herramienta>) y solo con sesión ----
   - id: consola-jaeger

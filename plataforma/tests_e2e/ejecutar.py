@@ -32,6 +32,7 @@ PIEZAS = [
     ("Trazas · Jaeger", "tcp", "jaeger:16686"),
     ("Modelos · MLflow", "http", "http://mlflow:5000/health"),
     ("Catálogo", "http", "http://catalogo:8080/salud"),
+    ("Instituciones", "http", "http://instituciones:8080/salud"),
     ("Consola", "http", "http://panel:8080/panel"),
     ("Puerta · APISIX", "http", "http://apisix:9080/panel"),
     ("Gestoría (legajo)", "http", "http://gestoria:8080/salud"),
@@ -55,6 +56,7 @@ PASOS = [  # (parte, script, argumentos)
     ("10 · Notario", "scripts/fuseki_check.py", []),
     ("11 · Trazas", "scripts/traza_check.py", []),
     ("Capacidades, flujos y conectores", "scripts/catalogo_check.py", []),
+    ("Una institución nueva, sola", "scripts/institucion_check.py", []),
     ("12 · Modelo en producción", "modelos/htr/entrenar.py", ["--produccion", "--datos", "tests_e2e/gt"]),
     ("12 · Copia con linaje", "scripts/modelo_check.py", []),
 ]

@@ -73,7 +73,7 @@ def cliente(token=None, **kw):
                     sondas=lambda: [{"pieza": "correos", "nombre": "Correos · Kafka", "destino": "kafka:29092",
                                      "ok": True, "ms": 2, "detalle": None}],
                     servicios={"conservacion": "http://127.0.0.1:9", "sensores": "http://127.0.0.1:9",
-                              "catalogo": "http://127.0.0.1:9"}, **kw)
+                              "catalogo": "http://127.0.0.1:9", "instituciones": "http://127.0.0.1:9"}, **kw)
     c = TestClient(app)
     if token:
         c.cookies.set(COOKIE, token)

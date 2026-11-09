@@ -4,6 +4,7 @@ Es núcleo del PaaS. No sabe qué hace cada servicio: solo lee su ``servicio.yam
 lo ejecuta por la interfaz estándar (interno) o por su adaptador (externo).
 """
 import importlib
+import inspect
 import logging
 import os
 import threading
@@ -70,8 +71,9 @@ class Contador:
 
 class Catalogo:
     def __init__(self, servicios: Dict[str, Manifiesto], http: Optional[httpx.Client] = None,
-                 espera: float = 600, sondeo: float = 0.5):
+                 espera: float = 600, sondeo: float = 0.5, secretos=None):
         self.servicios = servicios
+        self.secretos = secretos   # services.catalogo.secretos.Secretos (opcional)
         self.http = http or httpx.Client(timeout=30, follow_redirects=True)
         self.contador = Contador()
         self.espera, self.sondeo = espera, sondeo
@@ -101,7 +103,10 @@ class Catalogo:
         if m.modo == "externo":
             adaptador = importlib.import_module(f"capacidades.{m.carpeta.name}.adaptador")
             try:
-                salida = adaptador.ejecutar(m, entrada, params, self.http)
+                kw = {}
+                if "secretos" in inspect.signature(adaptador.ejecutar).parameters:
+                    kw["secretos"] = self.secretos.valores(m, tenant) if self.secretos else {}
+                salida = adaptador.ejecutar(m, entrada, params, self.http, **kw)
             except (httpx.HTTPError, RuntimeError, ValueError, KeyError) as e:
                 raise FalloDelServicio(f"{m.id}: {e}")
         else:

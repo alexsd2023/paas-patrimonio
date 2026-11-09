@@ -10,6 +10,11 @@ Capacidades:
 
 Conectores:
     GET  /panel/conectores            configurar y ejecutar los conectores de mi institución
+
+Mi institución (autoservicio, services/instituciones):
+    GET/POST /panel/alta              dar de alta una institución sin pasar por el equipo del PaaS (sin sesión)
+    GET  /panel/institucion           personas, productos activados, credenciales de API y secretos
+    /panel/api/instituciones/...      la consola habla con el servicio de instituciones en nombre de quien está
     POST /panel/entrar · /panel/salir sesión con un usuario de Keycloak (cookie con su token)
     GET  /panel/api/nucleo/estado     ·  /panel/api/nucleo/cartas  ·  /panel/api/productos
 
@@ -18,16 +23,19 @@ Productos (``productos/<id>/``, descubiertos al arrancar):
 """
 import logging
 import os
+import time
 import urllib.error
 from typing import Any, Dict, List, Optional
 
 import httpx
 from fastapi import Body, FastAPI, Form, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from sdk.identidad import NoAutorizado, pedir_token
 from services.panel import pagina as P
 from services.panel import conectores_vista as CV
+from services.panel import institucion_vista as IV
 from services.panel import servicios_vista as SV
 from services.panel.productos import Producto, descubrir
 from services.panel.datos import Bus, resumen_bus, sondear
@@ -45,13 +53,36 @@ def crear_app(*, registro, verificador, expedientes, keycloak_interno: str, proc
     productos = descubrir() if productos is None else productos
     por_id = {c.id: c for c in productos}
 
+    # ---------- productos activados por cada institución (servicio de instituciones, con caché corta) ----------
+    cache_activos: Dict[str, Any] = {}
+
+    def activos_de(token: str, tenant: str) -> Optional[List[str]]:
+        """None = no se sabe (servicio caído): se muestra todo, como antes del autoservicio.
+        Activar no es una barrera de seguridad (los datos ya están aislados por institución): es la oferta."""
+        hit = cache_activos.get(tenant)
+        if hit and time.monotonic() - hit[0] < 30:
+            return hit[1]
+        try:
+            r = httpx.get(f"{nucleo.servicio('instituciones')}/activaciones", timeout=5,
+                          headers={"Authorization": f"Bearer {token}"})
+            act = r.json()["activos"] if r.status_code == 200 else None
+        except (httpx.HTTPError, ValueError, KeyError):
+            act = None
+        if act is not None:
+            cache_activos[tenant] = (time.monotonic(), act)
+        return act
+
+    def activos_req(req: Request, quien) -> Optional[List[str]]:
+        return activos_de(nucleo.token(req), quien.tenant)
+
     def pintar(req: Request, *, producto: str, vista: str, cuerpo: str, script: str, estilo: str, datos: Dict[str, Any]):
         quien = nucleo.yo(req)
         c = por_id[producto]
         cfg = {"usuario": quien.usuario, "tenant": quien.tenant, "roles": list(quien.roles), "enlaces": enlaces,
                "producto": c.id, "base": c.base, **datos}
         return P.documento(f"{c.nombre} · {next((v.nombre for v in c.vistas if v.id == vista), '')}",
-                           P.barra(productos, f"producto:{c.id}", quien, enlaces), P.cabecera_producto(c, vista),
+                           P.barra(productos, f"producto:{c.id}", quien, enlaces, activos_req(req, quien)),
+                           P.cabecera_producto(c, vista),
                            cuerpo, cfg, script, estilo, c.color)
 
     nucleo = Nucleo(registro=registro, verificador=verificador, expedientes=expedientes, procedencia=procedencia,
@@ -76,8 +107,8 @@ def crear_app(*, registro, verificador, expedientes, keycloak_interno: str, proc
             quien = nucleo.yo(req)
         except HTTPException:
             return HTMLResponse(P.entrar_html())
-        return HTMLResponse(P.documento(titulo, P.barra(productos, activo, quien, enlaces), cabecera, cuerpo,
-                                        cfg_de(quien), script, estilo))
+        return HTMLResponse(P.documento(titulo, P.barra(productos, activo, quien, enlaces, activos_req(req, quien)),
+                                        cabecera, cuerpo, cfg_de(quien), script, estilo))
 
     # ---------- sesión ----------
     @app.post("/panel/entrar")
@@ -140,7 +171,92 @@ def crear_app(*, registro, verificador, expedientes, keycloak_interno: str, proc
     def catalogo(req: Request):
         cab = P.cabecera_nucleo("Catálogo", "Catálogo de productos", capa="Productos", sub=
                                 "Cada producto es una carpeta en productos/ con su manifiesto y sus vistas. El núcleo no cambia.")
-        return vista_nucleo(req, "productos", "Productos", cab, P.catalogo_cuerpo(productos))
+        try:
+            quien = nucleo.yo(req)
+        except HTTPException:
+            return HTMLResponse(P.entrar_html())
+        return vista_nucleo(req, "productos", "Productos", cab, P.catalogo_cuerpo(productos, activos_req(req, quien)))
+
+    # ---------- mi institución ----------
+    def a_instituciones(metodo: str, ruta: str, *, token: str = "", cuerpo: Any = None, params=None) -> httpx.Response:
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        return httpx.request(metodo, f"{nucleo.servicio('instituciones')}/{ruta}", json=cuerpo, params=params,
+                             headers=headers, timeout=30)
+
+    @app.get("/panel/alta", response_class=HTMLResponse)
+    def alta_form():
+        try:
+            cerrado = a_instituciones("GET", "salud").json().get("registro") != "abierto"
+        except (httpx.HTTPError, ValueError):
+            cerrado = False
+        return HTMLResponse(IV.alta_html(cerrado=cerrado))
+
+    @app.post("/panel/alta")
+    def alta(institucion: str = Form(...), nombre: str = Form(...), usuario: str = Form(...), clave: str = Form(...),
+             email: str = Form(...), persona: str = Form("")):
+        datos = {"institucion": institucion.strip().lower(), "nombre": nombre.strip(), "usuario": usuario.strip().lower(),
+                 "clave": clave, "email": email.strip(), "persona": persona.strip()}
+        try:
+            r = a_instituciones("POST", "registro", cuerpo=datos)
+        except httpx.HTTPError:
+            return HTMLResponse(IV.alta_html("El servicio de instituciones no responde. Prueba en un momento.", datos), 503)
+        if r.status_code == 403:
+            return HTMLResponse(IV.alta_html(cerrado=True), 403)
+        if r.status_code != 201:
+            try:
+                motivo = r.json().get("detail") or r.text
+            except ValueError:
+                motivo = r.text
+            return HTMLResponse(IV.alta_html(str(motivo), datos), r.status_code if r.status_code < 500 else 502)
+        log.info("alta de la institución %s por %s", datos["institucion"], datos["usuario"])
+        try:  # entra directamente con su nueva cuenta
+            token = pedir_token(keycloak_interno, datos["usuario"], clave)
+        except (urllib.error.HTTPError, OSError):
+            return HTMLResponse(P.entrar_html("Institución creada. Entra con tu usuario y contraseña."))
+        resp = RedirectResponse("/panel/institucion", status_code=303)
+        resp.set_cookie(COOKIE, token, httponly=True, samesite="lax", path="/panel", max_age=900)
+        return resp
+
+    @app.get("/panel/institucion", response_class=HTMLResponse)
+    def institucion(req: Request):
+        try:
+            quien = nucleo.yo(req)
+        except HTTPException:
+            return HTMLResponse(P.entrar_html())
+        sub = ("Activa productos, invita a tu equipo, crea credenciales de API y pon los secretos de las capacidades."
+               if quien.tiene("admin-institucion") else "Lo que tu institución tiene activado. Lo gestiona quien la administra.")
+        cab = P.cabecera_nucleo(quien.tenant, "Mi institución", sub, capa="Mi institución")
+        return vista_nucleo(req, "institucion", "Mi institución", cab, IV.CUERPO_INST, IV.SCRIPT_INST, IV.ESTILO_INST)
+
+    def al_servicio_inst(req: Request, metodo: str, ruta: str, cuerpo: Any = None):
+        quien = nucleo.yo(req)
+        try:
+            r = a_instituciones(metodo, ruta, token=nucleo.token(req), cuerpo=cuerpo, params=dict(req.query_params))
+        except httpx.HTTPError as ex:
+            raise HTTPException(503, f"El servicio de instituciones no responde: {ex}")
+        if metodo != "GET" and ruta.startswith("activaciones"):
+            cache_activos.pop(quien.tenant, None)
+        try:
+            datos = r.json()
+        except ValueError:
+            datos = {"detail": r.text}
+        return JSONResponse(datos, status_code=r.status_code)
+
+    @app.get("/panel/api/instituciones/{ruta:path}")
+    def inst_get(ruta: str, req: Request):
+        return al_servicio_inst(req, "GET", ruta)
+
+    @app.post("/panel/api/instituciones/{ruta:path}")
+    def inst_post(ruta: str, req: Request, cuerpo: Dict[str, Any] = Body(...)):
+        return al_servicio_inst(req, "POST", ruta, cuerpo)
+
+    @app.put("/panel/api/instituciones/{ruta:path}")
+    def inst_put(ruta: str, req: Request, cuerpo: Dict[str, Any] = Body(...)):
+        return al_servicio_inst(req, "PUT", ruta, cuerpo)
+
+    @app.delete("/panel/api/instituciones/{ruta:path}")
+    def inst_delete(ruta: str, req: Request):
+        return al_servicio_inst(req, "DELETE", ruta)
 
     @app.get("/panel/servicios", response_class=HTMLResponse)
     def servicios(req: Request):
@@ -170,7 +286,7 @@ def crear_app(*, registro, verificador, expedientes, keycloak_interno: str, proc
         nucleo.yo(req)
         try:
             r = httpx.request(metodo, f"{nucleo.servicio('catalogo')}/{ruta}", json=cuerpo, timeout=30,
-                              headers={"Authorization": f"Bearer {nucleo.token(req)}"})
+                              params=dict(req.query_params), headers={"Authorization": f"Bearer {nucleo.token(req)}"})
         except httpx.HTTPError as e:
             raise HTTPException(503, f"El catálogo no responde: {e}")
         try:
@@ -190,6 +306,10 @@ def crear_app(*, registro, verificador, expedientes, keycloak_interno: str, proc
     @app.post("/panel/api/catalogo/{ruta:path}")
     def catalogo_post(ruta: str, req: Request, cuerpo: Dict[str, Any] = Body(...)):
         return al_catalogo(req, "POST", ruta, cuerpo)
+
+    @app.delete("/panel/api/catalogo/{ruta:path}")
+    def catalogo_delete(ruta: str, req: Request):
+        return al_catalogo(req, "DELETE", ruta)
 
     def receta_de(texto: str) -> Any:
         import yaml
@@ -250,6 +370,28 @@ def crear_app(*, registro, verificador, expedientes, keycloak_interno: str, proc
         except Exception as ex:  # un producto roto no tumba la consola
             log.error("No se pudo montar el producto %s: %s", c.id, ex)
             c.estado = f"error al montar: {ex}"
+
+    @app.middleware("http")
+    async def solo_productos_activados(req: Request, siguiente):
+        partes = req.url.path.split("/")
+        if len(partes) > 3 and partes[1:3] == ["panel", "productos"] and partes[3] in por_id and req.cookies.get(COOKIE):
+            try:
+                quien = verificador.verificar(req.cookies[COOKIE])
+            except NoAutorizado:
+                quien = None
+            if quien is not None:
+                act = await run_in_threadpool(activos_de, req.cookies[COOKIE], quien.tenant)
+                if act is not None and partes[3] not in act:
+                    c = por_id[partes[3]]
+                    msg = f"Tu institución no tiene activado el producto {c.nombre}."
+                    if "/api/" in req.url.path:
+                        return JSONResponse({"detail": msg}, status_code=403)
+                    cab = P.cabecera_nucleo("Productos", c.nombre, capa="Productos")
+                    cuerpo = (f'<section class="tarjeta"><p style="margin:0 0 12px">{P.e(msg)}</p>'
+                              f'<a class="btn" href="/panel/institucion">Ir a Mi institución</a></section>')
+                    return HTMLResponse(P.documento(c.nombre, P.barra(productos, "productos", quien, enlaces, act), cab,
+                                                    cuerpo, cfg_de(quien)), status_code=403)
+        return await siguiente(req)
 
     @app.exception_handler(401)
     async def sin_sesion(req: Request, exc):

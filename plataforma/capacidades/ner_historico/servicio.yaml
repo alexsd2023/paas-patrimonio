@@ -12,7 +12,7 @@ modo: externo
 url: https://alezsd-lancaster-ner-api.hf.space
 externo:
   ruta: /annotate/text
-  token_env: NER_TOKEN      # el token va en platform/.env, nunca aquí
+  token_env: NER_TOKEN      # el valor se pone en la consola (o en platform/.env), nunca aquí
   max_caracteres: 3000
   espera_s: 120             # los Spaces gratuitos tardan en despertar
 parametros:
@@ -25,5 +25,9 @@ parametros:
     tipo: lista
     descripcion: Quedarse solo con estas etiquetas, p. ej. Persona, Localización (vacío = todas)
     defecto: null
+secretos:
+  - nombre: NER_TOKEN
+    descripcion: Token del Space de Hugging Face (Settings → Access Tokens)
+    ambito: ambos           # la plataforma pone uno común; una institución puede usar el suyo
 acceso: [registrado]
 cuota: {trabajos_dia: 500}

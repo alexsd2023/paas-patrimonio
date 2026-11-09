@@ -88,7 +88,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{text-align:left;padding:8px 10px 8px 0;border-bottom:1px solid var(--line-2);vertical-align:top}
 th{font:500 12px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom-color:var(--line)}
 label{display:grid;gap:4px;font-size:14px}
-input[type=text],input[type=password],input[type=search],select{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink)}
+input[type=text],input[type=password],input[type=search],input[type=email],input[type=url],input[type=number],input:not([type]),select{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink)}
 .sonda{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-2)}
 .sonda:last-child{border-bottom:0}
 .sonda .luz{width:10px;height:10px;border-radius:50%;background:var(--red)}
@@ -139,8 +139,10 @@ def _a(href: str, texto: str, activo: bool = False, extra: str = "", clase: str 
     return f'<a href="{e(href)}"{attrs}><span class="izq">{texto}</span>{extra}</a>'
 
 
-def barra(productos: List[Any], activo: str, quien: Any, enlaces: Dict[str, str]) -> str:
-    """activo: 'nucleo:estado|cartas', 'capacidades:servicios|flujos', 'productos', 'producto:<id>' o 'conectores'."""
+def barra(productos: List[Any], activo: str, quien: Any, enlaces: Dict[str, str],
+          activos: Optional[List[str]] = None) -> str:
+    """activo: 'nucleo:estado|cartas', 'capacidades:servicios|flujos', 'productos', 'producto:<id>', 'conectores'
+    o 'institucion'. activos: productos activados por la institución (None = todos)."""
     def pieza(t, n, k):
         if k in INCRUSTADAS:
             return _a(f"/panel/nucleo/{k}", t, activo == f"nucleo:{k}", extra=f'<span class="ext">{n}</span>')
@@ -149,8 +151,12 @@ def barra(productos: List[Any], activo: str, quien: Any, enlaces: Dict[str, str]
         return _a(f"/panel#pieza-{t.lower()}", t, extra=f'<span class="ext">{n}</span>')
     ext = "".join(pieza(t, n, k) for t, n, k in PIEZAS)
     mis = "".join(_a(c.base, f'<span class="punto" style="background:{e(c.color)}" aria-hidden="true"></span>{e(c.nombre)}',
-                     activo == f"producto:{c.id}") for c in productos if c.estado == "conectado")
-    roles = " · ".join(r for r in quien.roles if r in ("archivera", "paleografa")) or "sin rol"
+                     activo == f"producto:{c.id}") for c in productos
+                  if c.estado == "conectado" and (activos is None or c.id in activos))
+    roles = " · ".join(r for r in quien.roles if r in ("archivera", "paleografa", "admin-institucion", "admin-paas")) or "sin rol"
+    gestiona = any(r in quien.roles for r in ("admin-institucion", "admin-paas"))
+    mia = (f'<div class="grupo"><span class="eyebrow">Mi institución</span>'
+           f'{_a("/panel/institucion", "Personas, productos y claves" if gestiona else "Mi institución", activo == "institucion")}</div>')
     return f"""<nav class="barra" aria-label="Consola">
 <div class="marca-paas"><span class="eyebrow">PaaS Patrimonio</span><b>Consola</b></div>
 <div class="grupo nucleo"><span class="eyebrow">Núcleo del PaaS</span>
@@ -168,6 +174,7 @@ def barra(productos: List[Any], activo: str, quien: Any, enlaces: Dict[str, str]
 <div class="grupo"><span class="eyebrow">Conectores</span>
 {_a('/panel/conectores', 'Sistemas de la institución', activo == 'conectores')}
 {_a('/panel/conectores#escribir', 'Escribir un conector', clase='conectar')}</div>
+{mia}
 <div class="sesion"><b>{e(quien.usuario)}</b><span class="mono">{e(quien.tenant)} · {e(roles)}</span>
 <form method="post" action="/panel/salir"><button type="submit">Salir</button></form></div>
 </nav>"""
@@ -233,6 +240,7 @@ def entrar_html(error: str = "") -> str:
 <label>Usuario<input type="text" id="usuario" name="usuario" autocomplete="username" required autofocus></label>
 <label>Contraseña<input type="password" id="clave" name="clave" autocomplete="current-password" required></label>
 <button class="btn" type="submit">Entrar</button></form>
+<p class="pista">¿Tu institución aún no usa la plataforma? <a href="/panel/alta">Dadla de alta</a>.</p>
 <p class="pista">Usuarios de prueba: <span class="mono">m.ortega</span> (archivera), <span class="mono">paleografa-test</span> (paleógrafa), <span class="mono">p.otro</span> (otra institución).</p>
 </div></body></html>"""
 
@@ -333,13 +341,18 @@ cargar(); setInterval(cargar, 5000);
 """
 
 
-def catalogo_cuerpo(productos: List[Any]) -> str:
+def catalogo_cuerpo(productos: List[Any], activos: Optional[List[str]] = None) -> str:
     from services.panel.productos import PIEZAS_NUCLEO
     tarjetas = []
     for c in productos:
         usa = "".join(f'<span class="ficha-n">{e(PIEZAS_NUCLEO.get(u, u))}</span>' for u in c.usa)
         vistas = "".join(f'<a href="{e(c.url(v.id))}">{e(v.nombre)}</a>' for v in c.vistas) if c.estado == "conectado" else ""
         estado = "" if c.estado == "conectado" else f'<span class="pill pendiente">{e(c.estado)}</span>'
+        if c.estado == "conectado" and activos is not None:
+            on = c.id in activos
+            estado = (f'<span class="pill {"ok" if on else "pendiente"}">{"activado" if on else "sin activar"}</span>'
+                      + ("" if on else ' <a class="btn sec" href="/panel/institucion">Activar</a>'))
+            vistas = vistas if on else ""
         tarjetas.append(f"""<article class="tarjeta producto-t" style="--producto:{e(c.color)}">
 <div class="cab" style="margin:0"><h2>{e(c.nombre)}</h2>{estado}</div>
 <p style="margin:0;color:var(--muted)">{e(c.resumen)}</p>

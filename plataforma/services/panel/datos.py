@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 # (pieza, nombre, cómo se sondea, dónde). Nombres de la red de docker compose.
 SONDAS: List[Tuple[str, str, str, str]] = [
     ("identidad", "Identidad · Keycloak", "http", "http://keycloak:8080/realms/paas"),
+    ("identidad", "Instituciones · alta y personas", "http", "http://instituciones:8080/salud"),
     ("puerta", "Puerta · APISIX", "tcp", "apisix:9080"),
     ("correos", "Correos · Kafka", "tcp", "kafka:29092"),
     ("correos", "Puente catastro → correos", "http", "http://puente:8080/salud"),

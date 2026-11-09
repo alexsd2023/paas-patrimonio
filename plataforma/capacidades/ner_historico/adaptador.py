@@ -5,11 +5,12 @@ Su API (v1.3.0):
     → [{"Anotacion": "<una línea>", "entities": [{"start", "end", "entity", "fields": [...]}, ...]}, ...]
 
 Las posiciones vienen por línea; aquí se pasan a posiciones en el texto entero, que es lo que
-pide el tipo ``transcripcion-anotada``. El token se lee de la variable de entorno que diga
-``externo.token_env`` (nunca va en el manifiesto ni en el repositorio).
+pide el tipo ``transcripcion-anotada``. El token es un secreto de la capacidad: se pone en la consola
+(Mi institución → Secretos, o el de la plataforma) y, si no, se lee de la variable de entorno
+``externo.token_env``. Nunca va en el manifiesto ni en el repositorio.
 """
 import os
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 K_LINEA = ("Anotacion", "anotacion", "text", "linea", "line")
 K_TIPO = ("entity", "label", "entity_group", "type", "tipo")
@@ -62,11 +63,13 @@ def trocear(texto: str, maximo: int) -> List[Tuple[int, str]]:
     return trozos
 
 
-def ejecutar(manifiesto, entrada: dict, parametros: dict, http) -> dict:
+def ejecutar(manifiesto, entrada: dict, parametros: dict, http, secretos: Optional[dict] = None) -> dict:
     cfg = manifiesto.externo or {}
-    token = os.environ.get(cfg.get("token_env", "NER_TOKEN"), "")
+    nombre = cfg.get("token_env", "NER_TOKEN")
+    token = (secretos or {}).get(nombre) or os.environ.get(nombre, "")
     if not token:
-        raise RuntimeError(f"falta el token del NER: define {cfg.get('token_env', 'NER_TOKEN')} en platform/.env")
+        raise RuntimeError(f"falta el token del NER: ponlo en la consola (Mi institución → Secretos, {nombre}) "
+                           f"o define {nombre} en platform/.env")
     texto = entrada["texto"]
     entidades: List[Dict[str, Any]] = []
     for desde, trozo in trocear(texto, int(cfg.get("max_caracteres", 3000))):

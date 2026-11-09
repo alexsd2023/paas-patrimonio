@@ -6,13 +6,49 @@
   "accessTokenLifespan": 900,
   "roles": {
     "realm": [
-      { "name": "archivera", "description": "Sube legajos y gestiona su fondo" },
-      { "name": "paleografa", "description": "Valida transcripciones" }
+      {
+        "name": "archivera",
+        "description": "Sube legajos y gestiona su fondo"
+      },
+      {
+        "name": "paleografa",
+        "description": "Valida transcripciones"
+      },
+      {
+        "name": "admin-institucion",
+        "description": "Gestiona su institución: usuarios, productos, credenciales y secretos"
+      },
+      {
+        "name": "admin-paas",
+        "description": "Opera la plataforma: secretos de plataforma y lista de instituciones"
+      }
     ]
   },
   "groups": [
-    { "name": "archivo-villanueva", "attributes": { "nombre": ["Archivo de Villanueva"] } },
-    { "name": "otro-archivo", "attributes": { "nombre": ["Institución de control"] } }
+    {
+      "name": "archivo-villanueva",
+      "attributes": {
+        "nombre": [
+          "Archivo de Villanueva"
+        ]
+      }
+    },
+    {
+      "name": "otro-archivo",
+      "attributes": {
+        "nombre": [
+          "Institución de control"
+        ]
+      }
+    },
+    {
+      "name": "paas",
+      "attributes": {
+        "nombre": [
+          "Equipo del PaaS"
+        ]
+      }
+    }
   ],
   "clients": [
     {
@@ -37,26 +73,120 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "paas-gestion",
+      "name": "Servicio de instituciones (gestiona usuarios, grupos y credenciales)",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "${KC_GESTION_SECRET}",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false
     }
   ],
   "users": [
     {
-      "username": "m.ortega", "enabled": true, "emailVerified": true,
-      "email": "m.ortega@archivo-villanueva.example", "firstName": "M.", "lastName": "Ortega",
-      "credentials": [{ "type": "password", "value": "archivera", "temporary": false }],
-      "realmRoles": ["archivera"], "groups": ["/archivo-villanueva"]
+      "username": "m.ortega",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "m.ortega@archivo-villanueva.example",
+      "firstName": "M.",
+      "lastName": "Ortega",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "archivera",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "archivera",
+        "admin-institucion"
+      ],
+      "groups": [
+        "/archivo-villanueva"
+      ]
     },
     {
-      "username": "paleografa-test", "enabled": true, "emailVerified": true,
-      "email": "paleografa@archivo-villanueva.example", "firstName": "Paleógrafa", "lastName": "De pruebas",
-      "credentials": [{ "type": "password", "value": "paleografa", "temporary": false }],
-      "realmRoles": ["paleografa"], "groups": ["/archivo-villanueva"]
+      "username": "paleografa-test",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "paleografa@archivo-villanueva.example",
+      "firstName": "Paleógrafa",
+      "lastName": "De pruebas",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "paleografa",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "paleografa"
+      ],
+      "groups": [
+        "/archivo-villanueva"
+      ]
     },
     {
-      "username": "p.otro", "enabled": true, "emailVerified": true,
-      "email": "p.otro@otro-archivo.example", "firstName": "P.", "lastName": "Otro",
-      "credentials": [{ "type": "password", "value": "paleografa", "temporary": false }],
-      "realmRoles": ["paleografa"], "groups": ["/otro-archivo"]
+      "username": "p.otro",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "p.otro@otro-archivo.example",
+      "firstName": "P.",
+      "lastName": "Otro",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "paleografa",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "paleografa"
+      ],
+      "groups": [
+        "/otro-archivo"
+      ]
+    },
+    {
+      "username": "admin.paas",
+      "enabled": true,
+      "email": "admin.paas@paas.example",
+      "emailVerified": true,
+      "firstName": "Equipo",
+      "lastName": "PaaS",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin-paas",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/paas"
+      ],
+      "realmRoles": [
+        "admin-paas"
+      ]
+    },
+    {
+      "username": "service-account-paas-gestion",
+      "enabled": true,
+      "serviceAccountClientId": "paas-gestion",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "query-users",
+          "query-groups",
+          "manage-clients",
+          "view-clients",
+          "query-clients",
+          "view-realm"
+        ]
+      }
     }
   ]
 }

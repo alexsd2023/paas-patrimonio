@@ -33,6 +33,7 @@ RAIZ = Path(__file__).resolve().parents[1]
 TIPOS_DIR = RAIZ / "contracts" / "tipos"
 _ID = re.compile(r"^[a-z][a-z0-9-]{1,40}$")
 _VERSION = re.compile(r"^\d+\.\d+\.\d+$")
+_SECRETO = re.compile(r"^[A-Z][A-Z0-9_]{1,63}$")
 
 
 # ---------------- tipos de documento ----------------
@@ -95,11 +96,13 @@ class Manifiesto:
     acceso: List[str] = field(default_factory=lambda: ["registrado"])
     cuota: Dict[str, int] = field(default_factory=dict)
     externo: Dict[str, Any] = field(default_factory=dict)
+    secretos: List[Dict[str, str]] = field(default_factory=list)   # [{nombre, descripcion, ambito}]
     carpeta: Optional[Path] = None
 
     def publico(self) -> Dict[str, Any]:
         return {k: getattr(self, k) for k in ("id", "nombre", "resumen", "autor", "tipo", "entrada", "salida",
-                                              "version", "modo", "parametros", "acceso", "cuota")}
+                                              "version", "modo", "parametros", "acceso", "cuota")} | {
+            "secretos": [{k: x[k] for k in ("nombre", "descripcion", "ambito")} for x in self.secretos]}
 
     def permite(self, roles: List[str], tenant: str) -> bool:
         """acceso: registrado (cualquiera con sesión) · rol:<rol> · institucion:<tenant>"""
@@ -157,6 +160,19 @@ def leer_manifiesto(datos: Dict[str, Any], carpeta: Optional[Path] = None) -> Ma
     for regla in datos.get("acceso", ["registrado"]):
         if not (regla == "registrado" or str(regla).startswith(("rol:", "institucion:"))):
             e.append(f"acceso: {regla!r} no es registrado, rol:<rol> ni institucion:<id>")
+    secretos = []
+    for x in datos.get("secretos") or []:
+        x = {"nombre": str((x or {}).get("nombre", "")), "descripcion": str((x or {}).get("descripcion", "")),
+             "ambito": str((x or {}).get("ambito", "ambos"))}
+        if not _SECRETO.match(x["nombre"]):
+            e.append(f"secretos: {x['nombre']!r} debe ir en MAYÚSCULAS_CON_GUIONES_BAJOS")
+        if x["ambito"] not in ("plataforma", "institucion", "ambos"):
+            e.append(f"secretos: ámbito de {x['nombre']} debe ser plataforma | institucion | ambos")
+        secretos.append(x)
+    token_env = (datos.get("externo") or {}).get("token_env")
+    if token_env and not any(x["nombre"] == token_env for x in secretos):
+        # compatibilidad: el token de un externo es un secreto aunque el manifiesto no lo declare
+        secretos.append({"nombre": str(token_env), "descripcion": "Token de la API externa", "ambito": "ambos"})
     if e:
         raise ManifiestoInvalido(f"servicio {sid or carpeta}: " + "; ".join(e))
     url = str(datos.get("url") or f"http://srv-{sid}:8080").rstrip("/")
@@ -164,7 +180,8 @@ def leer_manifiesto(datos: Dict[str, Any], carpeta: Optional[Path] = None) -> Ma
                       tipo=datos["tipo"], entrada=datos["entrada"], salida=datos["salida"],
                       version=str(datos["version"]), modo=modo, url=url,
                       parametros=dict(datos.get("parametros") or {}), acceso=list(datos.get("acceso") or ["registrado"]),
-                      cuota=dict(datos.get("cuota") or {}), externo=dict(datos.get("externo") or {}), carpeta=carpeta)
+                      cuota=dict(datos.get("cuota") or {}), externo=dict(datos.get("externo") or {}),
+                      secretos=secretos, carpeta=carpeta)
 
 
 def cargar(ruta: Path) -> Manifiesto:
