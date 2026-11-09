@@ -49,6 +49,7 @@ ESTILO_INST = r"""
 .prod-a:first-of-type{border-top:0}
 .prod-a .punto{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px}
 .form-l{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));align-items:end}
+.form-l input{width:100%;min-width:0;box-sizing:border-box}
 .roles-c{display:flex;gap:10px;flex-wrap:wrap}
 .roles-c label{display:flex;gap:6px;align-items:center;font-size:14px}
 .secreto-n{background:var(--teal-t);border:1px solid var(--teal);border-radius:8px;padding:12px;display:grid;gap:6px}
@@ -89,8 +90,6 @@ Obtiene su token con <span class="mono">client_credentials</span> y actúa con l
 y nadie puede volver a leerlos, ni desde aquí. Si tu institución no pone el suyo, se usa el de la plataforma (cuando lo hay).</p>
 <div id="secretos"><p class="vacio">Cargando…</p></div></section>
 
-<section class="tarjeta" id="todas" aria-labelledby="t-todas" hidden><div class="cab"><h2 id="t-todas">Todas las instituciones</h2></div>
-<div id="instituciones"></div></section>
 </div>"""
 
 SCRIPT_INST = r"""
@@ -205,14 +204,68 @@ async function secretos() {
   });
 }
 
+for (const f of [productos, personas, credenciales, secretos]) f().catch(e => aviso(e.message));
+"""
+
+
+# ---------- instituciones de la plataforma (equipo del PaaS, admin-paas) ----------
+CUERPO_TODAS = """
+<div class="inst">
+<section class="tarjeta" aria-labelledby="t-alta"><div class="cab"><h2 id="t-alta">Dar de alta una institución</h2></div>
+<p class="sub" style="margin:0 0 12px">Crea la institución y su primera administradora. Pásale su usuario y contraseña:
+al entrar activará sus productos e invitará a su equipo ella misma. Funciona aunque el alta pública esté cerrada.</p>
+<div id="alta-hecha"></div>
+<form id="f-alta" class="form-l">
+<label>Nombre de la institución<input name="nombre" required maxlength="120" placeholder="Museo Naval de Cartagena"></label>
+<label>Identificador<input name="institucion" required pattern="[a-z][a-z0-9\\-]{2,39}" placeholder="museo-naval"></label>
+<label>Quien la administra<input name="persona" maxlength="120" placeholder="Nombre y apellidos"></label>
+<label>Email<input type="email" name="email" required></label>
+<label>Usuario<input name="usuario" required pattern="[a-z0-9][a-z0-9._\\-]{2,39}"></label>
+<label>Contraseña inicial<input type="text" name="clave" required minlength="10" autocomplete="off"></label>
+<div style="display:flex;gap:8px;align-items:end"><button class="btn sec" type="button" id="generar">Generar contraseña</button>
+<button class="btn" type="submit">Dar de alta</button></div>
+</form>
+<p class="sub" id="alta-publica" style="margin:12px 0 0"></p></section>
+
+<section class="tarjeta" aria-labelledby="t-todas"><div class="cab"><h2 id="t-todas">Todas las instituciones</h2></div>
+<div id="instituciones"><p class="vacio">Cargando…</p></div></section>
+</div>"""
+
+SCRIPT_TODAS = r"""
+const INS = '/panel/api/instituciones';
+const f = $('#f-alta');
+$('#generar').onclick = () => {
+  const a = new Uint8Array(12); crypto.getRandomValues(a);
+  f.clave.value = btoa(String.fromCharCode(...a)).replace(/[+/=]/g, '').slice(0, 14);
+};
+f.nombre.oninput = () => {
+  if (f.institucion.dataset.tocado) return;
+  f.institucion.value = f.nombre.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+};
+f.institucion.oninput = () => f.institucion.dataset.tocado = '1';
+f.onsubmit = async ev => {
+  ev.preventDefault();
+  const v = Object.fromEntries(new FormData(f));
+  try {
+    const r = await api(`${INS}/instituciones`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(v)});
+    $('#alta-hecha').innerHTML = `<div class="secreto-n" role="status" style="margin-bottom:12px"><b>${esc(r.nombre)} ya está dada de alta.</b>
+      <span>Pásale a su administradora: entrar en <code class="mono">${esc(location.origin)}/panel</code> con el usuario
+      <code class="mono">${esc(r.usuario)}</code> y la contraseña <code class="mono">${esc(v.clave)}</code>.</span>
+      <span style="font-size:13px">La contraseña no se guarda en ningún sitio visible: cópiala ahora.</span></div>`;
+    f.reset(); delete f.institucion.dataset.tocado;
+  } catch (e) { aviso(e.message); }
+  todas();
+};
 async function todas() {
-  if (!esOperador) return;
-  $('#todas').hidden = false;
   const is = await api(`${INS}/instituciones`);
-  $('#instituciones').innerHTML = `<div class="tabla"><table><thead><tr><th>Institución</th><th>Alta</th><th>Productos</th></tr></thead><tbody>${
+  $('#instituciones').innerHTML = is.length ? `<div class="tabla"><table><thead><tr><th>Institución</th><th>Alta</th><th>Productos activados</th></tr></thead><tbody>${
     is.map(i => `<tr><td><b>${esc(i.nombre)}</b><br><span class="mono">${esc(i.id)}</span></td>
       <td>${i.gestionada ? `${esc(i.por || '')} · ${i.creada ? fecha(new Date(i.creada * 1000).toISOString()) : ''}` : '<span style="color:var(--muted)">anterior al alta autoservicio</span>'}</td>
-      <td class="mono">${esc(i.activos.join(', ') || '—')}</td></tr>`).join('')}</tbody></table></div>`;
+      <td class="mono">${esc(i.activos.join(', ') || '—')}</td></tr>`).join('')}</tbody></table></div>` : '<p class="vacio">Aún no hay instituciones.</p>';
 }
-for (const f of [productos, personas, credenciales, secretos, todas]) f().catch(e => aviso(e.message));
+api(`${INS}/salud`).then(s => $('#alta-publica').innerHTML = s.registro === 'abierto'
+  ? 'El alta pública también está abierta: cualquier institución puede darse de alta sola en <a href="/panel/alta">/panel/alta</a> (REGISTRO=cerrado en platform/.env para cerrarla).'
+  : 'El alta pública está cerrada (REGISTRO=cerrado): solo el equipo del PaaS da altas, desde aquí.').catch(() => null);
+todas().catch(e => aviso(e.message));
 """

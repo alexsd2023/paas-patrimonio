@@ -89,3 +89,18 @@ def test_las_instituciones_anteriores_lo_siguen_viendo_todo(entorno):
     pag = c.get("/panel").text
     assert 'href="/panel/productos/legajo' in pag and 'href="/panel/productos/gemelo' in pag
     assert c.get("/panel/api/instituciones/usuarios").status_code == 403      # no administra
+
+
+def test_alta_desde_dentro_de_la_consola(entorno):
+    c, kc = entorno
+    c.cookies.set(COOKIE, "admin.paas@paas:admin-paas")
+    assert 'href="/panel/instituciones"' in c.get("/panel").text
+    pag = c.get("/panel/instituciones")
+    assert pag.status_code == 200 and "Dar de alta una institución" in pag.text and "Todas las instituciones" in pag.text
+    r = c.post("/panel/api/instituciones/instituciones", json=ALTA)
+    assert r.status_code == 201 and kc.grupo("museo-naval")
+    assert [i["id"] for i in c.get("/panel/api/instituciones/instituciones").json()] == ["archivo-villanueva", "museo-naval"]
+    c.cookies.set(COOKIE, "m.ortega@archivo-villanueva:archivera,admin-institucion")
+    assert 'href="/panel/instituciones"' not in c.get("/panel").text
+    assert c.get("/panel/instituciones").status_code == 403
+    assert c.post("/panel/api/instituciones/instituciones", json={**ALTA, "institucion": "otra"}).status_code == 403

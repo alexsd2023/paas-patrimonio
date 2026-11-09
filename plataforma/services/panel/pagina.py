@@ -156,7 +156,9 @@ def barra(productos: List[Any], activo: str, quien: Any, enlaces: Dict[str, str]
     roles = " · ".join(r for r in quien.roles if r in ("archivera", "paleografa", "admin-institucion", "admin-paas")) or "sin rol"
     gestiona = any(r in quien.roles for r in ("admin-institucion", "admin-paas"))
     mia = (f'<div class="grupo"><span class="eyebrow">Mi institución</span>'
-           f'{_a("/panel/institucion", "Personas, productos y claves" if gestiona else "Mi institución", activo == "institucion")}</div>')
+           f'{_a("/panel/institucion", "Personas, productos y claves" if gestiona else "Mi institución", activo == "institucion")}'
+           + (_a("/panel/instituciones", "Instituciones · altas", activo == "instituciones") if "admin-paas" in quien.roles else "")
+           + '</div>')
     return f"""<nav class="barra" aria-label="Consola">
 <div class="marca-paas"><span class="eyebrow">PaaS Patrimonio</span><b>Consola</b></div>
 <div class="grupo nucleo"><span class="eyebrow">Núcleo del PaaS</span>

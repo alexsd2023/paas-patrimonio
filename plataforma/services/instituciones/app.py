@@ -13,7 +13,8 @@ Con sesión (token de Keycloak). Todo se hace en la institución del token; nunc
     GET  /credenciales                       credenciales de API de mi institución         (admin-institucion)
     POST /credenciales {nombre, roles}       crea un cliente de Keycloak; el secreto se muestra UNA vez
     DELETE /credenciales/{client_id}
-    GET  /instituciones                      todas, con su número de personas            (admin-paas)
+    GET  /instituciones                      todas, con sus productos activados          (admin-paas)
+    POST /instituciones {como /registro}     alta desde la consola, aunque el registro esté cerrado (admin-paas)
 
 Las instituciones dadas de alta aquí empiezan sin productos: los activa su administradora. Las que ya
 existían antes (grupos creados a mano en Keycloak) se consideran «no gestionadas» y lo tienen todo activado.
@@ -170,6 +171,10 @@ def crear_app(*, verificador, kc: KeycloakAdmin, almacen: Almacen, registro_abie
     def registro(p: Dict[str, Any] = Body(...)):
         if not registro_abierto:
             raise HTTPException(403, "el alta de instituciones está cerrada en esta plataforma")
+        return dar_de_alta(p, None)
+
+    def dar_de_alta(p: Dict[str, Any], por: Optional[str]) -> Dict[str, Any]:
+        """Crea la institución y su primera administradora. por: quien la da de alta (None = ella misma)."""
         tenant, nombre = str(p.get("institucion", "")).strip().lower(), str(p.get("nombre", "")).strip()
         usuario, clave, email = str(p.get("usuario", "")).strip().lower(), str(p.get("clave", "")), p.get("email") or None
         if not _ID.match(tenant) or tenant in RESERVADAS:
@@ -192,7 +197,7 @@ def crear_app(*, verificador, kc: KeycloakAdmin, almacen: Almacen, registro_abie
                 uid = kc.crear_usuario(usuario, clave, email, str(p.get("persona") or ""))
                 kc.poner_en_grupo(uid, gid)
                 kc.dar_roles(uid, ["admin-institucion"])
-                almacen.alta(tenant, nombre, usuario)
+                almacen.alta(tenant, nombre, por or usuario)
             except Exception:
                 # sin alta a medias: si algo falla, no queda ni el grupo ni la persona
                 for deshacer, x in ((kc.borrar_usuario, uid), (kc.borrar_grupo, gid)):
@@ -202,7 +207,7 @@ def crear_app(*, verificador, kc: KeycloakAdmin, almacen: Almacen, registro_abie
                         except Exception:  # noqa: BLE001
                             log.exception("no pude deshacer el alta de %s", tenant)
                 raise
-        log.info("institución %s dada de alta por %s", tenant, usuario)
+        log.info("institución %s dada de alta por %s (administra %s)", tenant, por or usuario, usuario)
         return {"institucion": tenant, "nombre": nombre, "usuario": usuario, "roles": ["admin-institucion"],
                 "productos": []}
 
@@ -322,6 +327,13 @@ def crear_app(*, verificador, kc: KeycloakAdmin, almacen: Almacen, registro_abie
         return {"ok": True}
 
     # ---------- operadores de la plataforma ----------
+    @app.post("/instituciones", status_code=201)
+    def alta_por_operador(p: Dict[str, Any] = Body(...), quien: Identidad = Depends(yo)):
+        """El equipo del PaaS da de alta una institución desde la consola (también con REGISTRO=cerrado)."""
+        if not quien.tiene("admin-paas"):
+            raise HTTPException(403, "hace falta el rol admin-paas")
+        return dar_de_alta(p, quien.usuario)
+
     @app.get("/instituciones")
     def instituciones(quien: Identidad = Depends(yo)):
         if not quien.tiene("admin-paas"):

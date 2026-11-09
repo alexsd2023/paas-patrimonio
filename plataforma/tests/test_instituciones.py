@@ -214,3 +214,15 @@ def test_solo_operadores_ven_todas(entorno):
     assert c.get("/instituciones", headers=_h(ADMIN)).status_code == 403
     todas = c.get("/instituciones", headers=_h("admin.paas@paas:admin-paas")).json()
     assert [(i["id"], i["gestionada"]) for i in todas] == [("archivo-villanueva", False), ("museo-naval", True)]
+
+
+def test_el_equipo_del_paas_da_altas_aunque_el_registro_este_cerrado(tmp_path):
+    kc = KeycloakFalso()
+    c = TestClient(crear_app(verificador=Verif(), kc=kc, almacen=Almacen(str(tmp_path / "i.db")),
+                             registro_abierto=False, productos=PRODUCTOS))
+    assert c.post("/instituciones", json=ALTA, headers=_h(ADMIN)).status_code == 403
+    r = c.post("/instituciones", json=ALTA, headers=_h("admin.paas@paas:admin-paas"))
+    assert r.status_code == 201 and kc.roles_de(kc.usuario_por_nombre("dir.naval")["id"]) == ["admin-institucion"]
+    i = next(x for x in c.get("/instituciones", headers=_h("admin.paas@paas:admin-paas")).json() if x["id"] == "museo-naval")
+    assert i["gestionada"] and i["por"] == "admin.paas" and i["activos"] == []
+    assert c.post("/instituciones", json={**ALTA, "clave": "corta"}, headers=_h("admin.paas@paas:admin-paas")).status_code == 422

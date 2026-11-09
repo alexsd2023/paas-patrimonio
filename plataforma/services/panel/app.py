@@ -228,6 +228,22 @@ def crear_app(*, registro, verificador, expedientes, keycloak_interno: str, proc
         cab = P.cabecera_nucleo(quien.tenant, "Mi institución", sub, capa="Mi institución")
         return vista_nucleo(req, "institucion", "Mi institución", cab, IV.CUERPO_INST, IV.SCRIPT_INST, IV.ESTILO_INST)
 
+    @app.get("/panel/instituciones", response_class=HTMLResponse)
+    def instituciones(req: Request):
+        try:
+            quien = nucleo.yo(req)
+        except HTTPException:
+            return HTMLResponse(P.entrar_html())
+        cab = P.cabecera_nucleo("Equipo del PaaS", "Instituciones",
+                                "Da de alta instituciones y mira qué tiene activado cada una.", capa="Mi institución")
+        if not quien.tiene("admin-paas"):
+            cuerpo = ('<section class="tarjeta"><p style="margin:0">Esta página es del equipo del PaaS (rol admin-paas). '
+                      'Para dar de alta otra institución, sal y usa «Dadla de alta» en la entrada.</p></section>')
+            r = vista_nucleo(req, "instituciones", "Instituciones", cab, cuerpo)
+            r.status_code = 403
+            return r
+        return vista_nucleo(req, "instituciones", "Instituciones", cab, IV.CUERPO_TODAS, IV.SCRIPT_TODAS, IV.ESTILO_INST)
+
     def al_servicio_inst(req: Request, metodo: str, ruta: str, cuerpo: Any = None):
         quien = nucleo.yo(req)
         try:
