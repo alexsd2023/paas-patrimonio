@@ -167,3 +167,21 @@ echo "REGISTRO=abierto" >> .env
 Keycloak guarda ahora sus datos en el volumen `keycloak-data`: las instituciones dadas de alta sobreviven a
 recrear el contenedor. El realm se importa solo si no existe, así que **los cambios futuros en
 `realm-paas.json` ya no se aplican solos**: se hacen en Keycloak o borrando el volumen (se pierden las altas).
+
+## Scriptorium en el PaaS: la receta «Edición anotada»
+
+Tres herramientas de Ameyalli (Scriptorium · New Spain Fleets) publicadas como **capacidades externas**:
+
+| Capacidad | Entra → sale | Llama a |
+|---|---|---|
+| `corrector-htr` | transcripción → transcripción | `/reviewer/{agent,mt5,latamgpt}` o `/rag/correct` (parámetro `motor`) |
+| `modernizador-paleografico` | transcripción → texto modernizado (con el original y cada cambio) | `/modernizer/modernize` |
+| `entidades-en-el-original` | texto modernizado → **edición anotada** | `/paleo-ner/map` |
+
+La receta `flujos/edicion-anotada.yaml` las encadena y termina con la firma de una paleógrafa. Como el texto
+modernizado lleva su original, el último paso recibe un solo documento: reconoce las entidades en la versión
+moderna (donde el NER acierta más) y las marca sobre la grafía antigua (*Johan Peres* ↔ *Juan Pérez*).
+
+Claves, en la consola (Mi institución → Secretos): `SCRIPTORIUM_API_KEY` si el despliegue de Ameyalli la
+exige, y opcionalmente `GROQ_API_KEY`/`OPENROUTER_API_KEY` propias de cada institución para el modernizador.
+Comprobación contra la API real: `python scripts/edicion_anotada_check.py --motor mt5`.

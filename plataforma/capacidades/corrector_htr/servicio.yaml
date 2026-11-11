@@ -1,0 +1,37 @@
+# Corrector de HTR de Ameyalli (Scriptorium · New Spain Fleets). Servicio EXTERNO: lo llama adaptador.py.
+# Corrige los errores del HTR conservando la grafía histórica (no moderniza).
+id: corrector-htr
+nombre: Corrector de HTR
+resumen: Corrige los errores de lectura del HTR sin modernizar la grafía, con el motor que elijas
+autor: Ameyalli · Lancaster University & Tecnológico de Monterrey (New Spain Fleets)
+tipo: tarea
+entrada: transcripcion
+salida: transcripcion
+version: 1.0.0
+modo: externo
+url: https://scriptorium-api.appincubator.dev
+externo:
+  max_caracteres: 18000     # la API acepta 20000; cortamos por líneas con margen
+  espera_s: 300             # los Spaces gratuitos tardan en despertar
+parametros:
+  motor:
+    tipo: texto
+    descripcion: "agent: agente conservador · mt5: mT5 ajustado, línea a línea · latamgpt: LatamGPT · rag: con ejemplos del corpus de NSF"
+    valores: [agent, mt5, latamgpt, rag]
+    defecto: agent
+  modelo_rag:
+    tipo: texto
+    descripcion: Modelo de Groq que redacta la corrección (solo con motor rag)
+    valores: [llama-3.3-70b-versatile, openai/gpt-oss-120b]
+    defecto: llama-3.3-70b-versatile
+  ejemplos_rag:
+    tipo: numero
+    descripcion: Fragmentos del corpus que se recuperan como contexto (solo con motor rag)
+    defecto: 5
+secretos:
+  - nombre: SCRIPTORIUM_API_KEY
+    descripcion: Clave de la API de Ameyalli (solo si ese despliegue la exige)
+    ambito: ambos
+    opcional: true
+acceso: [registrado]
+cuota: {trabajos_dia: 300}

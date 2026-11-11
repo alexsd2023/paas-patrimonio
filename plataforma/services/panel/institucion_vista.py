@@ -183,7 +183,7 @@ async function secretos() {
     const de = x.institucion ? `el de tu institución (${esc(x.institucion.por)})` : x.plataforma ? 'el de la plataforma' : x.entorno ? 'el de la plataforma (platform/.env)' : null;
     filas.push(`<div class="sec-fila"><div><b>${esc(s.nombre)}</b><br><span class="mono">${esc(x.nombre)}</span>
       <br><span style="color:var(--muted);font-size:13px">${esc(x.descripcion)}</span></div>
-      <div><span class="pill ${x.listo ? 'ok' : 'alerta'}">${x.listo ? 'en uso: ' + de : 'sin poner: la capacidad fallará'}</span></div>
+      <div><span class="pill ${de ? 'ok' : x.opcional ? 'pendiente' : 'alerta'}">${de ? 'en uso: ' + de : x.opcional ? 'opcional: sin poner' : 'sin poner: la capacidad fallará'}</span></div>
       ${puedo ? `<form class="form-l" data-sec="${esc(s.servicio)}" data-nombre="${esc(x.nombre)}" style="grid-template-columns:1fr auto">
         <input type="password" name="valor" placeholder="nuevo valor" autocomplete="off" aria-label="Valor de ${esc(x.nombre)}">
         <div style="display:flex;gap:6px;flex-wrap:wrap">

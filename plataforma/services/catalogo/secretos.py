@@ -6,6 +6,7 @@ Cada capacidad declara en su servicio.yaml qué secretos necesita:
       - nombre: NER_TOKEN
         descripcion: Token del Space de Hugging Face
         ambito: ambos          # plataforma | institucion | ambos
+        opcional: false        # true: la capacidad funciona sin él (p. ej. una clave propia del proveedor)
 
 * plataforma: lo pone el equipo del PaaS (rol admin-paas) y vale para todas las instituciones.
 * institucion: cada institución pone el suyo (rol admin-institucion), p. ej. su propia cuenta en la API.
@@ -98,5 +99,5 @@ class Secretos:
             plat = self._meta(manifiesto.id, PLATAFORMA, d["nombre"]) if d["ambito"] != "institucion" else None
             entorno = d["ambito"] != "institucion" and bool(os.environ.get(d["nombre"]))
             out.append({**d, "institucion": inst, "plataforma": plat, "entorno": entorno,
-                        "listo": bool(inst or plat or entorno)})
+                        "listo": bool(inst or plat or entorno or d.get("opcional"))})
         return out

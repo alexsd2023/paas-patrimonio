@@ -1,0 +1,14 @@
+# Plantilla de flujo: de la salida del HTR a una edición anotada sobre la grafía original.
+# Herramientas de Ameyalli (Scriptorium · New Spain Fleets) publicadas como capacidades del PaaS:
+# cualquier institución puede usar esta receta, cambiar el motor de corrección o sus reglas de
+# modernización, sin pasar por Scriptorium. Cada paso queda en el notario.
+nombre: Edición anotada
+entrada: transcripcion
+pasos:
+  - servicio: corrector-htr            # corrige el HTR sin modernizar
+    parametros: {motor: agent}         # o mt5, latamgpt, rag
+  - servicio: modernizador-paleografico
+  - servicio: entidades-en-el-original # reconoce en lo moderno, marca sobre lo antiguo
+  - firma: paleografa
+    instrucciones: "Revisa la edición: la corrección del HTR, la modernización y las entidades marcadas sobre el original"
+publicar: true

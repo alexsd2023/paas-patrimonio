@@ -1,0 +1,37 @@
+# «Entity matcher» de Ameyalli (Scriptorium · New Spain Fleets). Servicio EXTERNO.
+# Reconoce las entidades en la versión modernizada (donde el NER acierta más) y las localiza en la
+# paleográfica, tolerando las variantes de grafía (Johan Peres ↔ Juan Pérez).
+id: entidades-en-el-original
+nombre: Entidades sobre el texto original
+resumen: Reconoce personas, lugares, cargos y fechas en la versión modernizada y los marca sobre la grafía original
+autor: Ameyalli · Lancaster University & Tecnológico de Monterrey (New Spain Fleets)
+tipo: tarea
+entrada: texto-modernizado
+salida: edicion-anotada
+version: 1.0.0
+modo: externo
+url: https://scriptorium-api.appincubator.dev
+externo:
+  max_caracteres: 18000     # por versión; la API acepta 20000
+  espera_s: 300
+parametros:
+  modelo:
+    tipo: texto
+    descripcion: "ruler: entidades generales · toponyms: solo topónimos"
+    valores: [ruler, toponyms]
+    defecto: ruler
+  umbral:
+    tipo: numero
+    descripcion: Similitud mínima (0–1) para aceptar que una forma antigua es la misma entidad
+    defecto: 0.45
+  margen_lineas:
+    tipo: numero
+    descripcion: Líneas alrededor de la alineada en que se busca primero
+    defecto: 1
+secretos:
+  - nombre: SCRIPTORIUM_API_KEY
+    descripcion: Clave de la API de Ameyalli (solo si ese despliegue la exige)
+    ambito: ambos
+    opcional: true
+acceso: [registrado]
+cuota: {trabajos_dia: 300}

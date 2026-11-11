@@ -113,7 +113,8 @@ def test_cuota_y_acceso():
     cat.contador.usar("otra", s["ner-historico"])  # la cuota es por institución
     with pytest.raises(SinPermiso):
         cat.comprobar("modernizador-demo", ["archivera"], "t")
-    assert [m.id for m in cat.visibles(["archivera"], "t")] == ["ner-historico"]
+    assert "modernizador-demo" not in [m.id for m in cat.visibles(["archivera"], "t")]
+    assert "modernizador-demo" in [m.id for m in cat.visibles(["paleografa"], "t")]
 
 
 # ---------- recetas ----------

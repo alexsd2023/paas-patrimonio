@@ -30,7 +30,7 @@ def _h(t):
 
 
 def test_el_ner_declara_su_token_como_secreto():
-    assert NER.secretos == [{"nombre": "NER_TOKEN", "descripcion": NER.secretos[0]["descripcion"], "ambito": "ambos"}]
+    assert NER.secretos == [{"nombre": "NER_TOKEN", "descripcion": NER.secretos[0]["descripcion"], "ambito": "ambos", "opcional": False}]
     # un externo con token_env sin declarar secretos también lo tiene (compatibilidad)
     m = leer_manifiesto({"id": "otro-externo", "nombre": "x", "resumen": "x", "autor": "x", "tipo": "tarea", "entrada": "texto",
                          "salida": "texto", "version": "1.0.0", "modo": "externo", "url": "http://x",
@@ -81,8 +81,8 @@ def _api(tmp_path):
 def test_api_de_secretos(tmp_path, monkeypatch):
     monkeypatch.delenv("NER_TOKEN", raising=False)
     c, s = _api(tmp_path)
-    estado = c.get("/secretos", headers=_h("tok-a")).json()
-    assert [x["servicio"] for x in estado] == ["ner-historico"] and not estado[0]["secretos"][0]["listo"]
+    estado = {x["servicio"]: x for x in c.get("/secretos", headers=_h("tok-a")).json()}
+    assert "ner-historico" in estado and not estado["ner-historico"]["secretos"][0]["listo"]
     url = "/secretos/ner-historico/NER_TOKEN"
     assert c.put(url, json={"valor": "x"}, headers=_h("tok-u")).status_code == 403          # no es admin
     assert c.put(url, json={"valor": "x", "ambito": "plataforma"}, headers=_h("tok-a")).status_code == 403
@@ -90,9 +90,10 @@ def test_api_de_secretos(tmp_path, monkeypatch):
     assert c.put(url, json={"valor": " "}, headers=_h("tok-a")).status_code == 422
     r = c.put(url, json={"valor": "tok-a-secreto"}, headers=_h("tok-a"))
     assert r.status_code == 200 and "tok-a-secreto" not in r.text and r.json()["secretos"][0]["listo"]
-    assert not c.get("/secretos", headers=_h("tok-b")).json()[0]["secretos"][0]["listo"]   # cada uno el suyo
+    ner = lambda t: next(x for x in c.get("/secretos", headers=_h(t)).json() if x["servicio"] == "ner-historico")
+    assert not ner("tok-b")["secretos"][0]["listo"]   # cada uno el suyo
     assert c.put(url, json={"valor": "comun", "ambito": "plataforma"}, headers=_h("tok-op")).status_code == 200
-    assert c.get("/secretos", headers=_h("tok-b")).json()[0]["secretos"][0]["listo"]
+    assert ner("tok-b")["secretos"][0]["listo"]
     assert s.valores(NER, "museo-a") == {"NER_TOKEN": "tok-a-secreto"} and s.valores(NER, "museo-b") == {"NER_TOKEN": "comun"}
     assert "tok-a-secreto" not in c.get("/secretos", headers=_h("tok-a")).text
     assert c.delete(url, headers=_h("tok-a")).status_code == 200

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/tipos/edicion-anotada.schema.json",
+  "title": "edicion-anotada",
+  "type": "object",
+  "description": "Transcripción paleográfica con las entidades localizadas sobre su grafía original (reconocidas en la versión modernizada, que viaja con ella).",
+  "required": ["texto", "entidades", "modernizado"],
+  "properties": {
+    "texto": {"type": "string", "description": "Versión paleográfica"},
+    "entidades": {
+      "type": "array",
+      "description": "Entidades en la versión paleográfica",
+      "items": {
+        "type": "object",
+        "required": ["tipo", "texto", "inicio", "fin"],
+        "properties": {
+          "tipo": {"type": "string"},
+          "texto": {"type": "string"},
+          "inicio": {"type": "integer", "minimum": 0},
+          "fin": {"type": "integer", "minimum": 0},
+          "confianza": {"type": "number", "minimum": 0, "maximum": 1, "description": "Similitud con la forma moderna"},
+          "moderno": {"type": "string", "description": "La entidad tal como aparece en la versión modernizada"},
+          "rasgos": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "modernizado": {
+      "type": "object",
+      "required": ["texto", "entidades"],
+      "properties": {
+        "texto": {"type": "string"},
+        "entidades": {"type": "array", "items": {"type": "object", "required": ["tipo", "texto", "inicio", "fin"]}}
+      }
+    },
+    "sin_localizar": {
+      "type": "array",
+      "description": "Entidades reconocidas en la versión moderna que no se han encontrado en la paleográfica",
+      "items": {"type": "object", "required": ["tipo", "texto"]}
+    },
+    "activo": {"type": "string"}
+  },
+  "x-es-un": "transcripcion-anotada"
+}

@@ -148,6 +148,11 @@ services:
       SECRETOS_DB: /data/secretos.db     # secretos de las capacidades, cifrados (se ponen en la consola)
       CATALOGO_CLAVE: ${CATALOGO_CLAVE:-}   # clave Fernet; vacía = se genera una en el volumen
       NER_TOKEN: ${NER_TOKEN:-}          # opcional: valor de la plataforma si nadie lo pone en la consola
+      # Ameyalli (Scriptorium): otro despliegue de su API y, opcionalmente, claves de la plataforma
+      # (mejor en la consola: Mi institución → Secretos)
+      AMEYALLI_URL: ${AMEYALLI_URL:-}
+      SCRIPTORIUM_API_KEY: ${SCRIPTORIUM_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
     volumes:
       - catalogo-data:/data
     depends_on:

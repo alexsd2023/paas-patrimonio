@@ -1,0 +1,48 @@
+# Modernizador paleográfico de Ameyalli (Scriptorium · New Spain Fleets). Servicio EXTERNO.
+# Moderniza grafía, abreviaturas y puntuación con reglas mecánicas + un LLM, y dice qué ha cambiado y por qué.
+id: modernizador-paleografico
+nombre: Modernizador paleográfico
+resumen: Pasa una transcripción a grafía moderna (abreviaturas, ortografía, puntuación) con el registro de cada cambio
+autor: Ameyalli · Lancaster University & Tecnológico de Monterrey (New Spain Fleets)
+tipo: tarea
+entrada: transcripcion
+salida: texto-modernizado
+version: 1.0.0
+modo: externo
+url: https://scriptorium-api.appincubator.dev
+externo:
+  max_caracteres: 9000      # la API acepta 10000
+  espera_s: 300
+parametros:
+  proveedor:
+    tipo: texto
+    descripcion: Proveedor del modelo de lenguaje
+    valores: [groq, openrouter]
+    defecto: groq
+  modelo:
+    tipo: texto
+    descripcion: Modelo del proveedor (vacío = el del modernizador)
+    defecto: ""
+  instrucciones:
+    tipo: texto
+    descripcion: Instrucciones adicionales para el agente (p. ej. «conserva las mayúsculas de los cargos»)
+    defecto: ""
+  reglas:
+    tipo: lista
+    descripcion: "Reglas propias: [{patron, reemplazo, criterio, regex}] (p. ej. ç → z)"
+    defecto: null
+secretos:
+  - nombre: SCRIPTORIUM_API_KEY
+    descripcion: Clave de la API de Ameyalli (solo si ese despliegue la exige)
+    ambito: ambos
+    opcional: true
+  - nombre: GROQ_API_KEY
+    descripcion: Clave propia de Groq; sin ella se usa la del modernizador (y su límite de uso)
+    ambito: ambos
+    opcional: true
+  - nombre: OPENROUTER_API_KEY
+    descripcion: Clave propia de OpenRouter, si eliges ese proveedor
+    ambito: ambos
+    opcional: true
+acceso: [registrado]
+cuota: {trabajos_dia: 300}

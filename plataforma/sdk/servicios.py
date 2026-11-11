@@ -96,13 +96,13 @@ class Manifiesto:
     acceso: List[str] = field(default_factory=lambda: ["registrado"])
     cuota: Dict[str, int] = field(default_factory=dict)
     externo: Dict[str, Any] = field(default_factory=dict)
-    secretos: List[Dict[str, str]] = field(default_factory=list)   # [{nombre, descripcion, ambito}]
+    secretos: List[Dict[str, Any]] = field(default_factory=list)   # [{nombre, descripcion, ambito, opcional}]
     carpeta: Optional[Path] = None
 
     def publico(self) -> Dict[str, Any]:
         return {k: getattr(self, k) for k in ("id", "nombre", "resumen", "autor", "tipo", "entrada", "salida",
                                               "version", "modo", "parametros", "acceso", "cuota")} | {
-            "secretos": [{k: x[k] for k in ("nombre", "descripcion", "ambito")} for x in self.secretos]}
+            "secretos": [{k: x[k] for k in ("nombre", "descripcion", "ambito", "opcional")} for x in self.secretos]}
 
     def permite(self, roles: List[str], tenant: str) -> bool:
         """acceso: registrado (cualquiera con sesión) · rol:<rol> · institucion:<tenant>"""
@@ -163,7 +163,7 @@ def leer_manifiesto(datos: Dict[str, Any], carpeta: Optional[Path] = None) -> Ma
     secretos = []
     for x in datos.get("secretos") or []:
         x = {"nombre": str((x or {}).get("nombre", "")), "descripcion": str((x or {}).get("descripcion", "")),
-             "ambito": str((x or {}).get("ambito", "ambos"))}
+             "ambito": str((x or {}).get("ambito", "ambos")), "opcional": bool((x or {}).get("opcional", False))}
         if not _SECRETO.match(x["nombre"]):
             e.append(f"secretos: {x['nombre']!r} debe ir en MAYÚSCULAS_CON_GUIONES_BAJOS")
         if x["ambito"] not in ("plataforma", "institucion", "ambos"):
@@ -172,7 +172,8 @@ def leer_manifiesto(datos: Dict[str, Any], carpeta: Optional[Path] = None) -> Ma
     token_env = (datos.get("externo") or {}).get("token_env")
     if token_env and not any(x["nombre"] == token_env for x in secretos):
         # compatibilidad: el token de un externo es un secreto aunque el manifiesto no lo declare
-        secretos.append({"nombre": str(token_env), "descripcion": "Token de la API externa", "ambito": "ambos"})
+        secretos.append({"nombre": str(token_env), "descripcion": "Token de la API externa", "ambito": "ambos",
+                         "opcional": False})
     if e:
         raise ManifiestoInvalido(f"servicio {sid or carpeta}: " + "; ".join(e))
     url = str(datos.get("url") or f"http://srv-{sid}:8080").rstrip("/")
