@@ -130,4 +130,4 @@ else:
     for m in res.get("muestra", [])[:3]:
         print(f"    · {m['titulo'][:80]}")
 
-print("\nCapacidades, flujos y conectores completados. En la consola: /panel/servicios, /panel/flujos y /panel/conectores")
+print("\nCapacidades, flujos y conectores completados. En la consola: /panel/servicios, /panel/recetas y /panel/conectores")

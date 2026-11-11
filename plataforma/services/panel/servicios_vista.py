@@ -65,7 +65,7 @@ SERVICIOS_CUERPO = """
 <li><span class="mono">python scripts/nuevo_servicio.py &lt;id&gt; "&lt;nombre&gt;" --modo interno|externo</span> copia la plantilla en <span class="mono">capacidades/&lt;id&gt;/</span>.</li>
 <li>En <span class="mono">servicio.yaml</span>: qué recibe y qué entrega (tipos comunes), versión, parámetros, acceso y cuota.</li>
 <li><b>Interno</b>: escribe <span class="mono">procesar(entrada, parametros)</span> y añade su contenedor. <b>Externo</b>: escribe el <span class="mono">adaptador.py</span> que traduce a la API que ya existe.</li>
-<li>Reconstruye el catálogo. Aparece aquí y en los flujos, sin tocar el núcleo.</li></ol>
+<li>Reconstruye el catálogo. Aparece aquí y en las recetas, sin tocar el núcleo.</li></ol>
 <pre class="manifiesto">id: rag-colonial
 nombre: Preguntas al corpus colonial
 tipo: consulta
@@ -153,12 +153,19 @@ $('#cerrar').onclick = () => { $('#probar').hidden = true; };
 })();
 """
 
-FLUJOS_CUERPO = """
-<div class="dos">
-<section class="tarjeta" aria-labelledby="t-nuevo"><div class="cab"><h2 id="t-nuevo">Nuevo flujo</h2></div>
+# ---------- Recetas: plantillas · nueva receta · ejecuciones ----------
+RECETAS_CUERPO = """
+<section class="rejilla" style="--min:340px" id="plantillas" aria-label="Plantillas de recetas"><p class="vacio">Cargando…</p></section>
+<section class="tarjeta" style="margin-top:20px" aria-labelledby="t-que"><div class="cab"><h2 id="t-que">Qué es una receta</h2></div>
+<p style="margin:0">Una receta encadena capacidades y firmas de personas para ir de un documento a otro. La escribe
+el equipo del PaaS (estas plantillas), tu institución o cualquier persona registrada. Antes de lanzarla, la
+plataforma comprueba que cada paso acepta lo que entrega el anterior; al ejecutarla, cada paso queda en el notario.</p></section>"""
+
+NUEVA_CUERPO = """
+<section class="tarjeta" aria-labelledby="t-nuevo" style="max-width:900px"><div class="cab"><h2 id="t-nuevo">Nueva receta</h2></div>
 <form class="form-s" id="form-flujo">
 <label>Empezar desde una plantilla<select id="plantilla"><option value="">— elige —</option></select></label>
-<label>Receta (YAML)<textarea id="receta" style="min-height:220px" spellcheck="false"></textarea></label>
+<label>Receta (YAML)<textarea id="receta" style="min-height:260px" spellcheck="false"></textarea></label>
 <div class="radio" role="radiogroup" aria-label="Documento de entrada">
 <label><input type="radio" name="origen" value="activo" checked> Un legajo del catastro</label>
 <label><input type="radio" name="origen" value="texto"> Pegar un texto</label></div>
@@ -166,16 +173,50 @@ FLUJOS_CUERPO = """
 <label id="campo-texto" hidden>Texto<textarea class="prosa" id="texto"></textarea></label>
 <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec" type="button" id="comprobar">Comprobar</button><button class="btn" type="submit">Lanzar</button></div>
 <div id="plan"></div>
-</form></section>
+</form></section>"""
+
+EJECUCIONES_CUERPO = """
+<div class="dos">
 <section aria-labelledby="t-mis"><div class="tarjeta" style="padding:0;overflow:hidden">
-<div class="cab" style="padding:16px 16px 0"><h2 id="t-mis">Flujos de tu institución</h2></div>
-<div id="flujos"><p class="vacio">Cargando…</p></div></div>
-<div class="tarjeta" id="detalle" style="margin-top:16px" hidden aria-live="polite"></div></section>
+<div class="cab" style="padding:16px 16px 0"><h2 id="t-mis">Recetas lanzadas en tu institución</h2></div>
+<div id="flujos"><p class="vacio">Cargando…</p></div></div></section>
+<section class="tarjeta" id="detalle" hidden aria-live="polite"></section>
 </div>"""
 
-FLUJOS_SCRIPT = r"""
-let PLANT = [], SEL = null;
-const ROLES = CFG.roles;
+RECETAS_COMUN = r"""
+const PARAMS = new URLSearchParams(location.search);
+function pintarPlan(plan) {
+  return `<ol class="plan">${plan.pasos.map(p => p.clase === 'servicio'
+    ? `<li><span class="n">${p.n}</span><span><b>${esc(p.servicio)}</b> <span class="mono" style="font-size:12px;color:var(--muted)">${esc(p.version)} · ${esc(p.recibe)} → ${esc(p.entrega)}</span></span><span class="pill">capacidad</span></li>`
+    : `<li class="firma"><span class="n">${p.n}</span><span>Firma de <b>${esc(p.rol)}</b>${p.instrucciones ? ' · <span style="color:var(--muted)">' + esc(p.instrucciones) + '</span>' : ''}</span><span class="pill pendiente">persona</span></li>`).join('')}</ol>
+    <p style="margin:6px 0 0;font-size:13px;color:var(--muted)">Termina en <span class="mono">${esc(plan.salida)}</span>${plan.publicar ? ' y se publica en el catastro' : ''}.</p>`;
+}
+function errores(e) {
+  try { const d = JSON.parse(e.message); if (d.errores) return d.errores; } catch (x) {}
+  return [e.message];
+}
+const ETQ = {'en-curso': ['en curso', ''], 'esperando-firma': ['esperando firma', 'pendiente'], 'terminado': ['terminado', 'ok'], 'rechazado': ['rechazado', 'alerta'], 'error': ['error', 'alerta']};
+"""
+
+RECETAS_SCRIPT = r"""
+(async () => {
+  let ps;
+  try { ps = await api(`${CAT}/plantillas`); } catch (e) { $('#plantillas').innerHTML = `<p class="aviso">${esc(e.message)}</p>`; return; }
+  if (!ps.length) { $('#plantillas').innerHTML = '<p class="vacio">No hay plantillas en flujos/.</p>'; return; }
+  const planes = await Promise.all(ps.map(p => api('/panel/api/flujos/validar', {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({yaml: p.yaml})}).catch(e => ({error: errores(e)}))));
+  $('#plantillas').innerHTML = ps.map((p, i) => { const pl = planes[i];
+    return `<article class="tarjeta"><div class="cab" style="margin:0 0 8px"><h2>${esc(p.receta.nombre || p.id)}</h2>
+      ${pl.error ? '<span class="pill alerta">no disponible</span>' : `<span class="pill">${esc(p.receta.entrada)} → ${esc(pl.salida)}</span>`}</div>
+      ${pl.error ? `<p class="aviso">${pl.error.map(esc).join('<br>')}</p>` : pintarPlan(pl)}
+      <div style="display:flex;gap:8px;margin-top:12px"><a class="btn" href="/panel/recetas/nueva?plantilla=${encodeURIComponent(p.id)}">Usar esta receta</a>
+      <details><summary class="btn sec" style="list-style:none">Ver YAML</summary><pre class="json" style="margin-top:8px">${esc(p.yaml)}</pre></details></div></article>`;
+  }).join('');
+})();
+"""
+
+NUEVA_SCRIPT = r"""
+let PLANT = [];
 document.querySelectorAll('input[name=origen]').forEach(r => r.onchange = () => {
   const act = document.querySelector('input[name=origen]:checked').value === 'activo';
   $('#campo-activo').hidden = !act; $('#campo-texto').hidden = act;
@@ -184,16 +225,6 @@ $('#plantilla').onchange = () => { const p = PLANT.find(x => x.id === $('#planti
 function entrada() {
   return document.querySelector('input[name=origen]:checked').value === 'activo'
     ? {activo: $('#activo').value.trim()} : {documento: {texto: $('#texto').value}};
-}
-function pintarPlan(plan) {
-  return `<ol class="plan">${plan.pasos.map(p => p.clase === 'servicio'
-    ? `<li><span class="n">${p.n}</span><span><b>${esc(p.servicio)}</b> <span class="mono" style="font-size:12px;color:var(--muted)">${esc(p.version)} · ${esc(p.recibe)} → ${esc(p.entrega)}</span></span><span class="pill">servicio</span></li>`
-    : `<li class="firma"><span class="n">${p.n}</span><span>Firma de <b>${esc(p.rol)}</b>${p.instrucciones ? ' · <span style="color:var(--muted)">' + esc(p.instrucciones) + '</span>' : ''}</span><span class="pill pendiente">persona</span></li>`).join('')}</ol>
-    <p style="margin:6px 0 0;font-size:13px;color:var(--muted)">Termina en <span class="mono">${esc(plan.salida)}</span>${plan.publicar ? ' y se publica en el catastro' : ''}.</p>`;
-}
-function errores(e) {
-  try { const d = JSON.parse(e.message); if (d.errores) return d.errores; } catch (x) {}
-  return [e.message];
 }
 $('#comprobar').onclick = async () => {
   try { const plan = await api('/panel/api/flujos/validar', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({yaml: $('#receta').value})});
@@ -204,15 +235,23 @@ $('#form-flujo').onsubmit = async ev => {
   ev.preventDefault();
   const b = $('#form-flujo button[type=submit]'); b.disabled = true;
   try { const r = await api('/panel/api/flujos/lanzar', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({yaml: $('#receta').value, entrada: entrada()})});
-    aviso('Flujo lanzado. Lo verás a la derecha.', true); SEL = r.id; cargar(); }
-  catch (e) { $('#plan').innerHTML = `<div class="aviso">${errores(e).map(esc).join('<br>')}</div>`; }
-  b.disabled = false;
+    location.href = `/panel/recetas/ejecuciones?f=${encodeURIComponent(r.id)}`; }
+  catch (e) { $('#plan').innerHTML = `<div class="aviso">${errores(e).map(esc).join('<br>')}</div>`; b.disabled = false; }
 };
-const ETQ = {'en-curso': ['en curso', ''], 'esperando-firma': ['esperando firma', 'pendiente'], 'terminado': ['terminado', 'ok'], 'rechazado': ['rechazado', 'alerta'], 'error': ['error', 'alerta']};
+(async () => {
+  try { PLANT = await api(`${CAT}/plantillas`); } catch (e) {}
+  $('#plantilla').innerHTML = '<option value="">— elige —</option>' + PLANT.map(p => `<option value="${esc(p.id)}">${esc(p.receta.nombre || p.id)}</option>`).join('');
+  const p = PLANT.find(x => x.id === PARAMS.get('plantilla')) || PLANT[0];
+  if (p) { $('#plantilla').value = p.id; $('#receta').value = p.yaml; $('#comprobar').click(); }
+})();
+"""
+EJECUCIONES_SCRIPT = r"""
+let SEL = PARAMS.get("f");
+const ROLES = CFG.roles;
 async function cargar() {
   let fs;
   try { fs = await api(`${CAT}/flujos`); } catch (e) { $('#flujos').innerHTML = `<p class="aviso" style="margin:16px">${esc(e.message)}</p>`; return; }
-  if (!fs.length) { $('#flujos').innerHTML = '<p class="vacio">Aún no hay flujos. Lanza el primero desde una plantilla.</p>'; return; }
+  if (!fs.length) { $('#flujos').innerHTML = '<p class="vacio">Aún no se ha lanzado ninguna receta. <a href=\"/panel/recetas\">Elige una plantilla</a>.</p>'; return; }
   const estados = await Promise.all(fs.slice(0, 15).map(f => api(`${CAT}/flujos/${f.id}`).catch(() => null)));
   $('#flujos').innerHTML = fs.map((f, i) => { const e = estados[i]; const [t, c] = ETQ[e?.estado] || ['—', ''];
     return `<div class="fila-f" role="button" tabindex="0" data-f="${esc(f.id)}" aria-current="${f.id === SEL}"><b>${esc(f.nombre)}</b><span class="pill ${c}">${t}</span>
@@ -246,10 +285,6 @@ async function detalle(fid) {
   };
   if (puedo) { $('#aprueba').onclick = () => firmar('aprueba'); $('#rechaza').onclick = () => firmar('rechaza'); }
 }
-(async () => {
-  try { PLANT = await api(`${CAT}/plantillas`); } catch (e) {}
-  $('#plantilla').innerHTML = '<option value="">— elige —</option>' + PLANT.map(p => `<option value="${esc(p.id)}">${esc(p.receta.nombre || p.id)}</option>`).join('');
-  if (PLANT[0]) { $('#plantilla').value = PLANT[0].id; $('#receta').value = PLANT[0].yaml; }
-  cargar(); setInterval(cargar, 5000);
-})();
+cargar(); setInterval(cargar, 5000);
 """
+

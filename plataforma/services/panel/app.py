@@ -6,7 +6,7 @@ Núcleo (este servicio):
     GET  /panel/productos                 catálogo de productos y cómo conectar uno
 Capacidades:
     GET  /panel/servicios             catálogo de servicios: probarlos y usarlos por API
-    GET  /panel/flujos                componer, lanzar y firmar flujos de servicios
+    GET  /panel/recetas               recetas: plantillas · /nueva componer y lanzar · /ejecuciones seguir y firmar
 
 Conectores:
     GET  /panel/conectores            configurar y ejecutar los conectores de mi institución
@@ -282,13 +282,32 @@ def crear_app(*, registro, verificador, expedientes, keycloak_interno: str, proc
         return vista_nucleo(req, "capacidades:servicios", "Servicios", cab, SV.SERVICIOS_CUERPO,
                             SV.SCRIPT_DOC + SV.SERVICIOS_SCRIPT, SV.ESTILO)
 
-    @app.get("/panel/flujos", response_class=HTMLResponse)
-    def flujos(req: Request):
-        cab = P.cabecera_nucleo("Motor de flujos", "Flujos",
-                                "Encadena servicios y firmas de personas. La plataforma comprueba que cada paso encaja con el siguiente.",
-                                capa="Capacidades")
-        return vista_nucleo(req, "capacidades:flujos", "Flujos", cab, SV.FLUJOS_CUERPO,
-                            SV.SCRIPT_DOC + SV.FLUJOS_SCRIPT, SV.ESTILO)
+    def recetas_vista(req: Request, activo: str, titulo: str, sub: str, cuerpo: str, script: str):
+        cab = P.cabecera_nucleo("Recetas", titulo, sub, capa="Capacidades")
+        return vista_nucleo(req, f"capacidades:{activo}", f"Recetas · {titulo}", cab, cuerpo,
+                            SV.SCRIPT_DOC + SV.RECETAS_COMUN + script, SV.ESTILO)
+
+    @app.get("/panel/recetas", response_class=HTMLResponse)
+    def recetas(req: Request):
+        return recetas_vista(req, "recetas", "Plantillas",
+                             "Recetas listas para usar: encadenan capacidades y firmas de personas. Úsalas tal cual o adáptalas.",
+                             SV.RECETAS_CUERPO, SV.RECETAS_SCRIPT)
+
+    @app.get("/panel/recetas/nueva", response_class=HTMLResponse)
+    def receta_nueva(req: Request):
+        return recetas_vista(req, "nueva-receta", "Nueva receta",
+                             "Parte de una plantilla, cámbiala y lánzala. La plataforma comprueba que cada paso encaja con el siguiente.",
+                             SV.NUEVA_CUERPO, SV.NUEVA_SCRIPT)
+
+    @app.get("/panel/recetas/ejecuciones", response_class=HTMLResponse)
+    def receta_ejecuciones(req: Request):
+        return recetas_vista(req, "ejecuciones", "Ejecuciones",
+                             "Las recetas lanzadas en tu institución, paso a paso, y las firmas que esperan a alguien.",
+                             SV.EJECUCIONES_CUERPO, SV.EJECUCIONES_SCRIPT)
+
+    @app.get("/panel/flujos")
+    def flujos_antes():
+        return RedirectResponse("/panel/recetas/ejecuciones", status_code=301)
 
     @app.get("/panel/conectores", response_class=HTMLResponse)
     def conectores(req: Request):

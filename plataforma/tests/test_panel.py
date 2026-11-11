@@ -186,8 +186,11 @@ def test_gemelo_con_sus_vistas_y_datos():
 def test_servicios_y_flujos_en_el_nucleo():
     c = cliente("tok-o")
     nucleo = c.get("/panel/servicios").text.split("Núcleo del PaaS</span>", 1)[1].split("Productos</span>", 1)[0]
-    assert 'aria-current="page"><span class="izq">Servicios' in nucleo and "/panel/flujos" in nucleo
-    assert "Receta (YAML)" in c.get("/panel/flujos").text
+    assert 'aria-current="page"><span class="izq">Servicios' in nucleo and "/panel/recetas/ejecuciones" in nucleo
+    assert "Receta (YAML)" in c.get("/panel/recetas/nueva").text
+    assert 'id="plantillas"' in c.get("/panel/recetas").text and 'id="flujos"' in c.get("/panel/recetas/ejecuciones").text
+    r = c.get("/panel/flujos", follow_redirects=False)
+    assert r.status_code == 301 and r.headers["location"] == "/panel/recetas/ejecuciones"
     r = c.post("/panel/api/flujos/validar", json={"yaml": "nombre: [sin cerrar"})
     assert r.status_code == 422 and "YAML" in r.json()["detail"]["errores"][0]
     assert c.get("/panel/api/catalogo/servicios").status_code == 503  # sin catálogo: se avisa
@@ -198,7 +201,7 @@ def test_la_barra_tiene_las_cuatro_capas_en_orden():
     i = [html.index(f'<span class="eyebrow">{c}</span>') for c in ("Núcleo del PaaS", "Capacidades", "Productos", "Conectores")]
     assert i == sorted(i)
     capacidades = html[i[1]:i[2]]
-    assert "/panel/servicios" in capacidades and "/panel/flujos" in capacidades
+    assert "/panel/servicios" in capacidades and "/panel/recetas" in capacidades
     assert 'aria-current="page"><span class="izq">Sistemas de la institución' in html[i[3]:]
     assert "Conectores · Sistemas de la institución" in html
 

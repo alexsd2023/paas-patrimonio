@@ -51,6 +51,10 @@ h3{font:600 17px/1.25 var(--display);margin:0}
 .barra a .ext{font:12px var(--mono);color:var(--nav-muted)}
 .barra a[aria-current="page"] .ext{color:var(--muted)}
 .punto{width:10px;height:10px;border-radius:3px;flex:none}
+.submenu{display:flex;flex-direction:column;gap:2px;margin:2px 0 2px 10px;padding-left:8px;border-left:1px solid var(--nav-line)}
+.submenu .sub-cab{padding:8px 10px 2px;color:var(--nav-ink)}
+.barra a.sub{padding:6px 10px;font-size:14px;color:#C9D4DF}
+.barra a.sub[aria-current="page"]{color:var(--nav)}
 .barra a.conectar{margin-top:4px;border:1px dashed #4A5D72;color:#B9C6D3}
 .sesion{margin-top:auto;padding:12px 10px 0;border-top:1px solid var(--nav-line);display:flex;flex-direction:column;gap:6px}
 .sesion b{color:#fff}
@@ -141,7 +145,7 @@ def _a(href: str, texto: str, activo: bool = False, extra: str = "", clase: str 
 
 def barra(productos: List[Any], activo: str, quien: Any, enlaces: Dict[str, str],
           activos: Optional[List[str]] = None) -> str:
-    """activo: 'nucleo:estado|cartas', 'capacidades:servicios|flujos', 'productos', 'producto:<id>', 'conectores'
+    """activo: 'nucleo:estado|cartas', 'capacidades:servicios|recetas|nueva-receta|ejecuciones', 'productos', 'producto:<id>', 'conectores'
     o 'institucion'. activos: productos activados por la institución (None = todos)."""
     def pieza(t, n, k):
         if k in INCRUSTADAS:
@@ -167,7 +171,10 @@ def barra(productos: List[Any], activo: str, quien: Any, enlaces: Dict[str, str]
 {ext}</div>
 <div class="grupo"><span class="eyebrow">Capacidades</span>
 {_a('/panel/servicios', 'Servicios', activo == 'capacidades:servicios')}
-{_a('/panel/flujos', 'Flujos', activo == 'capacidades:flujos')}
+<div class="submenu" role="group" aria-labelledby="sm-recetas"><span class="sub-cab" id="sm-recetas">Recetas</span>
+{_a('/panel/recetas', 'Plantillas', activo == 'capacidades:recetas', clase='sub')}
+{_a('/panel/recetas/nueva', 'Nueva receta', activo == 'capacidades:nueva-receta', clase='sub')}
+{_a('/panel/recetas/ejecuciones', 'Ejecuciones', activo == 'capacidades:ejecuciones', clase='sub')}</div>
 {_a('/panel/servicios#publicar', 'Publicar un servicio', clase='conectar')}</div>
 <div class="grupo"><span class="eyebrow">Productos</span>
 {_a('/panel/productos', 'Catálogo', activo == 'productos')}
