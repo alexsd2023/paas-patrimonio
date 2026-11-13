@@ -19,8 +19,8 @@ CANDADO = ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="
            '<rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>')
 ROLES = [("archivera", "Archiveras"), ("paleografa", "Paleógrafas"), ("admin-institucion", "Administración")]
 _FLUJOS = Path(__file__).resolve().parents[2] / "flujos"
-# MOSTRAR_PRECIOS=no (demo pública): el Marketplace no enseña precios. Por defecto se enseñan.
-MOSTRAR_PRECIOS = os.environ.get("MOSTRAR_PRECIOS", "si").strip().lower() not in ("no", "0", "false")
+# El Marketplace no enseña precios. Para volver a enseñarlos: MOSTRAR_PRECIOS=si
+MOSTRAR_PRECIOS = os.environ.get("MOSTRAR_PRECIOS", "no").strip().lower() in ("si", "sí", "1", "true")
 
 ESTILO = r"""
 :root{--azul:#2F5DA8;--azul-t:#E3EBF8}
