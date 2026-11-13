@@ -11,6 +11,7 @@
 #   · Ningún otro servicio publica puertos (Docker se salta ufw: por eso se quitan aquí, no en el cortafuegos).
 #   · Keycloak sabe que va detrás de un proxy HTTPS.
 #   · La cookie de la consola sale con «Secure» (lo añade Caddy; el código no cambia).
+#   · El Marketplace no enseña precios (MOSTRAR_PRECIOS=no).
 services:
   caddy:
     image: caddy:2.10
@@ -37,6 +38,10 @@ services:
     environment:
       KC_PROXY_HEADERS: xforwarded
       KC_HTTP_ENABLED: "true"
+
+  panel:
+    environment:
+      MOSTRAR_PRECIOS: "no"     # la demo pública no enseña precios en el Marketplace
 
   apisix:
     ports: !reset []
