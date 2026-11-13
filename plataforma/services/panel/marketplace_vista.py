@@ -5,6 +5,7 @@ instituciones. Solo quien administra la institución activa, cambia permisos o d
 `act` es lo que devuelve /activaciones: {gestionada, activos, detalle: {id: {permisos, roles, por, cuando}}}
 o None si el servicio no responde.
 """
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -18,6 +19,8 @@ CANDADO = ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="
            '<rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>')
 ROLES = [("archivera", "Archiveras"), ("paleografa", "Paleógrafas"), ("admin-institucion", "Administración")]
 _FLUJOS = Path(__file__).resolve().parents[2] / "flujos"
+# MOSTRAR_PRECIOS=no (demo pública): el Marketplace no enseña precios. Por defecto se enseñan.
+MOSTRAR_PRECIOS = os.environ.get("MOSTRAR_PRECIOS", "si").strip().lower() not in ("no", "0", "false")
 
 ESTILO = r"""
 :root{--azul:#2F5DA8;--azul-t:#E3EBF8}
@@ -118,7 +121,7 @@ def escaparate(productos: List[Any], act: Optional[Dict[str, Any]], quien: Any) 
 <div style="display:flex;justify-content:space-between;gap:8px">{_modelo(c)}{estado}</div>
 <div><h2>{e(c.nombre)}</h2><span class="mk-autor">{e(c.autor)}</span></div>
 <p style="margin:0;flex-grow:1">{e(c.resumen)}</p>
-<div class="mk-etqs"><span>{e(c.oficio)}</span><span>{e(c.precio)}</span></div>
+<div class="mk-etqs"><span>{e(c.oficio)}</span>{f"<span>{e(c.precio)}</span>" if MOSTRAR_PRECIOS else ""}</div>
 <a class="btn sec" href="/panel/marketplace/{e(c.id)}" style="align-self:flex-start">Ver ficha</a></article>""")
     caido = ('<p class="aviso">No sé qué tiene activado tu institución: el servicio de instituciones no responde.</p>'
              if act is None else "")
@@ -197,11 +200,13 @@ def ficha(c, act: Optional[Dict[str, Any]], quien: Any) -> str:
     if c.vistas:
         vistas = ('<section class="tarjeta"><h2>Sus pantallas</h2><div class="mk-etqs">'
                   + "".join(f"<span>{e(v.nombre)}</span>" for v in c.vistas) + "</div></section>")
+    precio = (f'<span style="color:var(--muted);font-size:13px">Precio</span><b style="font-size:19px">{e(c.precio)}</b>'
+              if MOSTRAR_PRECIOS else "")
     return f"""<p style="margin:0 0 12px"><a href="/panel/productos">← Marketplace</a></p>
 <div class="mk-cab"><div style="max-width:720px">{_modelo(c)}<h1>{e(c.nombre)}</h1>
 <span class="mk-autor">{e(c.autor)} · versión {e(c.version)} · {e(c.oficio)}</span>
 <p style="font-size:17px;margin:10px 0 0">{e(c.descripcion)}</p></div>
-<div class="tarjeta mk-precio"><span style="color:var(--muted);font-size:13px">Precio</span><b style="font-size:19px">{e(c.precio)}</b>{accion}</div></div>
+<div class="tarjeta mk-precio">{precio}{accion}</div></div>
 <div class="mk-ficha" style="margin-top:20px">
 <section class="tarjeta"><h2>Qué permisos pide</h2>{permisos}</section>
 <section><h2 style="margin:0 0 10px;font-size:17px">Dónde van tus datos</h2>{_datos(c)}</section>
