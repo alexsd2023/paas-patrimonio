@@ -62,7 +62,8 @@ ESTILO_INST = r"""
 CUERPO_INST = """
 <div class="inst">
 <section class="tarjeta" aria-labelledby="t-prod"><div class="cab"><h2 id="t-prod">Productos</h2></div>
-<p class="sub" style="margin:0 0 8px">Lo que tu institución ve en la consola. Activar un producto no mueve datos: solo lo abre a tu equipo.</p>
+<p class="sub" style="margin:0 0 8px">Lo que tu institución tiene activado. Se activan desde el <a href="/panel/productos">Marketplace</a>,
+donde decides qué puede hacer cada producto y quién lo usa; los permisos se revisan en <a href="/panel/mis-productos">Mis productos</a>.</p>
 <div id="productos"><p class="vacio">Cargando…</p></div></section>
 
 <section class="tarjeta" aria-labelledby="t-pers"><div class="cab"><h2 id="t-pers">Personas</h2></div>
@@ -109,12 +110,8 @@ async function productos() {
     const on = yo.activos.includes(p.id);
     return `<div class="prod-a"><div><b>${esc(p.nombre)}</b> <span class="mono" style="color:var(--muted)">${esc(p.id)}</span></div>
       <div style="display:flex;gap:10px;align-items:center"><span class="pill ${on ? 'ok' : 'pendiente'}">${on ? 'activado' : 'sin activar'}</span>
-      ${esAdmin ? `<button class="btn ${on ? 'sec' : ''}" data-act="${esc(p.id)}" data-on="${on ? '' : '1'}">${on ? 'Desactivar' : 'Activar'}</button>` : ''}</div></div>`;
+      <a class="btn sec" href="${on && esAdmin ? `/panel/marketplace/${esc(p.id)}/activar` : `/panel/marketplace/${esc(p.id)}`}">${on && esAdmin ? 'Revisar permisos' : (esAdmin ? 'Ver y activar' : 'Ver ficha')}</a></div></div>`;
   }).join('') || '<p class="vacio">No hay productos en la plataforma.</p>';
-  document.querySelectorAll('[data-act]').forEach(b => b.onclick = async () => {
-    try { await enviar(`${INS}/activaciones/${b.dataset.act}`, 'PUT', {activo: !!b.dataset.on}); location.reload(); }
-    catch (e) { aviso(e.message); }
-  });
 }
 
 async function personas() {

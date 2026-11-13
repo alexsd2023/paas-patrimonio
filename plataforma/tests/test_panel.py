@@ -83,7 +83,7 @@ def cliente(token=None, **kw):
 # ---------- productos: manifiesto y descubrimiento ----------
 def test_descubre_los_productos_de_la_carpeta():
     productos = descubrir()
-    assert [c.id for c in productos] == ["legajo", "gemelo"]
+    assert [c.id for c in productos] == ["legajo", "gemelo", "scriptorium"]
     leg = productos[0]
     assert leg.color == "#3FA594" and "catastro" in leg.usa and leg.url("validar") == "/panel/productos/legajo/validar"
     assert len(leg.tramos) == 16 and callable(leg.montar)
@@ -121,7 +121,7 @@ def test_la_barra_separa_nucleo_y_productos():
 
 def test_estado_del_nucleo_no_sabe_de_legajos():
     d = cliente("tok-o").get("/panel/api/nucleo/estado").json()
-    assert d["sondas"][0]["ok"] and [c["id"] for c in d["productos"]] == ["legajo", "gemelo"]
+    assert d["sondas"][0]["ok"] and [c["id"] for c in d["productos"]] == ["legajo", "gemelo", "scriptorium"]
     assert d["buzonesPorProducto"]["activos"] == ["Legajo de la archivera"]
     assert d["buzonesPorProducto"]["sensores"] == ["Gemelo del archivo"]
 
@@ -133,7 +133,8 @@ def test_cartas_solo_de_mi_institucion():
 
 def test_catalogo_lista_los_productos_y_como_conectar_uno():
     html = cliente("tok-o").get("/panel/productos").text
-    assert "Legajo de la archivera" in html and "Gemelo del archivo" in html and 'id="conectar"' in html
+    assert "Legajo de la archivera" in html and "Gemelo del archivo" in html and 'id="publicar"' in html
+    assert '<span class="modelo externo">Externo</span>' in html and 'href="/panel/marketplace/scriptorium"' in html
 
 
 # ---------- producto: legajo ----------
@@ -198,17 +199,21 @@ def test_servicios_y_flujos_en_el_nucleo():
 
 def test_la_barra_tiene_las_cuatro_capas_en_orden():
     html = cliente("tok-o").get("/panel/conectores").text
-    i = [html.index(f'<span class="eyebrow">{c}</span>') for c in ("Núcleo del PaaS", "Capacidades", "Productos", "Conectores")]
+    i = [html.index(f'<span class="marca">{c}</span>') for c in ("Núcleo del PaaS", "Capacidades", "Productos", "Conectores")]
     assert i == sorted(i)
     capacidades = html[i[1]:i[2]]
     assert "/panel/servicios" in capacidades and "/panel/recetas" in capacidades
     assert 'aria-current="page"><span class="izq">Sistemas de la institución' in html[i[3]:]
     assert "Conectores · Sistemas de la institución" in html
+    # cada grupo se pliega con su botón, que dice a qué lista controla
+    for g in ("nucleo", "capacidades", "productos", "conectores", "institucion"):
+        assert f'aria-expanded="true" aria-controls="g-{g}"' in html and f'<div class="items" id="g-{g}">' in html
+    assert "barra-plegados" in html
 
 
 def test_el_estado_resume_las_capas():
     d = cliente("tok-o").get("/panel/api/nucleo/estado").json()
-    assert d["capas"]["productos"] == 2 and d["capas"]["capacidades"] is None  # sin catálogo: no se inventa
+    assert d["capas"]["productos"] == 3 and d["capas"]["capacidades"] is None  # sin catálogo: no se inventa
 
 
 # ---------- consolas técnicas dentro de la consola ----------

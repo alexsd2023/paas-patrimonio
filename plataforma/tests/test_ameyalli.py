@@ -155,6 +155,7 @@ def test_claves_como_secretos(monkeypatch):
     s.poner("modernizador-paleografico", PLATAFORMA, "SCRIPTORIUM_API_KEY", "clave-nsf", "admin.paas")
     _ej(cat, "modernizador-paleografico", {"texto": "En Sevylla"})
     assert "api_key" not in a.peticiones[-1][1]          # sin clave propia: usa la de Ameyalli
+    assert set(a.peticiones[-1][1]) == {"text", "provider"}   # los campos vacíos no se envían
     s.poner("modernizador-paleografico", "museo-a", "GROQ_API_KEY", "gsk-del-museo", "dir.a")
     _ej(cat, "modernizador-paleografico", {"texto": "En Sevylla"}, {"reglas": [{"patron": "ç", "reemplazo": "z"}]})
     path, cuerpo, auth = a.peticiones[-1]
@@ -190,3 +191,11 @@ def test_localizar_no_inventa():
     assert localizar(t, "Sevylla", [10]) == (10, 17)        # la pista cuadra
     assert localizar(t, "Sevylla", [11]) == (10, 17)        # cerca: la más próxima
     assert localizar(t, "Sevilla", [0]) is None             # no está: no se marca
+
+
+def test_un_error_largo_de_ameyalli_se_ve_por_el_final(ameyalli):
+    a, cat = ameyalli
+    traza = "Traceback (most recent call last):\n" + "  File x, line 1\n" * 200 + "KeyError: 'rules'"
+    cat.http = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(500, json={"detail": traza})))
+    with pytest.raises(Exception, match="KeyError: 'rules'"):
+        _ej(cat, "modernizador-paleografico", {"texto": "En Sevylla"})

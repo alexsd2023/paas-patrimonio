@@ -1,0 +1,62 @@
+# Perfil público: la demo abierta en un VPS. Se monta ENCIMA de docker-compose.yml sin cambiarlo
+# (Turing y la red local siguen igual).
+#
+# Uso, en plataforma/ del VPS:
+#   docker compose --env-file platform/.env -f platform/docker-compose.yml -f platform/docker-compose.publico.yml up -d --build
+#
+# Qué cambia respecto al compose normal:
+#   · Caddy es la única puerta: 80/443 con HTTPS automático (Let's Encrypt).
+#       ${DOMINIO}       → APISIX (consola y API)
+#       ${AUTH_DOMINIO}  → Keycloak (inicio de sesión y tokens; su /admin bloqueado salvo desde ADMIN_IP)
+#   · Ningún otro servicio publica puertos (Docker se salta ufw: por eso se quitan aquí, no en el cortafuegos).
+#   · Keycloak sabe que va detrás de un proxy HTTPS.
+#   · La cookie de la consola sale con «Secure» (lo añade Caddy; el código no cambia).
+services:
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMINIO: ${DOMINIO:?Define DOMINIO en platform/.env}
+      AUTH_DOMINIO: ${AUTH_DOMINIO:?Define AUTH_DOMINIO en platform/.env}
+      ACME_EMAIL: ${ACME_EMAIL:?Define ACME_EMAIL en platform/.env}
+      ADMIN_IP: ${ADMIN_IP:-127.0.0.1/32}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - apisix
+      - keycloak
+
+  keycloak:
+    ports: !reset []
+    environment:
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: "true"
+
+  apisix:
+    ports: !reset []
+  kafka:
+    ports: !reset []
+  puente:
+    ports: !reset []
+  procedencia:
+    ports: !reset []
+  gestoria:
+    ports: !reset []
+  mlflow:
+    ports: !reset []
+  scorpio:
+    ports: !reset []
+  fuseki:
+    ports: !reset []
+  jaeger:
+    ports: !reset []
+
+volumes:
+  caddy-data:
+  caddy-config:

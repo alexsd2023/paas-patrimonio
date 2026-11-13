@@ -53,6 +53,27 @@ def suscripcion_depositos(tenant: str) -> dict:
 SUSCRIPCIONES_PUENTE = [(SUB_ID, suscripcion), (SUB_DEPOSITOS, suscripcion_depositos)]
 
 
+def preparar(reg: Registro, t: str) -> list:
+    """Deja el catastro de la institución `t` listo y conectado al bus. Idempotente.
+    Lo usan el arranque (instituciones fijas) y el alta de una institución nueva (services/instituciones)."""
+    hecho = []
+    # 1 · El tenant existe (inscribir y borrar una ficha de marca lo crea si hacía falta)
+    marca = {"id": f"urn:ngsi-ld:Tenant:{t}", "type": "Tenant"}
+    reg.crear(t, marca)
+    reg.borrar(t, marca["id"])
+    for sub_id, hacer in SUSCRIPCIONES_PUENTE:
+        # 2 · Borrar la suscripción anterior, si la había
+        existia = reg.suscripcion(t, sub_id) is not None
+        if existia:
+            reg._req("DELETE", f"{SUSCRIPCIONES}/{urllib.parse.quote(sub_id, safe='')}", t)
+        # 3 · Crearla de nuevo
+        estado, cuerpo = reg.crear_suscripcion(t, hacer(t))
+        if estado not in (201, 204):
+            raise RuntimeError(f"{t}: no se pudo crear {sub_id} ({estado}): {cuerpo}")
+        hecho.append(f"✓ {t}: {sub_id.split(':')[-1]} {'recreada' if existia else 'creada'}")
+    return hecho
+
+
 def main() -> int:
     reg = Registro(SCORPIO)
     print(f"Esperando al catastro en {SCORPIO}…", flush=True)
@@ -67,21 +88,12 @@ def main() -> int:
     time.sleep(MARGEN_ARRANQUE)
 
     for t in TENANTS:
-        # 1 · El tenant existe (inscribir y borrar una ficha de marca lo crea si hacía falta)
-        marca = {"id": f"urn:ngsi-ld:Tenant:{t}", "type": "Tenant"}
-        reg.crear(t, marca)
-        reg.borrar(t, marca["id"])
-        for sub_id, hacer in SUSCRIPCIONES_PUENTE:
-            # 2 · Borrar la suscripción anterior, si la había
-            existia = reg.suscripcion(t, sub_id) is not None
-            if existia:
-                reg._req("DELETE", f"{SUSCRIPCIONES}/{urllib.parse.quote(sub_id, safe='')}", t)
-            # 3 · Crearla de nuevo
-            estado, cuerpo = reg.crear_suscripcion(t, hacer(t))
-            if estado not in (201, 204):
-                print(f"✗ {t}: no se pudo crear {sub_id} ({estado}): {cuerpo}", flush=True)
-                return 1
-            print(f"✓ {t}: {sub_id.split(':')[-1]} {'recreada' if existia else 'creada'}", flush=True)
+        try:
+            for linea in preparar(reg, t):
+                print(linea, flush=True)
+        except RuntimeError as e:
+            print(f"✗ {e}", flush=True)
+            return 1
     return 0
 
 

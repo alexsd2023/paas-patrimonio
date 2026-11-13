@@ -1,0 +1,25 @@
+# Producto EXTERNO: Scriptorium (Ameyalli · New Spain Fleets).
+# Corre en los servidores de su autor; la plataforma no ejecuta nada suyo. No tiene __init__.py: la consola
+# muestra su ficha en el Marketplace y, una vez activado, enlaza a su web. Sus herramientas ya son
+# capacidades del catálogo (corrector, modernizador, entidades sobre el original) y la receta «Edición anotada».
+id: scriptorium
+orden: 3
+nombre: Scriptorium
+color: "#B5652E"
+resumen: Mesa de trabajo para editar manuscritos · corrección del HTR, modernización y entidades sobre el original
+autor: Ameyalli · Lancaster University y Tecnológico de Monterrey
+oficio: Investigación
+modelo: externo
+url: https://scriptorium-nsf.appincubator.dev
+version: 1.0.0
+precio: "[PRECIO] / mes"
+descripcion: >-
+  La interfaz de investigación de Ameyalli para manuscritos españoles históricos: visor del folio, revisión de
+  cada cambio y edición anotada. Se apoya en las capacidades y la receta «Edición anotada» de la plataforma.
+usa: [identidad, imagenes, servicios]
+requiere: [corrector-htr, modernizador-paleografico, entidades-en-el-original]
+recetas: [edicion-anotada]
+permisos:
+  - {id: expedientes-lectura, texto: Leer expedientes y transcripciones, detalle: Para abrirlos en su mesa de trabajo}
+  - {id: ediciones, texto: Guardar ediciones anotadas, detalle: Se guardan en tu catastro con su procedencia, opcional: true}
+  - {id: recetas, texto: Lanzar recetas en tu nombre, detalle: Cuentan en el consumo de tu institución, opcional: true}

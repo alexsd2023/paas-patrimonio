@@ -69,7 +69,8 @@ def test_alta_entra_directamente_y_empieza_sin_productos(entorno):
     assert "Mi institución" in pag and "Credenciales de API" in pag
     assert 'href="/panel/productos/legajo' not in c.get("/panel").text          # nada activado: no sale en la barra
     assert c.get("/panel/productos/legajo/").status_code == 403
-    assert "sin activar" in c.get("/panel/productos").text
+    assert "activado" not in c.get("/panel/productos").text.split('aria-label="Productos"')[1]
+    assert "Ver su ficha en el Marketplace" in c.get("/panel/productos/legajo/").text
     assert c.put("/panel/api/instituciones/activaciones/legajo", json={"activo": True}).json()["activos"] == ["legajo"]
     assert 'href="/panel/productos/legajo' in c.get("/panel").text
     assert c.get("/panel/productos/legajo/api/expedientes").status_code != 403

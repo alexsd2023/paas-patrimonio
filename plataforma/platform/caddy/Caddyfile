@@ -1,0 +1,34 @@
+# Caddy: la única puerta del VPS. Certificados de Let's Encrypt automáticos.
+# Los nombres vienen de platform/.env (DOMINIO, AUTH_DOMINIO, ACME_EMAIL, ADMIN_IP).
+{
+	email {$ACME_EMAIL}
+}
+
+# Consola y API → APISIX
+{$DOMINIO} {
+	encode zstd gzip
+	reverse_proxy apisix:9080 {
+		# la cookie de sesión de la consola solo viaja por HTTPS
+		header_down Set-Cookie "^(.*)$" "$1; Secure"
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+}
+
+# Inicio de sesión y tokens → Keycloak
+{$AUTH_DOMINIO} {
+	encode zstd gzip
+	# La consola de administración de Keycloak solo desde ADMIN_IP (por defecto, nadie)
+	@admin_fuera {
+		path /admin /admin/*
+		not remote_ip {$ADMIN_IP}
+	}
+	respond @admin_fuera "Forbidden" 403
+	reverse_proxy keycloak:8080
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+}

@@ -4,6 +4,19 @@ orden: 2
 nombre: Gemelo del archivo
 color: "#D9A23B"
 resumen: Depósitos y cajas con sus sensores · lecturas cada 5 s, alertas de conservación y legajos afectados
+# Marketplace
+autor: Equipo PaaS Patrimonio
+oficio: Conservación
+modelo: integrado            # corre dentro de la consola
+version: 1.1.0
+precio: Incluido en la plataforma
+descripcion: >-
+  Escucha los sensores de los depósitos, muestra su temperatura y humedad y avisa a conservación cuando las
+  condiciones ponen en riesgo los fondos, con los legajos de cada caja afectada.
+permisos:
+  - {id: depositos, texto: Leer los depósitos y las lecturas de sus sensores, detalle: Solo los de tu institución}
+  - {id: alertas, texto: Crear alertas de conservación, detalle: Las ve tu equipo}
+  - {id: avisos-sensores, texto: Recibir avisos de los sensores, detalle: Cada lectura nueva}
 usa: [identidad, correos, catastro, notario, trazas]
 # Capacidades del catálogo que necesita (capacidades/<id>)
 requiere: []

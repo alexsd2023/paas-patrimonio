@@ -20,9 +20,16 @@ def _regla(r: Dict[str, Any]) -> Dict[str, Any]:
 
 def ejecutar(manifiesto, entrada: dict, parametros: dict, http, secretos: Optional[dict] = None) -> dict:
     proveedor = parametros.get("proveedor") or "groq"
-    base = {"provider": proveedor, "model": parametros.get("modelo") or "",
-            "instructions": parametros.get("instrucciones") or "",
-            "rules": [_regla(r) for r in (parametros.get("reglas") or []) if isinstance(r, dict)]}
+    # solo lo que tiene valor: los campos vacíos se quedan con lo que el modernizador tenga por defecto
+    # (y las reglas propias solo funcionan si el modernizador desplegado lleva su parche)
+    base: Dict[str, Any] = {"provider": proveedor}
+    if parametros.get("modelo"):
+        base["model"] = parametros["modelo"]
+    if parametros.get("instrucciones"):
+        base["instructions"] = parametros["instrucciones"]
+    reglas = [_regla(r) for r in (parametros.get("reglas") or []) if isinstance(r, dict)]
+    if reglas:
+        base["rules"] = reglas
     clave = (secretos or {}).get(CLAVES[proveedor])
     if clave:
         base["api_key"] = clave

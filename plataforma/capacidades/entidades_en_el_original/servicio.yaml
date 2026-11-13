@@ -9,7 +9,7 @@ tipo: tarea
 entrada: texto-modernizado
 salida: edicion-anotada
 version: 1.0.0
-modo: externo
+modo: externa
 url: https://scriptorium-api.appincubator.dev
 externo:
   max_caracteres: 18000     # por versión; la API acepta 20000

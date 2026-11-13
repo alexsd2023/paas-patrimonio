@@ -1,7 +1,7 @@
 """El catálogo: qué servicios hay, quién puede usarlos, cuánto los usa y cómo se ejecutan.
 
 Es núcleo del PaaS. No sabe qué hace cada servicio: solo lee su ``servicio.yaml`` y
-lo ejecuta por la interfaz estándar (interno) o por su adaptador (externo).
+lo ejecuta por la interfaz estándar (integrada o alojada: su contenedor) o por su adaptador (externa).
 """
 import importlib
 import inspect
@@ -100,7 +100,7 @@ class Catalogo:
         params = m.parametros_con_defecto(parametros)
         self.contador.usar(tenant, m)
         t0 = time.monotonic()
-        if m.modo == "externo":
+        if m.modo == "externa":
             adaptador = importlib.import_module(f"capacidades.{m.carpeta.name}.adaptador")
             try:
                 kw = {}

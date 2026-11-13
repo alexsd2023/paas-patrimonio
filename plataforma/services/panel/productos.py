@@ -9,6 +9,12 @@ Un producto es una carpeta en ``productos/<id>/`` con dos cosas:
   en ``/panel/productos/<id>``. Todo lo que el producto necesita del PaaS le llega por ``nucleo``
   (identidad, catastro, procesos, notario, la plantilla de la consola); no importa nada del panel.
 
+Para el Marketplace, el manifiesto dice además quién lo hace (``autor``), para qué oficio (``oficio``),
+**dónde corre** (``modelo``: ``integrado`` dentro de la consola · ``alojado`` en su propio contenedor de la
+plataforma · ``externo`` en los servidores de su autor, con ``url``), qué ``permisos`` pide al activarlo
+(cada uno ``opcional`` o imprescindible), su ``version``, su ``precio`` y las ``recetas`` que usa.
+Un producto externo no tiene ``__init__.py``: la consola solo enlaza a su web.
+
 Así queda separado lo que es del PaaS (este paquete, ``sdk/`` y los servicios comunes) de lo que
 es de cada producto. Un producto nuevo no toca el núcleo: añade su carpeta y la consola lo descubre.
 """
@@ -40,6 +46,9 @@ PIEZAS_NUCLEO = {
 CARPETA = Path(os.environ.get("PRODUCTOS_DIR", Path(__file__).resolve().parents[2] / "productos"))
 _ID = re.compile(r"^[a-z][a-z0-9-]{1,30}$")
 _COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
+_PERMISO = re.compile(r"^[a-z][a-z0-9-]{1,40}$")
+MODELOS = {"integrado": "Integrado", "alojado": "Alojado en la plataforma", "externo": "Externo"}
+OFICIOS = ["Archivo", "Conservación", "Investigación", "Difusión", "Gestión"]
 
 
 class ProductoInvalido(ValueError):
@@ -51,6 +60,14 @@ class Vista:
     id: str
     nombre: str
     ruta: str  # relativa al producto: "" es la vista de entrada
+
+
+@dataclass
+class Permiso:
+    id: str
+    texto: str
+    detalle: str = ""
+    opcional: bool = False
 
 
 @dataclass
@@ -67,6 +84,30 @@ class Producto:
     tramos: List[Dict[str, Any]] = field(default_factory=list)
     estado: str = "conectado"
     montar: Optional[Callable] = None
+    # Marketplace
+    autor: str = "Equipo PaaS Patrimonio"
+    oficio: str = "Archivo"
+    modelo: str = "integrado"
+    url_externa: str = ""
+    version: str = "1.0.0"
+    precio: str = "Incluido en la plataforma"
+    descripcion: str = ""
+    recetas: List[str] = field(default_factory=list)
+    permisos: List[Permiso] = field(default_factory=list)
+
+    @property
+    def externo(self) -> bool:
+        return self.modelo == "externo"
+
+    @property
+    def datos_salen(self) -> bool:
+        """Solo un producto externo saca los datos de la plataforma (a los servidores de su autor)."""
+        return self.externo
+
+    @property
+    def entrada(self) -> str:
+        """Dónde se abre: la web de su autor si es externo; si no, su primera vista en la consola."""
+        return self.url_externa if self.externo else self.base
 
     @property
     def base(self) -> str:
@@ -80,7 +121,10 @@ class Producto:
         """Lo que se publica del producto (catálogo y API)."""
         return {"id": self.id, "nombre": self.nombre, "color": self.color, "resumen": self.resumen,
                 "usa": self.usa, "requiere": self.requiere, "contenedores": self.contenedores, "buzones": self.buzones, "estado": self.estado,
-                "url": self.base, "vistas": [{"id": v.id, "nombre": v.nombre, "url": self.url(v.id)} for v in self.vistas]}
+                "url": self.entrada, "vistas": [{"id": v.id, "nombre": v.nombre, "url": self.url(v.id)} for v in self.vistas],
+                "autor": self.autor, "oficio": self.oficio, "modelo": self.modelo, "version": self.version,
+                "precio": self.precio, "descripcion": self.descripcion, "recetas": self.recetas, "datos_salen": self.datos_salen,
+                "permisos": [{"id": x.id, "texto": x.texto, "detalle": x.detalle, "opcional": x.opcional} for x in self.permisos]}
 
 
 def leer_manifiesto(datos: Dict[str, Any], id_carpeta: str) -> Producto:
@@ -101,21 +145,41 @@ def leer_manifiesto(datos: Dict[str, Any], id_carpeta: str) -> Producto:
     raras = [u for u in usa if u not in PIEZAS_NUCLEO]
     if raras:
         errores.append(f"usa: {raras} no son piezas del núcleo ({', '.join(PIEZAS_NUCLEO)})")
+    modelo = str(datos.get("modelo", "integrado"))
+    if modelo not in MODELOS:
+        errores.append(f"modelo: {' | '.join(MODELOS)}")
+    url = str(datos.get("url", "") or "")
+    if modelo == "externo" and not url.startswith("https://"):
+        errores.append("url: un producto externo necesita la dirección https:// de su web")
     vistas = []
     for n, v in enumerate(datos.get("vistas", [])):
         if not isinstance(v, dict) or not v.get("id") or not v.get("nombre"):
             errores.append(f"vistas[{n}]: necesita id y nombre")
             continue
         vistas.append(Vista(str(v["id"]), str(v["nombre"]), str(v.get("ruta", ""))))
-    if not vistas:
+    if not vistas and modelo != "externo":
         errores.append("vistas: al menos una")
+    permisos, vistos = [], set()
+    for n, x in enumerate(datos.get("permisos", []) or []):
+        if not isinstance(x, dict) or not _PERMISO.match(str(x.get("id", ""))) or not x.get("texto"):
+            errores.append(f"permisos[{n}]: necesita id (minúsculas y guiones) y texto")
+            continue
+        if x["id"] in vistos:
+            errores.append(f"permisos: {x['id']} repetido")
+        vistos.add(x["id"])
+        permisos.append(Permiso(str(x["id"]), str(x["texto"]), str(x.get("detalle", "")), bool(x.get("opcional", False))))
     if errores:
         raise ProductoInvalido(f"productos/{id_carpeta}/producto.yaml: " + "; ".join(errores))
     return Producto(id=cid, nombre=datos["nombre"], color=color, resumen=datos["resumen"], usa=usa,
                 contenedores=[str(x) for x in datos.get("contenedores", datos.get("servicios", []))],
                 requiere=[str(x) for x in datos.get("requiere", [])],
                 buzones=[str(b) for b in datos.get("buzones", [])], vistas=vistas,
-                tramos=list(datos.get("tramos", [])), estado=str(datos.get("estado", "conectado")))
+                tramos=list(datos.get("tramos", [])), estado=str(datos.get("estado", "conectado")),
+                autor=str(datos.get("autor", "Equipo PaaS Patrimonio")), oficio=str(datos.get("oficio", "Archivo")),
+                modelo=modelo, url_externa=url, version=str(datos.get("version", "1.0.0")),
+                precio=str(datos.get("precio", "Incluido en la plataforma")),
+                descripcion=str(datos.get("descripcion", "") or datos["resumen"]),
+                recetas=[str(x) for x in datos.get("recetas", [])], permisos=permisos)
 
 
 def descubrir(carpeta: Path = CARPETA, paquete: str = "productos") -> List[Producto]:
@@ -126,7 +190,7 @@ def descubrir(carpeta: Path = CARPETA, paquete: str = "productos") -> List[Produ
         try:
             datos = yaml.safe_load(yml.read_text(encoding="utf-8")) or {}
             producto = leer_manifiesto(datos, cid)
-            if producto.estado == "conectado":
+            if producto.estado == "conectado" and not producto.externo:
                 producto.montar = getattr(importlib.import_module(f"{paquete}.{cid}"), "montar")
             encontrados.append((datos.get("orden", 99), producto))
         except Exception as e:  # un producto roto no tumba la consola: se avisa y se sigue

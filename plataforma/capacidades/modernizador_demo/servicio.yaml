@@ -8,7 +8,7 @@ tipo: tarea
 entrada: transcripcion
 salida: texto-modernizado
 version: 0.1.0
-modo: interno
+modo: integrada
 parametros:
   conservar_mayusculas:
     tipo: booleano

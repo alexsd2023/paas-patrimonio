@@ -48,15 +48,27 @@ _USUARIO = re.compile(r"^[a-z0-9][a-z0-9._-]{2,39}$")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
-def productos_disponibles(carpeta: Path = RAIZ / "productos") -> Dict[str, str]:
+def productos_disponibles(carpeta: Path = RAIZ / "productos") -> Dict[str, Dict[str, Any]]:
+    """{id: {nombre, permisos: [{id, opcional}]}} de cada productos/*/producto.yaml."""
     out = {}
     for yml in sorted(Path(carpeta).glob("*/producto.yaml")):
         try:
             d = yaml.safe_load(yml.read_text(encoding="utf-8")) or {}
-            out[str(d.get("id", yml.parent.name))] = str(d.get("nombre", yml.parent.name))
+            out[str(d.get("id", yml.parent.name))] = {
+                "nombre": str(d.get("nombre", yml.parent.name)),
+                "permisos": [{"id": str(x["id"]), "opcional": bool(x.get("opcional", False))}
+                             for x in (d.get("permisos") or []) if isinstance(x, dict) and x.get("id")]}
         except (OSError, ValueError):
             pass
     return out
+
+
+def _csv(v: Optional[List[str]]) -> Optional[str]:
+    return None if v is None else ",".join(v)
+
+
+def _lista(v: Optional[str]) -> Optional[List[str]]:
+    return None if v is None else [x for x in v.split(",") if x]
 
 
 class Almacen:
@@ -69,6 +81,11 @@ class Almacen:
                       " primary key (tenant, producto))")
             c.execute("create table if not exists credenciales (client_id text primary key, tenant text, nombre text,"
                       " roles text, por text, cuando real)")
+            # Marketplace: permisos concedidos y roles que pueden usar cada producto (None = todos)
+            cols = {f[1] for f in c.execute("pragma table_info(activaciones)")}
+            for col in ("permisos", "roles"):
+                if col not in cols:
+                    c.execute(f"alter table activaciones add column {col} text")
 
     def _con(self):
         return sqlite3.connect(self.ruta)
@@ -91,10 +108,18 @@ class Almacen:
         with self._con() as c:
             return [f[0] for f in c.execute("select producto from activaciones where tenant=? order by producto", (tenant,))]
 
-    def activar(self, tenant: str, producto: str, activo: bool, por: str):
+    def detalle(self, tenant: str) -> Dict[str, Dict[str, Any]]:
+        with self._con() as c:
+            return {f[0]: {"por": f[1], "cuando": f[2], "permisos": _lista(f[3]), "roles": _lista(f[4])}
+                    for f in c.execute("select producto, por, cuando, permisos, roles from activaciones where tenant=?",
+                                       (tenant,))}
+
+    def activar(self, tenant: str, producto: str, activo: bool, por: str,
+                permisos: Optional[List[str]] = None, roles: Optional[List[str]] = None):
         with self._lock, self._con() as c:
             if activo:
-                c.execute("insert or replace into activaciones values (?,?,?,?)", (tenant, producto, por, time.time()))
+                c.execute("insert or replace into activaciones (tenant, producto, por, cuando, permisos, roles)"
+                          " values (?,?,?,?,?,?)", (tenant, producto, por, time.time(), _csv(permisos), _csv(roles)))
             else:
                 c.execute("delete from activaciones where tenant=? and producto=?", (tenant, producto))
 
@@ -131,9 +156,16 @@ def _roles(roles: List[str]) -> List[str]:
 
 
 def crear_app(*, verificador, kc: KeycloakAdmin, almacen: Almacen, registro_abierto: bool = True,
-              productos: Optional[Dict[str, str]] = None) -> FastAPI:
+              productos: Optional[Dict[str, str]] = None, preparar_catastro=None, catastro_disponible=None) -> FastAPI:
+    """preparar_catastro(tenant): conecta el catastro de una institución al bus (sus suscripciones de Scorpio),
+    para que sus productos reaccionen a lo que inscriba. catastro_disponible(): si Scorpio ya responde."""
     app = FastAPI(title="Instituciones", version="0.1.0")
     productos = productos_disponibles() if productos is None else productos
+    # admite {id: "Nombre"} (pruebas) además de {id: {nombre, permisos}}
+    productos = {k: (v if isinstance(v, dict) else {"nombre": v, "permisos": []}) for k, v in productos.items()}
+
+    def todos_los_permisos(pid: str) -> List[str]:
+        return [x["id"] for x in productos[pid]["permisos"]]
     alta_lock = threading.Lock()
 
     def yo(authorization: Optional[str] = Header(None)) -> Identidad:
@@ -209,13 +241,50 @@ def crear_app(*, verificador, kc: KeycloakAdmin, almacen: Almacen, registro_abie
                 raise
         log.info("institución %s dada de alta por %s (administra %s)", tenant, por or usuario, usuario)
         return {"institucion": tenant, "nombre": nombre, "usuario": usuario, "roles": ["admin-institucion"],
-                "productos": []}
+                "productos": [], "catastro": conectar_catastro(tenant)}
+
+    def conectar_catastro(tenant: str) -> str:
+        """Si falla, el alta sigue valiendo: se repara sola al volver a arrancar este servicio,
+        o a mano con POST /instituciones/{id}/catastro."""
+        if not preparar_catastro:
+            return "sin catastro"
+        try:
+            preparar_catastro(tenant)
+            return "conectado"
+        except Exception:  # noqa: BLE001
+            log.exception("el catastro de %s no quedó conectado al bus", tenant)
+            return "pendiente"
+
+    @app.on_event("startup")
+    def reparar_catastros():
+        """Las instituciones dadas de alta antes de este arreglo (o con Scorpio caído) se conectan al arrancar."""
+        if not preparar_catastro:
+            return
+
+        def reparar():
+            fin = time.time() + 300
+            while catastro_disponible and not catastro_disponible():
+                if time.time() > fin:
+                    log.warning("el catastro no responde: no reparo las suscripciones de las instituciones")
+                    return
+                time.sleep(5)
+            for i in almacen.todas():
+                log.info("catastro de %s: %s", i["id"], conectar_catastro(i["id"]))
+        threading.Thread(target=reparar, daemon=True, name="reparar-catastros").start()
 
     # ---------- mi institución ----------
     def activos_de(tenant: str) -> Dict[str, Any]:
+        """Productos activados, con los permisos concedidos y quién puede usarlos (roles; None = todos).
+        Una institución anterior al autoservicio («no gestionada») lo tiene todo, con todos los permisos."""
         gestion = almacen.gestionada(tenant)
-        activos = almacen.activos(tenant) if gestion else sorted(productos)
-        return {"gestionada": gestion is not None, "activos": [p for p in activos if p in productos]}
+        if gestion:
+            det = {k: v for k, v in almacen.detalle(tenant).items() if k in productos}
+        else:
+            det = {k: {"por": None, "cuando": None, "permisos": None, "roles": None} for k in productos}
+        for k, v in det.items():
+            if v["permisos"] is None:
+                v["permisos"] = todos_los_permisos(k)
+        return {"gestionada": gestion is not None, "activos": sorted(det), "detalle": det}
 
     @app.get("/yo")
     def mi_institucion(quien: Identidad = Depends(yo)):
@@ -223,7 +292,7 @@ def crear_app(*, verificador, kc: KeycloakAdmin, almacen: Almacen, registro_abie
         nombre = ((g.get("attributes") or {}).get("nombre") or [quien.tenant])[0]
         return {"institucion": quien.tenant, "nombre": nombre, "usuario": quien.usuario,
                 "admin": quien.tiene("admin-institucion"), "operador": quien.tiene("admin-paas"),
-                "productos": [{"id": k, "nombre": v} for k, v in productos.items()], **activos_de(quien.tenant)}
+                "productos": [{"id": k, "nombre": v["nombre"]} for k, v in productos.items()], **activos_de(quien.tenant)}
 
     @app.get("/activaciones")
     def activaciones(quien: Identidad = Depends(yo)):
@@ -231,15 +300,33 @@ def crear_app(*, verificador, kc: KeycloakAdmin, almacen: Almacen, registro_abie
 
     @app.put("/activaciones/{producto}")
     def activar(producto: str, p: Dict[str, Any] = Body(...), quien: Identidad = Depends(admin)):
+        """{activo, permisos?, roles?}: los permisos imprescindibles van siempre; sin «permisos», todos.
+        «roles»: quién de la institución puede usarlo (sin «roles», todos)."""
         if producto not in productos:
             raise HTTPException(404, f"no hay ningún producto {producto}")
+        declarados = productos[producto]["permisos"]
+        permisos = None
+        if p.get("permisos") is not None:
+            pedidos = set(p.get("permisos") or [])
+            raros = sorted(pedidos - {x["id"] for x in declarados})
+            if raros:
+                raise HTTPException(422, f"{producto} no pide esos permisos: {raros}")
+            permisos = [x["id"] for x in declarados if x["id"] in pedidos or not x["opcional"]]
+        roles = None
+        if p.get("roles") is not None:
+            roles = sorted(set(p.get("roles") or []))
+            raros = sorted(set(roles) - set(ROLES_ASIGNABLES))
+            if raros:
+                raise HTTPException(422, f"roles no válidos: {raros} (posibles: {ROLES_ASIGNABLES})")
+            if not roles and p.get("activo"):
+                raise HTTPException(422, "elige al menos quién de tu equipo podrá usarlo")
         if not almacen.gestionada(quien.tenant):
             # una institución anterior al alta autoservicio pasa a gestionada conservando lo que tenía activo
             g = kc.grupo(quien.tenant) or {}
             almacen.alta(quien.tenant, ((g.get("attributes") or {}).get("nombre") or [quien.tenant])[0], quien.usuario)
             for otro in productos:
                 almacen.activar(quien.tenant, otro, True, quien.usuario)
-        almacen.activar(quien.tenant, producto, bool(p.get("activo")), quien.usuario)
+        almacen.activar(quien.tenant, producto, bool(p.get("activo")), quien.usuario, permisos, roles)
         return activos_de(quien.tenant)
 
     # ---------- personas ----------
@@ -327,6 +414,18 @@ def crear_app(*, verificador, kc: KeycloakAdmin, almacen: Almacen, registro_abie
         return {"ok": True}
 
     # ---------- operadores de la plataforma ----------
+    @app.post("/instituciones/{tid}/catastro")
+    def reconectar_catastro(tid: str, quien: Identidad = Depends(yo)):
+        """Vuelve a conectar al bus el catastro de una institución (idempotente)."""
+        if not quien.tiene("admin-paas"):
+            raise HTTPException(403, "hace falta el rol admin-paas")
+        if not kc.grupo(tid):
+            raise HTTPException(404, f"no existe la institución {tid}")
+        estado = conectar_catastro(tid)
+        if estado == "pendiente":
+            raise HTTPException(502, f"no se pudo conectar el catastro de {tid}: mira los logs de instituciones y scorpio")
+        return {"institucion": tid, "catastro": estado}
+
     @app.post("/instituciones", status_code=201)
     def alta_por_operador(p: Dict[str, Any] = Body(...), quien: Identidad = Depends(yo)):
         """El equipo del PaaS da de alta una institución desde la consola (también con REGISTRO=cerrado)."""
@@ -364,7 +463,18 @@ def _crear() -> FastAPI:
         kc=KeycloakAdmin(os.environ.get("KEYCLOAK_INTERNO", "http://keycloak:8080"), os.environ.get("GESTION_SECRET", "")),
         almacen=Almacen(os.environ.get("INSTITUCIONES_DB")),
         registro_abierto=os.environ.get("REGISTRO", "abierto") == "abierto",
+        **_catastro(),
     )
+
+
+def _catastro() -> Dict[str, Any]:
+    """Con SCORPIO_URL, cada alta conecta el catastro de la institución al bus (services/suscripciones)."""
+    if not os.environ.get("SCORPIO_URL"):
+        return {}
+    from sdk.registro import Registro
+    from services.suscripciones.crear import preparar
+    reg = Registro(os.environ["SCORPIO_URL"])
+    return {"preparar_catastro": lambda tenant: preparar(reg, tenant), "catastro_disponible": reg.disponible}
 
 
 app = _crear()

@@ -392,6 +392,8 @@ services:
       GESTION_SECRET: ${PAAS_GESTION_SECRET:?Define PAAS_GESTION_SECRET en platform/.env}
       REGISTRO: ${REGISTRO:-abierto}     # abierto | cerrado (entonces solo el equipo del PaaS da altas)
       INSTITUCIONES_DB: /data/instituciones.db
+      SCORPIO_URL: http://scorpio:9090       # al dar de alta, su catastro se conecta al bus (suscripciones)
+      PUENTE_INTERNO: http://puente:8080
     volumes:
       - instituciones-data:/data
     depends_on:

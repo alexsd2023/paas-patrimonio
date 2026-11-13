@@ -43,7 +43,22 @@ h3{font:600 17px/1.25 var(--display);margin:0}
 .marca-paas b{font:600 22px var(--display);color:#fff}
 .grupo{display:flex;flex-direction:column;gap:2px;padding:0 6px}
 .grupo.nucleo{padding:10px 6px;border-radius:12px;background:var(--nav-2)}
-.grupo>.eyebrow{padding:0 8px 6px;font-size:11px;color:#B9C6D3}
+.titulo-grupo{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:7px 10px;border-radius:8px;cursor:pointer;font:700 12.5px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:#fff}
+.titulo-grupo:hover{background:var(--nav-line)}
+.titulo-grupo:focus-visible{outline:2px solid #F2C14E;outline-offset:2px}
+.titulo-grupo .marca{display:flex;align-items:center;gap:8px}
+.titulo-grupo .marca::before{content:"";width:4px;height:14px;border-radius:2px;background:var(--acento-grupo,#5FB3A1)}
+.titulo-grupo .chev{width:8px;height:8px;border-right:2px solid #B9C6D3;border-bottom:2px solid #B9C6D3;transform:rotate(45deg);
+  transition:transform .15s;margin:0 4px 3px 0}
+.titulo-grupo[aria-expanded="false"] .chev{transform:rotate(-45deg);margin-bottom:0}
+.grupo .items{display:flex;flex-direction:column;gap:2px;padding-top:2px}
+.grupo .items[hidden]{display:none}
+.grupo.g-capacidades{--acento-grupo:#7FA7E0}
+.grupo.g-productos{--acento-grupo:#E3A64B}
+.grupo.g-conectores{--acento-grupo:#C48BD6}
+.grupo.g-institucion{--acento-grupo:#E07F7F}
+@media (prefers-reduced-motion:reduce){.titulo-grupo .chev{transition:none}}
 .barra a{padding:8px 10px;border-radius:8px;color:var(--nav-ink);text-decoration:none;display:flex;gap:10px;align-items:center;justify-content:space-between}
 .barra a .izq{display:flex;gap:10px;align-items:center}
 .barra a:hover{background:var(--nav-line)}
@@ -51,10 +66,6 @@ h3{font:600 17px/1.25 var(--display);margin:0}
 .barra a .ext{font:12px var(--mono);color:var(--nav-muted)}
 .barra a[aria-current="page"] .ext{color:var(--muted)}
 .punto{width:10px;height:10px;border-radius:3px;flex:none}
-.submenu{display:flex;flex-direction:column;gap:2px;margin:2px 0 2px 10px;padding-left:8px;border-left:1px solid var(--nav-line)}
-.submenu .sub-cab{padding:8px 10px 2px;color:var(--nav-ink)}
-.barra a.sub{padding:6px 10px;font-size:14px;color:#C9D4DF}
-.barra a.sub[aria-current="page"]{color:var(--nav)}
 .barra a.conectar{margin-top:4px;border:1px dashed #4A5D72;color:#B9C6D3}
 .sesion{margin-top:auto;padding:12px 10px 0;border-top:1px solid var(--nav-line);display:flex;flex-direction:column;gap:6px}
 .sesion b{color:#fff}
@@ -143,6 +154,34 @@ def _a(href: str, texto: str, activo: bool = False, extra: str = "", clase: str 
     return f'<a href="{e(href)}"{attrs}><span class="izq">{texto}</span>{extra}</a>'
 
 
+def _grupo(clave: str, titulo: str, contenido: str, clase: str = "") -> str:
+    """Un grupo de la barra con su título como botón para plegarlo y desplegarlo."""
+    return (f'<div class="grupo g-{clave} {clase}" data-grupo="{clave}">'
+            f'<button type="button" class="titulo-grupo" aria-expanded="true" aria-controls="g-{clave}">'
+            f'<span class="marca">{titulo}</span><span class="chev" aria-hidden="true"></span></button>'
+            f'<div class="items" id="g-{clave}">{contenido}</div></div>')
+
+
+# Pliega/despliega los grupos de la barra y recuerda la elección en este navegador.
+# El grupo con la página actual siempre se abre.
+BARRA_SCRIPT = r"""<script>(() => {
+  let plegados = [];
+  try { plegados = JSON.parse(localStorage.getItem('barra-plegados') || '[]'); } catch (e) {}
+  const guardar = () => { try { localStorage.setItem('barra-plegados', JSON.stringify(plegados)); } catch (e) {} };
+  document.querySelectorAll('.barra .grupo[data-grupo]').forEach(g => {
+    const b = g.querySelector('.titulo-grupo'), items = g.querySelector('.items'), k = g.dataset.grupo;
+    const poner = abierto => { b.setAttribute('aria-expanded', String(abierto)); items.hidden = !abierto; };
+    poner(!plegados.includes(k) || !!items.querySelector('[aria-current="page"]'));
+    b.addEventListener('click', () => {
+      const abrir = b.getAttribute('aria-expanded') !== 'true';
+      poner(abrir);
+      plegados = plegados.filter(x => x !== k).concat(abrir ? [] : [k]);
+      guardar();
+    });
+  });
+})();</script>"""
+
+
 def barra(productos: List[Any], activo: str, quien: Any, enlaces: Dict[str, str],
           activos: Optional[List[str]] = None) -> str:
     """activo: 'nucleo:estado|cartas', 'capacidades:servicios|recetas|nueva-receta|ejecuciones', 'productos', 'producto:<id>', 'conectores'
@@ -154,38 +193,36 @@ def barra(productos: List[Any], activo: str, quien: Any, enlaces: Dict[str, str]
             return _a(enlaces[k], t, extra=f'<span class="ext">{n} ↗</span>', externo=True)
         return _a(f"/panel#pieza-{t.lower()}", t, extra=f'<span class="ext">{n}</span>')
     ext = "".join(pieza(t, n, k) for t, n, k in PIEZAS)
-    mis = "".join(_a(c.base, f'<span class="punto" style="background:{e(c.color)}" aria-hidden="true"></span>{e(c.nombre)}',
-                     activo == f"producto:{c.id}") for c in productos
+    mis = "".join(_a(c.entrada, f'<span class="punto" style="background:{e(c.color)}" aria-hidden="true"></span>{e(c.nombre)}'
+                     + (" ↗" if c.externo else ""), activo == f"producto:{c.id}", externo=c.externo) for c in productos
                   if c.estado == "conectado" and (activos is None or c.id in activos))
     roles = " · ".join(r for r in quien.roles if r in ("archivera", "paleografa", "admin-institucion", "admin-paas")) or "sin rol"
     gestiona = any(r in quien.roles for r in ("admin-institucion", "admin-paas"))
-    mia = (f'<div class="grupo"><span class="eyebrow">Mi institución</span>'
-           f'{_a("/panel/institucion", "Personas, productos y claves" if gestiona else "Mi institución", activo == "institucion")}'
-           + (_a("/panel/instituciones", "Instituciones · altas", activo == "instituciones") if "admin-paas" in quien.roles else "")
-           + '</div>')
+    mia = _grupo("institucion", "Mi institución",
+                 _a("/panel/institucion", "Personas, productos y claves" if gestiona else "Mi institución", activo == "institucion")
+                 + (_a("/panel/instituciones", "Instituciones · altas", activo == "instituciones") if "admin-paas" in quien.roles else ""))
+    nucleo = (_a('/panel', 'Estado de la plataforma', activo == 'nucleo:estado')
+              + _a('/panel/cartas', 'Cartas · bus', activo == 'nucleo:cartas') + ext)
+    capacidades = (_a('/panel/servicios', 'Servicios', activo == 'capacidades:servicios')
+                   + _a('/panel/recetas', 'Recetas', activo == 'capacidades:recetas')
+                   + _a('/panel/recetas/nueva', 'Nueva receta', activo == 'capacidades:nueva-receta')
+                   + _a('/panel/recetas/ejecuciones', 'Ejecuciones', activo == 'capacidades:ejecuciones')
+                   + _a('/panel/servicios#publicar', 'Publicar un servicio', clase='conectar'))
+    prods = (_a('/panel/productos', 'Marketplace', activo == 'productos')
+             + _a('/panel/mis-productos', 'Mis productos', activo == 'mis-productos') + mis
+             + _a('/panel/productos#publicar', 'Publicar un producto', clase='conectar'))
+    cons = (_a('/panel/conectores', 'Sistemas de la institución', activo == 'conectores')
+            + _a('/panel/conectores#escribir', 'Escribir un conector', clase='conectar'))
     return f"""<nav class="barra" aria-label="Consola">
 <div class="marca-paas"><span class="eyebrow">PaaS Patrimonio</span><b>Consola</b></div>
-<div class="grupo nucleo"><span class="eyebrow">Núcleo del PaaS</span>
-{_a('/panel', 'Estado de la plataforma', activo == 'nucleo:estado')}
-{_a('/panel/cartas', 'Cartas · bus', activo == 'nucleo:cartas')}
-{ext}</div>
-<div class="grupo"><span class="eyebrow">Capacidades</span>
-{_a('/panel/servicios', 'Servicios', activo == 'capacidades:servicios')}
-<div class="submenu" role="group" aria-labelledby="sm-recetas"><span class="sub-cab" id="sm-recetas">Recetas</span>
-{_a('/panel/recetas', 'Plantillas', activo == 'capacidades:recetas', clase='sub')}
-{_a('/panel/recetas/nueva', 'Nueva receta', activo == 'capacidades:nueva-receta', clase='sub')}
-{_a('/panel/recetas/ejecuciones', 'Ejecuciones', activo == 'capacidades:ejecuciones', clase='sub')}</div>
-{_a('/panel/servicios#publicar', 'Publicar un servicio', clase='conectar')}</div>
-<div class="grupo"><span class="eyebrow">Productos</span>
-{_a('/panel/productos', 'Catálogo', activo == 'productos')}
-{mis}
-{_a('/panel/productos#conectar', 'Conectar un producto', clase='conectar')}</div>
-<div class="grupo"><span class="eyebrow">Conectores</span>
-{_a('/panel/conectores', 'Sistemas de la institución', activo == 'conectores')}
-{_a('/panel/conectores#escribir', 'Escribir un conector', clase='conectar')}</div>
+{_grupo("nucleo", "Núcleo del PaaS", nucleo, "nucleo")}
+{_grupo("capacidades", "Capacidades", capacidades)}
+{_grupo("productos", "Productos", prods)}
+{_grupo("conectores", "Conectores", cons)}
 {mia}
 <div class="sesion"><b>{e(quien.usuario)}</b><span class="mono">{e(quien.tenant)} · {e(roles)}</span>
 <form method="post" action="/panel/salir"><button type="submit">Salir</button></form></div>
+{BARRA_SCRIPT}
 </nav>"""
 
 

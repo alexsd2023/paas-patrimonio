@@ -24,9 +24,11 @@ class ErrorAmeyalli(RuntimeError):
 def _detalle(r) -> str:
     try:
         d = r.json()
-        return str(d.get("detail") if isinstance(d, dict) else d)[:300]
+        texto = str(d.get("detail") if isinstance(d, dict) else d)
     except ValueError:
-        return r.text[:300]
+        texto = r.text
+    # de un traceback lo útil es el final (la excepción), no el principio
+    return texto if len(texto) <= 1500 else "…" + texto[-1500:]
 
 
 def llamar(manifiesto, ruta: str, cuerpo: Dict[str, Any], http, secretos: Optional[dict] = None) -> Any:

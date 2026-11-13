@@ -35,6 +35,13 @@ _ID = re.compile(r"^[a-z][a-z0-9-]{1,40}$")
 _VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 _SECRETO = re.compile(r"^[A-Z][A-Z0-9_]{1,63}$")
 
+# Dónde corre una capacidad (las mismas tres etiquetas que los productos del Marketplace):
+#   integrada · del equipo del PaaS, dentro de la plataforma (su contenedor, interfaz estándar)
+#   alojada   · de un tercero, dentro de la plataforma pero en su propio contenedor aislado (interfaz estándar)
+#   externa   · en los servidores de su autor; la plataforma la llama (adaptador) y el texto SALE de la plataforma
+MODOS = {"integrada": "Integrada", "alojada": "Alojada en la plataforma", "externa": "Externa"}
+ALIAS_MODO = {"interno": "integrada", "externo": "externa"}   # manifiestos anteriores
+
 
 # ---------------- tipos de documento ----------------
 
@@ -90,7 +97,7 @@ class Manifiesto:
     entrada: str
     salida: str
     version: str
-    modo: str                 # interno | externo
+    modo: str                 # integrada | alojada | externa (MODOS)
     url: str
     parametros: Dict[str, dict] = field(default_factory=dict)
     acceso: List[str] = field(default_factory=lambda: ["registrado"])
@@ -102,6 +109,7 @@ class Manifiesto:
     def publico(self) -> Dict[str, Any]:
         return {k: getattr(self, k) for k in ("id", "nombre", "resumen", "autor", "tipo", "entrada", "salida",
                                               "version", "modo", "parametros", "acceso", "cuota")} | {
+            "modo_nombre": MODOS[self.modo], "datos_salen": self.modo == "externa",
             "secretos": [{k: x[k] for k in ("nombre", "descripcion", "ambito", "opcional")} for x in self.secretos]}
 
     def permite(self, roles: List[str], tenant: str) -> bool:
@@ -152,11 +160,11 @@ def leer_manifiesto(datos: Dict[str, Any], carpeta: Optional[Path] = None) -> Ma
             e.append(f"{k}: uno de {sorted(TIPOS)}")
     if not _VERSION.match(str(datos.get("version", ""))):
         e.append("version: X.Y.Z")
-    modo = datos.get("modo", "interno")
-    if modo not in ("interno", "externo"):
-        e.append("modo: interno | externo")
-    if modo == "externo" and not datos.get("url"):
-        e.append("un servicio externo necesita url")
+    modo = ALIAS_MODO.get(datos.get("modo", "integrada"), datos.get("modo"))
+    if modo not in MODOS:
+        e.append("modo: " + " | ".join(MODOS))
+    if modo == "externa" and not datos.get("url"):
+        e.append("una capacidad externa necesita url")
     for regla in datos.get("acceso", ["registrado"]):
         if not (regla == "registrado" or str(regla).startswith(("rol:", "institucion:"))):
             e.append(f"acceso: {regla!r} no es registrado, rol:<rol> ni institucion:<id>")

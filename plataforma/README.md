@@ -152,6 +152,10 @@ Una institución entra y trabaja sola, sin que el equipo del PaaS toque Keycloak
      Los de la plataforma los pone `admin.paas` (contraseña inicial `admin-paas`: cámbiala).
 3. Por API, lo mismo en `/api/v1/institucion/{yo,activaciones,usuarios,credenciales}` y `/api/v1/secretos`.
 
+Al darse de alta, el **catastro de la institución se conecta al bus** (sus suscripciones de Scorpio hacia el
+puente), así sus productos reaccionan a lo que inscriba. Si en ese momento Scorpio no responde, el alta vale igual
+y se repara sola al volver a arrancar `instituciones`, o a mano: `POST /instituciones/<id>/catastro` (admin-paas).
+
 Piezas: `services/instituciones` (usa la API de administración de Keycloak con el cliente confidencial
 `paas-gestion`, que solo puede gestionar usuarios, grupos y clientes del realm `paas`) y
 `services/catalogo/secretos.py`. Comprobación: `python scripts/institucion_check.py` (también en la e2e).

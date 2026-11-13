@@ -169,10 +169,41 @@ def test_productos_activables_y_las_antiguas_lo_tienen_todo(entorno):
     assert c.put("/activaciones/legajo", json={"activo": True}, headers=_h(ADMIN)).json()["activos"] == ["legajo"]
     assert c.get("/activaciones", headers=_h("x@museo-naval:archivera")).json()["activos"] == ["legajo"]
     antigua = "m.ortega@archivo-villanueva:archivera,admin-institucion"
-    assert c.get("/activaciones", headers=_h(antigua)).json() == {"gestionada": False, "activos": ["gemelo", "legajo"]}
+    r = c.get("/activaciones", headers=_h(antigua)).json()
+    assert (r["gestionada"], r["activos"]) == (False, ["gemelo", "legajo"])
     # al desactivar algo, pasa a gestionada conservando lo demás
-    assert c.put("/activaciones/gemelo", json={"activo": False}, headers=_h(antigua)).json() == \
-        {"gestionada": True, "activos": ["legajo"]}
+    r = c.put("/activaciones/gemelo", json={"activo": False}, headers=_h(antigua)).json()
+    assert (r["gestionada"], r["activos"]) == (True, ["legajo"])
+
+
+def test_activar_con_permisos_y_quien_lo_usa(tmp_path):
+    prods = {"scriptorium": {"nombre": "Scriptorium", "permisos": [
+        {"id": "leer", "opcional": False}, {"id": "ediciones", "opcional": True}, {"id": "recetas", "opcional": True}]}}
+    c = TestClient(crear_app(verificador=Verif(), kc=KeycloakFalso(), almacen=Almacen(str(tmp_path / "i.db")), productos=prods))
+    c.post("/registro", json=ALTA)
+    url = "/activaciones/scriptorium"
+    # los imprescindibles van siempre, aunque no se pidan
+    r = c.put(url, json={"activo": True, "permisos": ["recetas"], "roles": ["paleografa"]}, headers=_h(ADMIN)).json()
+    assert r["detalle"]["scriptorium"]["permisos"] == ["leer", "recetas"]
+    assert r["detalle"]["scriptorium"]["roles"] == ["paleografa"] and r["detalle"]["scriptorium"]["por"] == "dir.naval"
+    assert c.put(url, json={"activo": True, "permisos": ["borrarlo-todo"]}, headers=_h(ADMIN)).status_code == 422
+    assert c.put(url, json={"activo": True, "roles": ["admin-paas"]}, headers=_h(ADMIN)).status_code == 422
+    assert c.put(url, json={"activo": True, "roles": []}, headers=_h(ADMIN)).status_code == 422
+    # sin permisos ni roles: todos
+    r = c.put(url, json={"activo": True}, headers=_h(ADMIN)).json()
+    assert r["detalle"]["scriptorium"] == {**r["detalle"]["scriptorium"], "permisos": ["leer", "ediciones", "recetas"], "roles": None}
+    # cualquiera de la institución lo ve (la consola decide qué enseña según sus roles)
+    assert c.get("/activaciones", headers=_h("x@museo-naval:archivera")).json()["detalle"]["scriptorium"]["roles"] is None
+
+
+def test_almacen_antiguo_se_migra(tmp_path):
+    import sqlite3
+    db = str(tmp_path / "viejo.db")
+    with sqlite3.connect(db) as con:
+        con.execute("create table activaciones (tenant text, producto text, por text, cuando real, primary key (tenant, producto))")
+        con.execute("insert into activaciones values ('museo', 'legajo', 'ana', 1)")
+    a = Almacen(db)
+    assert a.detalle("museo") == {"legajo": {"por": "ana", "cuando": 1.0, "permisos": None, "roles": None}}
 
 
 def test_personas_solo_de_mi_institucion_y_sin_escalar(entorno):
@@ -226,3 +257,55 @@ def test_el_equipo_del_paas_da_altas_aunque_el_registro_este_cerrado(tmp_path):
     i = next(x for x in c.get("/instituciones", headers=_h("admin.paas@paas:admin-paas")).json() if x["id"] == "museo-naval")
     assert i["gestionada"] and i["por"] == "admin.paas" and i["activos"] == []
     assert c.post("/instituciones", json={**ALTA, "clave": "corta"}, headers=_h("admin.paas@paas:admin-paas")).status_code == 422
+
+
+def test_el_alta_conecta_el_catastro_al_bus(tmp_path):
+    conectados = []
+    c = TestClient(crear_app(verificador=Verif(), kc=KeycloakFalso(), almacen=Almacen(str(tmp_path / "i.db")),
+                             productos=PRODUCTOS, preparar_catastro=conectados.append))
+    assert c.post("/registro", json=ALTA).json()["catastro"] == "conectado" and conectados == ["museo-naval"]
+
+
+def test_si_scorpio_falla_el_alta_vale_y_queda_pendiente(tmp_path):
+    def caido(_t):
+        raise OSError("scorpio no responde")
+    c = TestClient(crear_app(verificador=Verif(), kc=KeycloakFalso(), almacen=Almacen(str(tmp_path / "i.db")),
+                             productos=PRODUCTOS, preparar_catastro=caido))
+    r = c.post("/registro", json=ALTA)
+    assert r.status_code == 201 and r.json()["catastro"] == "pendiente"
+    assert c.post("/instituciones/museo-naval/catastro", headers=_h("admin.paas@paas:admin-paas")).status_code == 502
+
+
+def test_al_arrancar_se_reparan_las_instituciones_ya_dadas_de_alta(tmp_path):
+    import time
+    almacen = Almacen(str(tmp_path / "i.db"))
+    almacen.alta("museo-viejo", "Museo viejo", "ana")
+    almacen.alta("archivo-viejo", "Archivo viejo", "luis")
+    conectados, listo = [], {"n": 0}
+
+    def disponible():                      # Scorpio tarda en arrancar: responde a la segunda
+        listo["n"] += 1
+        return listo["n"] > 1
+    app = crear_app(verificador=Verif(), kc=KeycloakFalso(), almacen=almacen, productos=PRODUCTOS,
+                    preparar_catastro=conectados.append, catastro_disponible=disponible)
+    import services.instituciones.app as modulo
+    original = modulo.time.sleep
+    modulo.time.sleep = lambda s: None
+    try:
+        with TestClient(app):
+            fin = time.monotonic() + 5
+            while len(conectados) < 2 and time.monotonic() < fin:
+                original(0.02)
+    finally:
+        modulo.time.sleep = original
+    assert sorted(conectados) == ["archivo-viejo", "museo-viejo"]
+
+
+def test_el_equipo_del_paas_reconecta_un_catastro(tmp_path):
+    conectados = []
+    c = TestClient(crear_app(verificador=Verif(), kc=KeycloakFalso(), almacen=Almacen(str(tmp_path / "i.db")),
+                             productos=PRODUCTOS, preparar_catastro=conectados.append))
+    assert c.post("/instituciones/archivo-villanueva/catastro", headers=_h(ADMIN)).status_code == 403
+    assert c.post("/instituciones/no-existe/catastro", headers=_h("admin.paas@paas:admin-paas")).status_code == 404
+    r = c.post("/instituciones/archivo-villanueva/catastro", headers=_h("admin.paas@paas:admin-paas"))
+    assert r.json() == {"institucion": "archivo-villanueva", "catastro": "conectado"} and conectados == ["archivo-villanueva"]

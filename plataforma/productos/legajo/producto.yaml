@@ -5,6 +5,20 @@ orden: 1
 nombre: Legajo de la archivera
 color: "#3FA594"
 resumen: Del legajo entregado a la copia validada · sala de lectura, gestoría y taller de copistas
+# Marketplace
+autor: Equipo PaaS Patrimonio
+oficio: Archivo
+modelo: integrado            # corre dentro de la consola
+version: 1.4.0
+precio: Incluido en la plataforma
+descripcion: >-
+  Recibe cada legajo que entra en el catastro, lanza la transcripción automática con el modelo HTR en producción,
+  pide la validación de la paleógrafa y lo publica en la sala de lectura IIIF con su procedencia.
+permisos:
+  - {id: expedientes, texto: Leer y escribir los legajos de tu institución, detalle: Sus fichas en el catastro}
+  - {id: transcribir, texto: Lanzar la transcripción automática, detalle: Con el modelo HTR en producción}
+  - {id: avisos-catastro, texto: Recibir avisos del catastro, detalle: Cuando entra un legajo nuevo}
+  - {id: sala-lectura, texto: Publicar en la sala de lectura, detalle: Solo lo que valide una paleógrafa, opcional: true}
 # Piezas del núcleo que usa (ver services/panel/productos.py · PIEZAS_NUCLEO)
 usa: [identidad, puerta, imagenes, correos, catastro, procesos, notario, trazas, modelos]
 # Capacidades del catálogo que necesita (capacidades/<id>)

@@ -26,7 +26,7 @@ def test_los_tipos_encajan_por_linaje():
 def test_los_servicios_del_repositorio_se_cargan():
     s = descubrir()
     assert set(s) >= {"ner-historico", "modernizador-demo"}
-    assert s["ner-historico"].modo == "externo" and s["modernizador-demo"].url == "http://srv-modernizador-demo:8080"
+    assert s["ner-historico"].modo == "externa" and s["modernizador-demo"].url == "http://srv-modernizador-demo:8080"
 
 
 def test_un_manifiesto_mal_escrito_dice_que_falta():
@@ -249,3 +249,20 @@ def test_api_flujo_firmas_y_aislamiento(tmp_path):
     ok = c.post(f"/flujos/{fid}/firmar", json={"decision": "aprueba", "comentario": "bien"}, headers=_h("tok-p"))
     assert ok.json()["firmadoPor"] == "paleografa-test"
     assert fl.firmas[0][1]["usuario"] == "paleografa-test" and fl.firmas[0][1]["roles"] == ["paleografa"]
+
+
+def test_tres_modos_y_los_antiguos_siguen_valiendo():
+    base = {"id": "x-modo", "nombre": "x", "resumen": "x", "autor": "x", "tipo": "tarea", "entrada": "texto",
+            "salida": "texto", "version": "1.0.0"}
+    assert leer_manifiesto({**base, "modo": "interno"}).modo == "integrada"
+    assert leer_manifiesto({**base, "modo": "externo", "url": "https://x"}).modo == "externa"
+    m = leer_manifiesto({**base, "modo": "alojada"})
+    assert m.modo == "alojada" and m.url == "http://srv-x-modo:8080"          # corre dentro, en su contenedor
+    assert m.publico()["modo_nombre"] == "Alojada en la plataforma" and m.publico()["datos_salen"] is False
+    e = leer_manifiesto({**base, "modo": "externa", "url": "https://x"}).publico()
+    assert e["modo_nombre"] == "Externa" and e["datos_salen"] is True
+    with pytest.raises(ManifiestoInvalido, match="integrada | alojada | externa"):
+        leer_manifiesto({**base, "modo": "fuera"})
+    with pytest.raises(ManifiestoInvalido, match="necesita url"):
+        leer_manifiesto({**base, "modo": "externa"})
+    assert {s.modo for s in descubrir().values()} == {"integrada", "externa"}

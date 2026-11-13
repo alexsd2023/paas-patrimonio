@@ -8,7 +8,7 @@ tipo: tarea
 entrada: transcripcion
 salida: transcripcion-anotada
 version: 1.3.0
-modo: externo
+modo: externa
 url: https://alezsd-lancaster-ner-api.hf.space
 externo:
   ruta: /annotate/text

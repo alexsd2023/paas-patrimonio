@@ -6,7 +6,7 @@ Núcleo (este servicio):
     GET  /panel/productos                 catálogo de productos y cómo conectar uno
 Capacidades:
     GET  /panel/servicios             catálogo de servicios: probarlos y usarlos por API
-    GET  /panel/recetas               recetas: plantillas · /nueva componer y lanzar · /ejecuciones seguir y firmar
+    GET  /panel/recetas               recetas disponibles · /nueva componer y lanzar · /ejecuciones seguir y firmar
 
 Conectores:
     GET  /panel/conectores            configurar y ejecutar los conectores de mi institución
@@ -36,6 +36,7 @@ from sdk.identidad import NoAutorizado, pedir_token
 from services.panel import pagina as P
 from services.panel import conectores_vista as CV
 from services.panel import institucion_vista as IV
+from services.panel import marketplace_vista as MK
 from services.panel import servicios_vista as SV
 from services.panel.productos import Producto, descubrir
 from services.panel.datos import Bus, resumen_bus, sondear
@@ -56,24 +57,37 @@ def crear_app(*, registro, verificador, expedientes, keycloak_interno: str, proc
     # ---------- productos activados por cada institución (servicio de instituciones, con caché corta) ----------
     cache_activos: Dict[str, Any] = {}
 
-    def activos_de(token: str, tenant: str) -> Optional[List[str]]:
-        """None = no se sabe (servicio caído): se muestra todo, como antes del autoservicio.
-        Activar no es una barrera de seguridad (los datos ya están aislados por institución): es la oferta."""
+    def activaciones_de(token: str, tenant: str) -> Optional[Dict[str, Any]]:
+        """Lo que tiene activado la institución, con permisos y roles (servicio de instituciones, caché corta).
+        None = no se sabe (servicio caído)."""
         hit = cache_activos.get(tenant)
         if hit and time.monotonic() - hit[0] < 30:
             return hit[1]
         try:
             r = httpx.get(f"{nucleo.servicio('instituciones')}/activaciones", timeout=5,
                           headers={"Authorization": f"Bearer {token}"})
-            act = r.json()["activos"] if r.status_code == 200 else None
-        except (httpx.HTTPError, ValueError, KeyError):
+            act = r.json() if r.status_code == 200 else None
+            if act is not None and "activos" not in act:
+                act = None
+        except (httpx.HTTPError, ValueError):
             act = None
         if act is not None:
+            act.setdefault("detalle", {k: {"permisos": None, "roles": None} for k in act["activos"]})
             cache_activos[tenant] = (time.monotonic(), act)
         return act
 
+    def activos_de(token: str, tenant: str, roles: List[str]) -> Optional[List[str]]:
+        """Los productos que ESTA persona puede usar: activados en su institución y abiertos a alguno de sus roles.
+        None = no se sabe (servicio caído): se muestra todo, como antes del autoservicio.
+        Activar no es una barrera de seguridad (los datos ya están aislados por institución): es la oferta."""
+        act = activaciones_de(token, tenant)
+        if act is None:
+            return None
+        return [k for k in act["activos"]
+                if (act["detalle"].get(k) or {}).get("roles") is None or set(act["detalle"][k]["roles"]) & set(roles)]
+
     def activos_req(req: Request, quien) -> Optional[List[str]]:
-        return activos_de(nucleo.token(req), quien.tenant)
+        return activos_de(nucleo.token(req), quien.tenant, list(quien.roles))
 
     def pintar(req: Request, *, producto: str, vista: str, cuerpo: str, script: str, estilo: str, datos: Dict[str, Any]):
         quien = nucleo.yo(req)
@@ -167,15 +181,64 @@ def crear_app(*, registro, verificador, expedientes, keycloak_interno: str, proc
                                 "Todos los productos publican y leen aquí con el mismo contrato CloudEvents.", derecha)
         return vista_nucleo(req, "nucleo:cartas", "Cartas del bus", cab, P.CARTAS_CUERPO, P.CARTAS_SCRIPT)
 
+    # ---------- Marketplace de productos ----------
+    def quien_o_nada(req: Request):
+        try:
+            return nucleo.yo(req)
+        except HTTPException:
+            return None
+
+    def vista_mk(req: Request, activo: str, titulo: str, cab: str, cuerpo: str, script: str = ""):
+        return vista_nucleo(req, activo, titulo, cab, cuerpo, script, MK.ESTILO)
+
     @app.get("/panel/productos", response_class=HTMLResponse)
     def catalogo(req: Request):
-        cab = P.cabecera_nucleo("Catálogo", "Catálogo de productos", capa="Productos", sub=
-                                "Cada producto es una carpeta en productos/ con su manifiesto y sus vistas. El núcleo no cambia.")
-        try:
-            quien = nucleo.yo(req)
-        except HTTPException:
+        quien = quien_o_nada(req)
+        if quien is None:
             return HTMLResponse(P.entrar_html())
-        return vista_nucleo(req, "productos", "Productos", cab, P.catalogo_cuerpo(productos, activos_req(req, quien)))
+        cab = P.cabecera_nucleo("Escaparate", "Marketplace", capa="Productos", sub=
+                                "Herramientas para el trabajo de tu institución, hechas por el equipo del PaaS y por otros. "
+                                "Al activarlas decides qué pueden hacer y quién de tu equipo las usa.")
+        act = activaciones_de(nucleo.token(req), quien.tenant)
+        return vista_mk(req, "productos", "Marketplace", cab, MK.escaparate(productos, act, quien), MK.SCRIPT_ESCAPARATE)
+
+    @app.get("/panel/marketplace/{pid}", response_class=HTMLResponse)
+    def ficha_producto(pid: str, req: Request):
+        quien = quien_o_nada(req)
+        if quien is None:
+            return HTMLResponse(P.entrar_html())
+        if pid not in por_id:
+            raise HTTPException(404, f"No hay ningún producto {pid}")
+        c = por_id[pid]
+        cab = P.cabecera_nucleo("Marketplace", c.nombre, capa="Productos")
+        return vista_mk(req, "productos", c.nombre, cab, MK.ficha(c, activaciones_de(nucleo.token(req), quien.tenant), quien))
+
+    @app.get("/panel/marketplace/{pid}/activar", response_class=HTMLResponse)
+    def activar_producto(pid: str, req: Request):
+        quien = quien_o_nada(req)
+        if quien is None:
+            return HTMLResponse(P.entrar_html())
+        if pid not in por_id:
+            raise HTTPException(404, f"No hay ningún producto {pid}")
+        c = por_id[pid]
+        cab = P.cabecera_nucleo("Marketplace", f"Activar {c.nombre}", capa="Productos")
+        if not quien.tiene("admin-institucion"):
+            r = vista_mk(req, "productos", c.nombre, cab, '<section class="tarjeta"><p style="margin:0">Solo quien '
+                         'administra tu institución puede activar productos y decidir sus permisos.</p></section>')
+            r.status_code = 403
+            return r
+        act = activaciones_de(nucleo.token(req), quien.tenant)
+        return vista_mk(req, "productos", f"Activar {c.nombre}", cab, MK.activar(c, act, quien), MK.SCRIPT_ACTIVAR)
+
+    @app.get("/panel/mis-productos", response_class=HTMLResponse)
+    def mis_productos(req: Request):
+        quien = quien_o_nada(req)
+        if quien is None:
+            return HTMLResponse(P.entrar_html())
+        cab = P.cabecera_nucleo("Tu institución", "Mis productos", capa="Productos", sub=
+                                "Lo que tiene activado tu institución, con lo que le has permitido a cada producto.")
+        act = activaciones_de(nucleo.token(req), quien.tenant)
+        return vista_mk(req, "mis-productos", "Mis productos", cab, MK.mis_productos(productos, act, quien), MK.SCRIPT_MIS)
 
     # ---------- mi institución ----------
     def a_instituciones(metodo: str, ruta: str, *, token: str = "", cuerpo: Any = None, params=None) -> httpx.Response:
@@ -284,19 +347,19 @@ def crear_app(*, registro, verificador, expedientes, keycloak_interno: str, proc
 
     def recetas_vista(req: Request, activo: str, titulo: str, sub: str, cuerpo: str, script: str):
         cab = P.cabecera_nucleo("Recetas", titulo, sub, capa="Capacidades")
-        return vista_nucleo(req, f"capacidades:{activo}", f"Recetas · {titulo}", cab, cuerpo,
+        return vista_nucleo(req, f"capacidades:{activo}", titulo if titulo == "Recetas" else f"Recetas · {titulo}", cab, cuerpo,
                             SV.SCRIPT_DOC + SV.RECETAS_COMUN + script, SV.ESTILO)
 
     @app.get("/panel/recetas", response_class=HTMLResponse)
     def recetas(req: Request):
-        return recetas_vista(req, "recetas", "Plantillas",
+        return recetas_vista(req, "recetas", "Recetas",
                              "Recetas listas para usar: encadenan capacidades y firmas de personas. Úsalas tal cual o adáptalas.",
                              SV.RECETAS_CUERPO, SV.RECETAS_SCRIPT)
 
     @app.get("/panel/recetas/nueva", response_class=HTMLResponse)
     def receta_nueva(req: Request):
         return recetas_vista(req, "nueva-receta", "Nueva receta",
-                             "Parte de una plantilla, cámbiala y lánzala. La plataforma comprueba que cada paso encaja con el siguiente.",
+                             "Parte de una receta, cámbiala y lánzala. La plataforma comprueba que cada paso encaja con el siguiente.",
                              SV.NUEVA_CUERPO, SV.NUEVA_SCRIPT)
 
     @app.get("/panel/recetas/ejecuciones", response_class=HTMLResponse)
@@ -415,15 +478,18 @@ def crear_app(*, registro, verificador, expedientes, keycloak_interno: str, proc
             except NoAutorizado:
                 quien = None
             if quien is not None:
-                act = await run_in_threadpool(activos_de, req.cookies[COOKIE], quien.tenant)
+                act = await run_in_threadpool(activos_de, req.cookies[COOKIE], quien.tenant, list(quien.roles))
                 if act is not None and partes[3] not in act:
                     c = por_id[partes[3]]
-                    msg = f"Tu institución no tiene activado el producto {c.nombre}."
+                    todo = await run_in_threadpool(activaciones_de, req.cookies[COOKIE], quien.tenant)
+                    msg = (f"Tu institución tiene activado {c.nombre}, pero no para tu rol. Pídeselo a quien la administra."
+                           if todo and partes[3] in todo["activos"] else
+                           f"Tu institución no tiene activado el producto {c.nombre}.")
                     if "/api/" in req.url.path:
                         return JSONResponse({"detail": msg}, status_code=403)
                     cab = P.cabecera_nucleo("Productos", c.nombre, capa="Productos")
                     cuerpo = (f'<section class="tarjeta"><p style="margin:0 0 12px">{P.e(msg)}</p>'
-                              f'<a class="btn" href="/panel/institucion">Ir a Mi institución</a></section>')
+                              f'<a class="btn" href="/panel/marketplace/{c.id}">Ver su ficha en el Marketplace</a></section>')
                     return HTMLResponse(P.documento(c.nombre, P.barra(productos, "productos", quien, enlaces, act), cab,
                                                     cuerpo, cfg_de(quien)), status_code=403)
         return await siguiente(req)

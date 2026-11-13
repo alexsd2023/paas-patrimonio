@@ -1,6 +1,13 @@
 """Vistas del núcleo para el catálogo de servicios y los flujos (HTML y JS de la consola)."""
 
 ESTILO = r"""
+:root{--azul:#2F5DA8;--azul-t:#E3EBF8}
+@media (prefers-color-scheme:dark){:root{--azul:#8AAEE8;--azul-t:#1B2A40}}
+.modo-c{font:600 12.5px/1 var(--sans);padding:5px 10px;border-radius:999px;border:1px solid;white-space:nowrap}
+.modo-c.integrada{background:var(--teal-t);border-color:var(--teal);color:var(--teal)}
+.modo-c.alojada{background:var(--azul-t);border-color:var(--azul);color:var(--azul)}
+.modo-c.externa{background:var(--ochre-t);border-color:var(--ochre);color:var(--ochre)}
+.fuera-c{margin:0;font-size:13px;color:var(--ochre)}
 .srv{display:flex;flex-direction:column;gap:10px}
 .srv .tipos{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font:12px var(--mono)}
 .srv .tipos span.t{padding:3px 8px;border-radius:6px;background:var(--bg);border:1px solid var(--line)}
@@ -62,9 +69,10 @@ SERVICIOS_CUERPO = """
 </section>
 <section class="tarjeta" id="publicar" aria-labelledby="t-pub"><div class="cab"><h2 id="t-pub">Publicar un servicio</h2></div>
 <div class="rejilla" style="--min:320px"><ol class="pasos-c">
-<li><span class="mono">python scripts/nuevo_servicio.py &lt;id&gt; "&lt;nombre&gt;" --modo interno|externo</span> copia la plantilla en <span class="mono">capacidades/&lt;id&gt;/</span>.</li>
+<li><span class="mono">python scripts/nuevo_servicio.py &lt;id&gt; "&lt;nombre&gt;" --modo integrada|alojada|externa</span> copia la plantilla en <span class="mono">capacidades/&lt;id&gt;/</span>.
+<b>Integrada</b>: del equipo del PaaS, dentro. <b>Alojada</b>: tuya, dentro de la plataforma en su propio contenedor. <b>Externa</b>: en tus servidores; el texto sale de la plataforma.</li>
 <li>En <span class="mono">servicio.yaml</span>: qué recibe y qué entrega (tipos comunes), versión, parámetros, acceso y cuota.</li>
-<li><b>Interno</b>: escribe <span class="mono">procesar(entrada, parametros)</span> y añade su contenedor. <b>Externo</b>: escribe el <span class="mono">adaptador.py</span> que traduce a la API que ya existe.</li>
+<li><b>Integrada o alojada</b>: escribe <span class="mono">procesar(entrada, parametros)</span> y añade su contenedor. <b>Externa</b>: escribe el <span class="mono">adaptador.py</span> que traduce a la API que ya existe.</li>
 <li>Reconstruye el catálogo. Aparece aquí y en las recetas, sin tocar el núcleo.</li></ol>
 <pre class="manifiesto">id: rag-colonial
 nombre: Preguntas al corpus colonial
@@ -72,7 +80,7 @@ tipo: consulta
 entrada: pregunta
 salida: respuesta
 version: 0.1.0
-modo: interno
+modo: integrada
 acceso: [registrado]
 cuota: {trabajos_dia: 300}</pre></div></section>
 <section class="tarjeta" aria-labelledby="t-api"><div class="cab"><h2 id="t-api">Usarlo desde tu aplicación</h2></div>
@@ -137,7 +145,8 @@ curl -X POST ${base}/api/v1/servicios/${s.id}/trabajos \\
 async function cargarUso() { try { USO = await api(`${CAT}/uso`); pintar(); } catch (e) {} }
 function pintar() {
   $('#servicios').innerHTML = SERV.map(s => `<article class="tarjeta srv">
-    <div class="cab" style="margin:0"><h2>${esc(s.nombre)}</h2><span class="pill ${s.modo === 'externo' ? 'pendiente' : 'ok'}">${esc(s.modo)}</span></div>
+    <div class="cab" style="margin:0"><h2>${esc(s.nombre)}</h2><span class="modo-c ${esc(s.modo)}">${esc(s.modo_nombre || s.modo)}</span></div>
+    ${s.datos_salen ? '<p class="fuera-c">El texto sale de la plataforma hacia los servidores de su autor.</p>' : ''}
     <p style="margin:0;color:var(--muted)">${esc(s.resumen)}</p>
     <div class="tipos"><span class="t">${esc(s.entrada)}</span><span aria-hidden="true">→</span><span class="t">${esc(s.salida)}</span></div>
     <div class="meta-s"><span class="mono">${esc(s.id)} ${esc(s.version)}</span><span>${esc(s.autor)}</span><span>${esc(s.tipo)}</span></div>
@@ -155,16 +164,16 @@ $('#cerrar').onclick = () => { $('#probar').hidden = true; };
 
 # ---------- Recetas: plantillas · nueva receta · ejecuciones ----------
 RECETAS_CUERPO = """
-<section class="rejilla" style="--min:340px" id="plantillas" aria-label="Plantillas de recetas"><p class="vacio">Cargando…</p></section>
+<section class="rejilla" style="--min:340px" id="plantillas" aria-label="Recetas"><p class="vacio">Cargando…</p></section>
 <section class="tarjeta" style="margin-top:20px" aria-labelledby="t-que"><div class="cab"><h2 id="t-que">Qué es una receta</h2></div>
 <p style="margin:0">Una receta encadena capacidades y firmas de personas para ir de un documento a otro. La escribe
-el equipo del PaaS (estas plantillas), tu institución o cualquier persona registrada. Antes de lanzarla, la
+el equipo del PaaS (las de esta página), tu institución o cualquier persona registrada. Antes de lanzarla, la
 plataforma comprueba que cada paso acepta lo que entrega el anterior; al ejecutarla, cada paso queda en el notario.</p></section>"""
 
 NUEVA_CUERPO = """
 <section class="tarjeta" aria-labelledby="t-nuevo" style="max-width:900px"><div class="cab"><h2 id="t-nuevo">Nueva receta</h2></div>
 <form class="form-s" id="form-flujo">
-<label>Empezar desde una plantilla<select id="plantilla"><option value="">— elige —</option></select></label>
+<label>Empezar desde una receta<select id="plantilla"><option value="">— elige —</option></select></label>
 <label>Receta (YAML)<textarea id="receta" style="min-height:260px" spellcheck="false"></textarea></label>
 <div class="radio" role="radiogroup" aria-label="Documento de entrada">
 <label><input type="radio" name="origen" value="activo" checked> Un legajo del catastro</label>
@@ -202,7 +211,7 @@ RECETAS_SCRIPT = r"""
 (async () => {
   let ps;
   try { ps = await api(`${CAT}/plantillas`); } catch (e) { $('#plantillas').innerHTML = `<p class="aviso">${esc(e.message)}</p>`; return; }
-  if (!ps.length) { $('#plantillas').innerHTML = '<p class="vacio">No hay plantillas en flujos/.</p>'; return; }
+  if (!ps.length) { $('#plantillas').innerHTML = '<p class="vacio">No hay recetas en flujos/.</p>'; return; }
   const planes = await Promise.all(ps.map(p => api('/panel/api/flujos/validar', {method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({yaml: p.yaml})}).catch(e => ({error: errores(e)}))));
   $('#plantillas').innerHTML = ps.map((p, i) => { const pl = planes[i];
@@ -251,7 +260,7 @@ const ROLES = CFG.roles;
 async function cargar() {
   let fs;
   try { fs = await api(`${CAT}/flujos`); } catch (e) { $('#flujos').innerHTML = `<p class="aviso" style="margin:16px">${esc(e.message)}</p>`; return; }
-  if (!fs.length) { $('#flujos').innerHTML = '<p class="vacio">Aún no se ha lanzado ninguna receta. <a href=\"/panel/recetas\">Elige una plantilla</a>.</p>'; return; }
+  if (!fs.length) { $('#flujos').innerHTML = '<p class="vacio">Aún no se ha lanzado ninguna receta. <a href=\"/panel/recetas\">Elige una receta</a>.</p>'; return; }
   const estados = await Promise.all(fs.slice(0, 15).map(f => api(`${CAT}/flujos/${f.id}`).catch(() => null)));
   $('#flujos').innerHTML = fs.map((f, i) => { const e = estados[i]; const [t, c] = ETQ[e?.estado] || ['—', ''];
     return `<div class="fila-f" role="button" tabindex="0" data-f="${esc(f.id)}" aria-current="${f.id === SEL}"><b>${esc(f.nombre)}</b><span class="pill ${c}">${t}</span>

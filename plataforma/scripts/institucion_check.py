@@ -3,7 +3,7 @@
     python scripts/institucion_check.py
 
 Todo pasa por la puerta (APISIX), como lo haría una persona con su navegador o un sistema con su API:
-1. Se da de alta en /panel/alta y entra directamente como administradora.
+1. Se da de alta en /panel/alta y entra directamente como administradora; su catastro queda conectado al bus.
 2. Empieza sin productos: el legajo no sale y su URL responde 403. Lo activa y ya puede entrar.
 3. Invita a una archivera, que entra con su usuario y ve el catálogo de servicios.
 4. Crea una credencial de API: un sistema obtiene token por client_credentials y usa el catálogo
@@ -80,6 +80,18 @@ est, yo = nav.api("/panel/api/instituciones/yo")
 if est != 200 or yo.get("institucion") != INST or not yo.get("admin"):
     falla(f"tras el alta no entra como administradora de {INST}: {est} {yo}")
 print(f"✓ Alta de {INST}: {ADMIN} entra directamente como administradora")
+
+# 1b · su catastro, conectado al bus (si desde aquí se llega a Scorpio: en la e2e sí)
+import os  # noqa: E402
+if os.environ.get("SCORPIO_URL"):
+    from sdk.registro import Registro  # noqa: E402
+    from services.suscripciones.crear import SUB_DEPOSITOS, SUB_ID  # noqa: E402
+    reg = Registro(os.environ["SCORPIO_URL"])
+    faltan = [s for s in (SUB_ID, SUB_DEPOSITOS) if reg.suscripcion(INST, s) is None]
+    if faltan:
+        falla(f"el catastro de {INST} no está conectado al bus: faltan {faltan}",
+              "docker compose logs --tail 40 instituciones scorpio")
+    print("✓ Su catastro está conectado al bus: lo que inscriba llegará a sus productos")
 
 # 2 · productos
 if yo["activos"]:
