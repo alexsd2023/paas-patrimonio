@@ -251,18 +251,14 @@ Guarda también la clave nueva en tu gestor de contraseñas, con el resto del `.
 - **Consolas técnicas compartidas.** Enseñan los datos de todas las instituciones. Conviene un aviso de «no subas datos reales» y un reinicio periódico de la demo.
 - **Componentes en modo desarrollo.** Keycloak (H2) y Temporal funcionan en modo desarrollo, Kafka tiene un solo nodo y las imágenes no tienen versión fija. No hay monitorización ni alertas. Todo eso es la fase siguiente si la demo pasa a ser un servicio.
 
-## 12 · Visitas por país
+## 12 · Visitas: IP, hora y país
 
-Caddy guarda un registro de accesos en `/var/log/caddy/accesos.log` (JSON, con rotación; como máximo 30 días, porque contiene IP de visitantes). Para ver un informe por países, páginas, navegadores y horas:
-
-```bash
-~/paas-patrimonio/plataforma/platform/visitas.sh
-```
-
-Genera `~/visitas.html` con GoAccess (en Docker) y la base de países gratuita de DB-IP (CC BY 4.0), que se baja sola una vez al mes. Para verlo en el Mac:
+Caddy guarda un registro de accesos en `/var/log/caddy/accesos.log` (JSON, con rotación; como máximo 30 días, porque contiene IP de visitantes). Para ver las visitas:
 
 ```bash
-scp paas@‹IP›:visitas.html ~/Downloads/ && open ~/Downloads/visitas.html
+~/paas-patrimonio/plataforma/platform/visitas.sh            # últimos 7 días
+~/paas-patrimonio/plataforma/platform/visitas.sh 30         # últimos 30 días
+~/paas-patrimonio/plataforma/platform/visitas.sh 30 csv > ~/visitas.csv   # para Excel
 ```
 
-El informe anonimiza el último bloque de cada IP. Solo cuenta desde que se activó el registro: los accesos anteriores no se guardaron.
+Saca una línea por visita, la más reciente primero: hora de llegada, IP y país. Una visita son las peticiones seguidas de una misma IP sin más de 30 minutos de pausa. El país sale de la base gratuita de DB-IP (CC BY 4.0), que el script baja sola una vez al mes. Solo cuenta desde que se activó el registro.
