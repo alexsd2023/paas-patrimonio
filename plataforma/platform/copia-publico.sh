@@ -11,7 +11,7 @@ PROYECTO=paas
 DESTINO=${DESTINO:-/var/backups/paas}
 HOY=$(date +%F)
 DIR="$DESTINO/$HOY"
-VOLUMENES="keycloak-data instituciones-data catalogo-data mlflow-data kafka-data procedencia-data gestoria-data temporal-data iiif-data fuseki-data caddy-data"
+VOLUMENES="keycloak-data instituciones-data catalogo-data mlflow-data kafka-data procedencia-data gestoria-data temporal-data iiif-data fuseki-data caddy-data conservacion-data sensores-data"
 
 mkdir -p "$DIR"
 

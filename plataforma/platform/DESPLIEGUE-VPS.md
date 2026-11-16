@@ -224,6 +224,24 @@ dc up -d --build
 dc ps
 ```
 
+### Actualizar a una versión con el gemelo patrimonial (una sola vez)
+
+Además de lo anterior, esa versión necesita:
+
+```bash
+cd ~/paas-patrimonio/plataforma
+# 1. la clave interna del catálogo (sin ella, compose no arranca)
+echo "CATALOGO_INTERNO_CLAVE=$(openssl rand -base64 32 | tr -d '/+=' | cut -c1-32)" >> platform/.env
+# 2. los roles gestor, conservador y tecnico en el Keycloak en marcha (sin usuarios de prueba en la demo pública)
+(cd platform && sh keycloak/roles-gemelo.sh)
+# 3. construir y arrancar; APISIX se recrea para leer sus rutas nuevas
+dc up -d --build
+dc up -d --force-recreate apisix
+dc run --rm suscripciones
+```
+
+Guarda también la clave nueva en tu gestor de contraseñas, con el resto del `.env`.
+
 ---
 
 ## Lo que esta demo no cubre todavía
