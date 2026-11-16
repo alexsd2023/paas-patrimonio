@@ -40,6 +40,8 @@ PIEZAS = [
     ("Sala de lectura IIIF (legajo)", "tcp", "iiif:8080"),
     ("Conservación (gemelo)", "http", "http://conservacion:8080/salud"),
     ("Modernizador (capacidad)", "http", "http://srv-modernizador-demo:8080/salud"),
+    ("Microclima EN 15757 (capacidad)", "http", "http://srv-evaluacion-en15757:8080/salud"),
+    ("Sensores (gemelo)", "http", "http://sensores:8080/salud"),
 ]
 
 PASOS = [  # (parte, script, argumentos)
@@ -53,6 +55,7 @@ PASOS = [  # (parte, script, argumentos)
     ("8 · Puerta", "scripts/puerta_check.py", []),
     ("9 · Sala de lectura", "scripts/ingesta_check.py", []),
     ("Gemelo digital", "scripts/gemelo_check.py", []),
+    ("Gemelo patrimonial", "scripts/gemelo_patrimonial_check.py", []),
     ("10 · Notario", "scripts/fuseki_check.py", []),
     ("11 · Trazas", "scripts/traza_check.py", []),
     ("Capacidades, flujos y conectores", "scripts/catalogo_check.py", []),

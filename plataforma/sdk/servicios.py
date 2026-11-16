@@ -110,6 +110,7 @@ class Manifiesto:
         return {k: getattr(self, k) for k in ("id", "nombre", "resumen", "autor", "tipo", "entrada", "salida",
                                               "version", "modo", "parametros", "acceso", "cuota")} | {
             "modo_nombre": MODOS[self.modo], "datos_salen": self.modo == "externa",
+            "entrada_texto": "texto" in linaje(self.entrada) or self.entrada == "pregunta",
             "secretos": [{k: x[k] for k in ("nombre", "descripcion", "ambito", "opcional")} for x in self.secretos]}
 
     def permite(self, roles: List[str], tenant: str) -> bool:

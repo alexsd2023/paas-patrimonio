@@ -13,7 +13,8 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-CLAVES = {"m.ortega": "archivera", "paleografa-test": "paleografa", "p.otro": "paleografa"}
+CLAVES = {"m.ortega": "archivera", "paleografa-test": "paleografa", "p.otro": "paleografa",
+          "conservador-test": "conservador", "tecnico-test": "tecnico", "gestor-test": "gestor"}
 
 
 def env(k: str) -> str:

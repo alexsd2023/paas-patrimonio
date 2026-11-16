@@ -80,3 +80,18 @@ def test_entidad_incompleta_422(cliente, pub):
 def test_kafka_caido_503():
     r = TestClient(crear_app(PublicadorFalso(falla=True))).post(URL, json=notificacion())
     assert r.status_code == 503
+
+
+def test_lectura_de_un_sensor_de_zona_produce_zona_medicion(cliente, pub):
+    from productos.gemelo import modelo as M
+    t = "archivo-villanueva"
+    obs = M.sensor(t, "S02", zona_cod="Z02", nombre="x", x=1, y=1)[1]
+    obs.update(M.lectura_attrs(15.8, 63.1, "2026-11-16T10:00:00Z"))
+    r = cliente.post(URL, json={"type": "Notification", "data": [obs]})
+    assert r.status_code == 200 and len(r.json()["publicados"]) == 1
+    ev = validar(pub.enviados[0])
+    assert ev["type"] == "zona.medicion" and ev["subject"] == M.urn("HeritageZone", t, "Z02")
+    assert ev["data"] == {"sensor": M.urn("EnvironmentalSensor", t, "S02"), "temperatura": 15.8, "humedad": 63.1,
+                          "observadoEn": "2026-11-16T10:00:00Z"}
+    sin_lectura = M.sensor(t, "S03", zona_cod="Z02", nombre="x", x=1, y=1)[1]   # recién creada: aún sin lectura
+    assert cliente.post(URL, json={"type": "Notification", "data": [sin_lectura]}).json()["ignorados"] == 1

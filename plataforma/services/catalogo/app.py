@@ -29,6 +29,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sqlite3
 import tempfile
 import threading
@@ -41,7 +42,7 @@ from fastapi import Body, Depends, FastAPI, Header, HTTPException
 
 from sdk.identidad import Identidad, NoAutorizado, Verificador, token_de
 from sdk.servicios import RAIZ, DocumentoInvalido
-from services.catalogo.catalogo import Catalogo, CuotaAgotada, SinPermiso, Trabajos, descubrir
+from services.catalogo.catalogo import Catalogo, CuotaAgotada, FalloDelServicio, SinPermiso, Trabajos, descubrir
 from services.catalogo.secretos import PLATAFORMA
 from services.catalogo.recetas import RecetaInvalida, planificar
 from sdk.conectores import ConfiguracionInvalida
@@ -151,7 +152,8 @@ class FlujosTemporal:
         asyncio.run_coroutine_threadsafe(go(), self._loop)
 
 
-def crear_app(*, verificador, catalogo: Catalogo, flujos, indice: Indice, plantillas=None, conectores=None) -> FastAPI:
+def crear_app(*, verificador, catalogo: Catalogo, flujos, indice: Indice, plantillas=None, conectores=None,
+              clave_interna: Optional[str] = None) -> FastAPI:
     trabajos = Trabajos(catalogo)
     plantillas = cargar_plantillas() if plantillas is None else plantillas
     app = FastAPI(title="Catálogo de servicios y flujos", version="0.1.0")
@@ -202,6 +204,36 @@ def crear_app(*, verificador, catalogo: Catalogo, flujos, indice: Indice, planti
     @app.get("/uso")
     def uso(quien: Identidad = Depends(yo)):
         return catalogo.contador.uso(quien.tenant)
+
+    # ---------- uso interno: un producto de la plataforma usa una capacidad para una institución ----------
+    @app.post("/interno/servicios/{sid}/ejecutar")
+    def ejecutar_interno(sid: str, peticion: Dict[str, Any] = Body(...),
+                         x_clave_interna: Optional[str] = Header(None), x_producto: Optional[str] = Header(None)):
+        """Para los servicios propios de un producto (p. ej. conservación, que evalúa cada hora las zonas de cada
+        institución sin que nadie haya iniciado sesión). Solo dentro de la red de la plataforma: la puerta no
+        publica /interno, y además hace falta la clave compartida CATALOGO_INTERNO_CLAVE. Espera al resultado.
+        El trabajo cuenta en el consumo de la institución, como si lo lanzara ella."""
+        import hmac
+        if not clave_interna:
+            raise HTTPException(404, "uso interno desactivado (falta CATALOGO_INTERNO_CLAVE)")
+        if not x_clave_interna or not hmac.compare_digest(x_clave_interna, clave_interna):
+            raise HTTPException(401, "clave interna no válida")
+        tenant = str(peticion.get("tenant") or "")
+        if not re.match(r"^[a-z0-9-]+$", tenant):
+            raise HTTPException(422, "falta tenant (la institución para la que se ejecuta)")
+        try:
+            r = catalogo.ejecutar(sid, peticion.get("entrada"), peticion.get("parametros"), tenant=tenant,
+                                  roles=[f"producto:{x_producto or 'interno'}"])
+        except KeyError:
+            raise HTTPException(404, f"no hay ningún servicio {sid}")
+        except SinPermiso as e:
+            raise HTTPException(403, str(e))
+        except DocumentoInvalido as e:
+            raise HTTPException(422, str(e))
+        except FalloDelServicio as e:
+            raise HTTPException(502, str(e))
+        log.info("trabajo interno %s para %s (producto %s, %d ms)", sid, tenant, x_producto, r["ms"])
+        return r
 
     # ---------- flujos ----------
     @app.get("/plantillas")
@@ -415,7 +447,8 @@ def _crear() -> FastAPI:
     log.info("catálogo con %d servicios (%s) y %d conectores (%s)", len(catalogo.servicios), ", ".join(catalogo.servicios),
              len(conectores.conectores), ", ".join(conectores.conectores))
     return crear_app(verificador=Verificador(jwks, emisor) if jwks and emisor else None, catalogo=catalogo,
-                     flujos=flujos, indice=Indice(os.environ.get("CATALOGO_DB")), conectores=conectores)
+                     flujos=flujos, indice=Indice(os.environ.get("CATALOGO_DB")), conectores=conectores,
+                     clave_interna=os.environ.get("CATALOGO_INTERNO_CLAVE") or None)
 
 
 app = _crear()

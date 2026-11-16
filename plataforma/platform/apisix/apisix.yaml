@@ -97,6 +97,33 @@ routes:
       proxy-rewrite:
         regex_uri: ["^/api/v1/institucion/(.*)", "/$1"]
 
+  - id: gemelo-api
+    # Gemelo patrimonial por API, con token: la misma API que usa su vista en la consola (cada ruta comprueba el rol)
+    uris: ["/api/v1/gemelo/*"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "panel:8080": 1
+    plugins:
+      openid-connect:
+        client_id: paas-cli
+        client_secret: no-se-usa-con-bearer-only
+        discovery: http://keycloak:8080/realms/paas/.well-known/openid-configuration
+        bearer_only: true
+        use_jwks: true
+        realm: paas
+      proxy-rewrite:
+        regex_uri: ["^/api/v1/gemelo/(.*)", "/panel/productos/gemelo/api/$1"]
+
+  - id: contextos
+    # Contextos JSON-LD (vocabularios), públicos: /contexts/v1/gdp.jsonld
+    uris: ["/contexts/*"]
+    methods: ["GET", "HEAD", "OPTIONS"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "panel:8080": 1
+
   # ---- consolas técnicas del núcleo, dentro de la consola (/panel/<herramienta>) y solo con sesión ----
   - id: consola-jaeger
     # Trazas · Jaeger (QUERY_BASE_PATH=/panel/jaeger)

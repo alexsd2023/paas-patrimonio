@@ -147,6 +147,8 @@ services:
       CONECTORES_DB: /data/conectores.db
       SECRETOS_DB: /data/secretos.db     # secretos de las capacidades, cifrados (se ponen en la consola)
       CATALOGO_CLAVE: ${CATALOGO_CLAVE:-}   # clave Fernet; vacía = se genera una en el volumen
+      # uso interno de capacidades por los servicios de un producto (conservación → evaluacion-en15757)
+      CATALOGO_INTERNO_CLAVE: ${CATALOGO_INTERNO_CLAVE:?Define CATALOGO_INTERNO_CLAVE en platform/.env}
       NER_TOKEN: ${NER_TOKEN:-}          # opcional: valor de la plataforma si nadie lo pone en la consola
       # Ameyalli (Scriptorium): otro despliegue de su API y, opcionalmente, claves de la plataforma
       # (mejor en la consola: Mi institución → Secretos)
@@ -171,6 +173,18 @@ services:
       context: ..
       dockerfile: services/Dockerfile
       args: { CARPETA: capacidades, SERVICIO: modernizador_demo }
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/salud')"]
+      interval: 10s
+      retries: 5
+
+  srv-evaluacion-en15757:
+    # Capacidad: microclima objetivo EN 15757 (la usa el gemelo patrimonial; cualquier institución, por API)
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args: { CARPETA: capacidades, SERVICIO: evaluacion_en15757 }
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/salud')"]
@@ -456,7 +470,14 @@ services:
     restart: unless-stopped
     environment:
       SCORPIO_URL: http://scorpio:9090
-      INTERVALO: "5"            # segundos entre lecturas
+      INTERVALO: "5"            # segundos entre lecturas (depósitos del gemelo del archivo)
+      # gemelo patrimonial: lectura de cada sensor de zona cada SIM_INTERVALO_S; inmueble de ejemplo al arrancar
+      SIM_INTERVALO_S: ${SIM_INTERVALO_S:-30}
+      SIM_PERFIL: ${SIM_PERFIL:-estable}
+      GEMELO_SEMILLA_TENANT: ${GEMELO_SEMILLA_TENANT:-archivo-villanueva}
+      GEMELO_TENANTS_RUTA: /data/gemelo-tenants.json
+    volumes:
+      - sensores-data:/data
     depends_on:
       scorpio:
         condition: service_started
@@ -476,9 +497,24 @@ services:
       OTEL_SERVICE_NAME: conservacion
       SCORPIO_URL: http://scorpio:9090
       KAFKA_BOOTSTRAP: kafka:29092
+      # gemelo patrimonial: series, evaluación EN 15757 (por el catálogo) y alertas con firma (Temporal)
+      TEMPORAL: temporal:7233
+      CATALOGO_INTERNO: http://catalogo:8080
+      CATALOGO_INTERNO_CLAVE: ${CATALOGO_INTERNO_CLAVE:?Define CATALOGO_INTERNO_CLAVE en platform/.env}
+      SERIES_ORIGEN: ${SERIES_ORIGEN:-local}     # scorpio cuando pase scripts/scorpio_temporal_check.py
+      SERIES_DB: /data/series.db
+      GEMELO_SEMILLA_TENANT: ${GEMELO_SEMILLA_TENANT:-archivo-villanueva}
+      EVALUACION_CRON: ${EVALUACION_CRON:-0 * * * *}
+      EVALUACION_METODO: ${EVALUACION_METODO:-en15757}   # o simplificado (el de la especificación v1.0)
+      ALERT_THRESHOLDS: ${ALERT_THRESHOLDS:-}             # p. ej. {"medio":5,"alto":15,"fluctuacion":8}
+      RECUPERACION_DIAS: ${RECUPERACION_DIAS:-7}
+    volumes:
+      - conservacion-data:/data
     depends_on:
       kafka-init:
         condition: service_completed_successfully
+      temporal:
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/salud')"]
       interval: 10s
@@ -509,6 +545,8 @@ services:
 
 volumes:
   keycloak-data:
+  conservacion-data:
+  sensores-data:
   instituciones-data:
   mlflow-data:
   catalogo-data:

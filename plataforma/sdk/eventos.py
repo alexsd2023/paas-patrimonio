@@ -34,6 +34,9 @@ TOPIC_POR_TIPO = {
     "deposito.medicion": "sensores",
     "conservacion.alerta": "conservacion",
     "conservacion.normalizada": "conservacion",
+    "zona.medicion": "sensores",
+    "conservacion.evaluada": "conservacion",
+    "conservacion.riesgo": "conservacion",
     "flujo.completado": "flujos",
     "conector.ejecutado": "conectores",
 }

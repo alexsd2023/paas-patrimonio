@@ -53,6 +53,13 @@ function pintarDoc(doc) {
     return `<div class="anotado">${esc(t)}</div><p class="eyebrow" style="margin:0">${doc.cambios.length} cambios de grafía</p>
       <details><summary>Ver cambios</summary><p class="mono" style="font-size:13px">${doc.cambios.map(c => esc(c.original) + ' → ' + esc(c.moderno)).join(' · ')}</p></details>`;
   }
+  if (doc.nivel && doc.humedad && doc.temperatura) {   // evaluacion-climatica
+    const r = v => NUM.format(v);
+    return `<p style="margin:0"><span class="pill ${doc.nivel === 'bajo' ? 'ok' : doc.nivel === 'medio' ? 'pendiente' : 'alerta'}">riesgo ${esc(doc.nivel)}</span> ${esc(doc.causa || '')}</p>
+      <p style="margin:8px 0 0">Microclima objetivo: humedad ${r(doc.humedad.objetivo[0])}–${r(doc.humedad.objetivo[1])} % · temperatura ${r(doc.temperatura.objetivo[0])}–${r(doc.temperatura.objetivo[1])} °C</p>
+      <p class="eyebrow" style="margin:6px 0 0">${esc(doc.metodo)} · ${r(doc.periodo.calibracionDias)} días de calibración · desviación ${r(doc.desviacion30d)} · salto HR 2 h ${r(doc.fluctuacionMaxHR2h)}</p>
+      <details><summary>Documento completo</summary><pre class="json">${esc(JSON.stringify({...doc, banda: `(${(doc.banda || []).length} puntos)`}, null, 2))}</pre></details>`;
+  }
   if (doc.respuesta) return `<p>${esc(doc.respuesta)}</p>`;
   if (doc.texto) return `<div class="anotado">${esc(doc.texto)}</div>`;
   return `<pre class="json">${esc(JSON.stringify(doc, null, 2))}</pre>`;
@@ -99,11 +106,15 @@ function abrir(s) {
   $('#probar').hidden = false; $('#t-probar').textContent = 'Probar · ' + s.nombre; $('#resultado').hidden = true;
   const campo = s.entrada === 'pregunta'
     ? '<label>Pregunta<input type="text" id="entrada" required></label>'
+    : s.entrada_texto === false
+    ? `<label>Documento JSON (${esc(s.entrada)})<textarea class="prosa mono" id="entrada" required placeholder='{"…": …}' style="font-size:12px"></textarea></label>`
+      + (s.entrada === 'serie-ambiental' ? '<div><button class="btn sec" type="button" id="ejemplo">Generar una serie de ejemplo (un año por horas)</button></div>' : '')
     : `<label>Texto (${esc(s.entrada)})<textarea class="prosa" id="entrada" required placeholder="Pega aquí una transcripción"></textarea></label>`;
   const ps = Object.entries(s.parametros || {});
   $('#form-probar').innerHTML = campo + (ps.length ? `<div class="params">${ps.map(([n, d]) => campoParam(n, d)).join('')}</div>` : '')
     + '<div><button class="btn" type="submit">Ejecutar</button></div>';
   $('#form-probar').onsubmit = ev => { ev.preventDefault(); ejecutar(s); };
+  if ($('#ejemplo')) $('#ejemplo').onclick = () => { $('#entrada').value = JSON.stringify(serieEjemplo()); };
   $('#entrada').focus();
   $('#curl').textContent = curl(s);
   $('#probar').scrollIntoView({behavior: 'smooth', block: 'start'});
@@ -119,7 +130,12 @@ function params() {
 }
 async function ejecutar(s) {
   const b = $('#form-probar button[type=submit]'); b.disabled = true; b.textContent = 'Ejecutando…';
-  const v = $('#entrada').value, entrada = s.entrada === 'pregunta' ? {pregunta: v} : {texto: v};
+  const v = $('#entrada').value;
+  let entrada;
+  if (s.entrada === 'pregunta') entrada = {pregunta: v};
+  else if (s.entrada_texto === false) {
+    try { entrada = JSON.parse(v); } catch (e) { b.disabled = false; b.textContent = 'Ejecutar'; aviso('El documento no es JSON válido: ' + e.message); return; }
+  } else entrada = {texto: v};
   const res = $('#resultado'); res.hidden = false; res.innerHTML = '<p class="vacio">En cola…</p>';
   try {
     const t = await api(`${CAT}/servicios/${encodeURIComponent(s.id)}/trabajos`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({entrada, parametros: params()})});
@@ -133,9 +149,23 @@ async function ejecutar(s) {
   } catch (e) { res.innerHTML = `<p class="aviso">${esc(e.message)}</p>`; }
   b.disabled = false; b.textContent = 'Ejecutar'; cargarUso();
 }
+function serieEjemplo() {
+  // Un año por horas de una sala con su ciclo estacional y diario, y una fuga los últimos 6 días
+  const puntos = [], fin = Date.now() - Date.now() % 3600e3, n = 395 * 24;
+  let rt = 0, rh = 0;
+  for (let i = 0; i < n; i++) {
+    const t = new Date(fin - (n - 1 - i) * 3600e3), dia = (t - new Date(t.getFullYear(), 0, 1)) / 864e5;
+    const est = Math.cos(2 * Math.PI * (dia - 15) / 365), hora = Math.sin(2 * Math.PI * (t.getUTCHours() - 9) / 24);
+    rt = .92 * rt + (Math.random() - .5) * .3; rh = .92 * rh + (Math.random() - .5) * 1.5;
+    const fuga = i > n - 6 * 24 ? Math.min(1, (i - (n - 6 * 24)) / 12) * 18 : 0;
+    puntos.push({t: t.toISOString().slice(0, 19) + 'Z', temperatura: +(18 - 3 * est + .4 * hora + rt).toFixed(2),
+                 humedad: +Math.min(100, 55 + 7 * est - hora + rh + fuga).toFixed(2)});
+  }
+  return {zona: 'Sala de ejemplo', metodo: 'sintetico', puntos};
+}
 function curl(s) {
   const base = CFG.api || 'http://servidor:9080';
-  const ej = s.entrada === 'pregunta' ? '{"pregunta": "..."}' : '{"texto": "..."}';
+  const ej = s.entrada === 'pregunta' ? '{"pregunta": "..."}' : s.entrada_texto === false ? `<documento ${s.entrada}>` : '{"texto": "..."}';
   return `TOKEN=...   # token de Keycloak de tu usuario
 curl -X POST ${base}/api/v1/servicios/${s.id}/trabajos \\
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \\

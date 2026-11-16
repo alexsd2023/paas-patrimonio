@@ -95,7 +95,7 @@ y nadie puede volver a leerlos, ni desde aquí. Si tu institución no pone el su
 
 SCRIPT_INST = r"""
 const INS = '/panel/api/instituciones', CAT = '/panel/api/catalogo';
-const ROLES = {archivera: 'archivera', paleografa: 'paleógrafa', 'admin-institucion': 'administra'};
+const ROLES = {archivera: 'archivera', paleografa: 'paleógrafa', gestor: 'gestor', conservador: 'conservación', tecnico: 'técnico', 'admin-institucion': 'administra'};
 const JSONH = {'Content-Type': 'application/json'};
 const esAdmin = CFG.roles.includes('admin-institucion'), esOperador = CFG.roles.includes('admin-paas');
 const enviar = (url, metodo, cuerpo) => api(url, {method: metodo, headers: JSONH, body: JSON.stringify(cuerpo || {})});

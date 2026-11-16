@@ -13,6 +13,18 @@ Todo evento del bus es un **CloudEvent 1.0** que cumple dos esquemas:
 | `deposito.medicion` | puente (al registrar el catastro una lectura de sensores) | `sensores` | gemelo |
 | `conservacion.alerta` | servicio de conservación | `conservacion` | gemelo |
 | `conservacion.normalizada` | servicio de conservación | `conservacion` | gemelo |
+| `zona.medicion` | puente (al registrar el catastro una observación de un sensor de una zona) | `sensores` | gemelo patrimonial |
+| `conservacion.evaluada` | servicio de conservación (cada evaluación EN 15757 de una zona) | `conservacion` | gemelo patrimonial |
+| `conservacion.riesgo` | servicio de conservación (una alerta de zona se abre, agrava, reconoce, propone cerrar o cierra) | `conservacion` | gemelo patrimonial |
+
+`conservacion.alerta` y `conservacion.normalizada` siguen siendo las de los umbrales fijos de los depósitos
+(gemelo del archivo). Las del gemelo patrimonial son `conservacion.evaluada` y `conservacion.riesgo`.
+
+## Contexto JSON-LD del gemelo patrimonial
+
+`contextos/gdp-v1.jsonld` define el vocabulario del gemelo (HeritageBuilding, HeritageZone, sensores,
+evaluaciones y alertas). La consola lo publica en `/contexts/v1/gdp.jsonld` (sin token). Versionado por ruta:
+un cambio incompatible es `gdp-v2.jsonld` en `/contexts/v2/`, y la v1 se sigue sirviendo.
 
 ## Cómo viaja por Kafka (modo binario)
 

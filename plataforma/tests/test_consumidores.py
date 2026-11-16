@@ -34,6 +34,27 @@ def test_notario_no_duplica_y_recuerda_tras_reiniciar(tmp_path):
     assert len(Registro(ruta).actas(ACTIVO)) == 1
 
 
+def test_notario_lleva_el_libro_de_una_zona_y_de_su_alerta(tmp_path):
+    """Gemelo patrimonial: evaluación → alerta abierta → cierre firmado, con la evaluación de origen y la persona."""
+    import copy
+    reg = Registro(str(tmp_path / "prov.ttl"))
+    evaluada, riesgo = cargar("conservacion.evaluada"), cargar("conservacion.riesgo")
+    abierta = copy.deepcopy(riesgo)
+    abierta["id"], abierta["data"]["estado"] = "otro-id", "abierta"
+    for k in ("por", "cierre"):
+        abierta["data"].pop(k)
+    abierta["data"]["legajos"] = [ACTIVO]
+    assert reg.anotar(evaluada) and reg.anotar(abierta) and reg.anotar(riesgo)
+    c = TestClient(app_procedencia(reg))
+    zona = c.get("/actas", params={"activo": evaluada["subject"]}).json()
+    assert [a["tipo"] for a in zona] == ["evaluacion-climatica", "alerta-zona-abierta", "alerta-zona-cerrada"]
+    assert "urn:paas:capacidad:evaluacion-en15757" in zona[0]["agentes"]
+    cierre = c.get("/actas", params={"activo": riesgo["data"]["alerta"]}).json()[-1]
+    assert "urn:paas:usuario:archivo-villanueva:conservador-test" in cierre["agentes"]
+    assert "Deshumidificador reparado" in cierre["detalle"]
+    assert [a["tipo"] for a in c.get("/actas", params={"activo": ACTIVO}).json()] == ["alerta-zona-abierta"]
+
+
 class ExpedientesFalsos:
     """Sustituye a Temporal: mismo comportamiento visible."""
 

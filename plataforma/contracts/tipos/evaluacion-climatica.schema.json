@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/tipos/evaluacion-climatica.schema.json",
+  "title": "evaluacion-climatica",
+  "type": "object",
+  "description": "Microclima objetivo de una zona y su nivel de riesgo (EN 15757:2010 o el método simplificado).",
+  "required": [
+    "zona",
+    "metodo",
+    "humedad",
+    "temperatura",
+    "nivel",
+    "periodo"
+  ],
+  "properties": {
+    "zona": {
+      "type": "string"
+    },
+    "nombre": {
+      "type": "string"
+    },
+    "metodo": {
+      "enum": [
+        "en15757",
+        "simplificado"
+      ]
+    },
+    "origenDatos": {
+      "enum": [
+        "historico",
+        "sintetico",
+        "mixto"
+      ]
+    },
+    "periodo": {
+      "type": "object",
+      "required": [
+        "desde",
+        "hasta"
+      ],
+      "properties": {
+        "desde": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "hasta": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "calibracionDias": {
+          "type": "number"
+        },
+        "recienteDias": {
+          "type": "number"
+        }
+      }
+    },
+    "humedad": {
+      "type": "object",
+      "required": [
+        "media",
+        "objetivo",
+        "fuera30d"
+      ],
+      "properties": {
+        "media": {
+          "type": "number"
+        },
+        "objetivo": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Banda objetivo en el último instante [mín, máx]"
+        },
+        "fuera30d": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "% del tiempo reciente fuera de la banda"
+        },
+        "lineaBase": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "% del tiempo de calibración fuera de la banda"
+        }
+      }
+    },
+    "temperatura": {
+      "type": "object",
+      "required": [
+        "media",
+        "objetivo",
+        "fuera30d"
+      ],
+      "properties": {
+        "media": {
+          "type": "number"
+        },
+        "objetivo": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Banda objetivo en el último instante [mín, máx]"
+        },
+        "fuera30d": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "% del tiempo reciente fuera de la banda"
+        },
+        "lineaBase": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "% del tiempo de calibración fuera de la banda"
+        }
+      }
+    },
+    "desviacion30d": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Exceso de tiempo fuera de banda sobre la línea base (puntos %), el peor de las dos variables"
+    },
+    "fluctuacionMaxHR2h": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Mayor cambio de humedad relativa en 2 horas en el periodo reciente"
+    },
+    "nivel": {
+      "enum": [
+        "bajo",
+        "medio",
+        "alto"
+      ]
+    },
+    "causa": {
+      "type": "string",
+      "description": "Por qué tiene ese nivel, en una frase"
+    },
+    "parametros": {
+      "type": "object"
+    },
+    "banda": {
+      "type": "array",
+      "description": "Banda objetivo y medias en el periodo reciente (un punto cada pocas horas), para dibujarla",
+      "items": {
+        "type": "object",
+        "required": [
+          "t"
+        ],
+        "properties": {
+          "t": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "hMin": {
+            "type": "number"
+          },
+          "hMax": {
+            "type": "number"
+          },
+          "hMedia": {
+            "type": "number"
+          },
+          "tMin": {
+            "type": "number"
+          },
+          "tMax": {
+            "type": "number"
+          },
+          "tMedia": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

@@ -1,7 +1,7 @@
 """Conectar el catastro de una institución al bus: crea (o recrea) sus suscripciones de Scorpio hacia el puente."""
 import pytest
 
-from services.suscripciones.crear import SUB_DEPOSITOS, SUB_ID, preparar
+from services.suscripciones.crear import SUB_DEPOSITOS, SUB_ID, SUB_OBSERVACIONES, preparar
 
 
 class CatastroFalso:
@@ -28,11 +28,11 @@ class CatastroFalso:
         return 201, ""
 
 
-def test_crea_las_dos_suscripciones_hacia_el_puente():
+def test_crea_las_tres_suscripciones_hacia_el_puente():
     r = CatastroFalso()
     hecho = preparar(r, "museo-naval")
     assert [(s, u.endswith("/ngsi-ld/notificaciones/museo-naval")) for _, s, u in r.creadas] == \
-        [(SUB_ID, True), (SUB_DEPOSITOS, True)]
+        [(SUB_ID, True), (SUB_DEPOSITOS, True), (SUB_OBSERVACIONES, True)]
     assert r.fichas == [("museo-naval", "urn:ngsi-ld:Tenant:museo-naval")]   # el tenant existe antes de suscribirse
     assert all("creada" in h for h in hecho)
 
@@ -40,7 +40,7 @@ def test_crea_las_dos_suscripciones_hacia_el_puente():
 def test_es_idempotente_recrea_las_que_existian():
     r = CatastroFalso(ya=[SUB_ID])
     hecho = preparar(r, "museo-naval")
-    assert len(r.borradas) == 1 and len(r.creadas) == 2 and "recreada" in hecho[0]
+    assert len(r.borradas) == 1 and len(r.creadas) == 3 and "recreada" in hecho[0]
 
 
 def test_si_scorpio_falla_lo_dice():

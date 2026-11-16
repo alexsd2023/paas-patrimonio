@@ -115,7 +115,7 @@ def test_la_barra_separa_nucleo_y_productos():
     html = cliente("tok-o").get("/panel").text
     nucleo, productos = html.split("Núcleo del PaaS</span>", 1)[1].split("Productos</span>", 1)
     assert "Estado de la plataforma" in nucleo and "Cartas · bus" in nucleo and "Temporal" in nucleo
-    assert "Legajo de la archivera" in productos and "Gemelo del archivo" in productos
+    assert "Legajo de la archivera" in productos and "Gemelo patrimonial" in productos
     assert "Legajo de la archivera" not in nucleo
 
 
@@ -123,7 +123,7 @@ def test_estado_del_nucleo_no_sabe_de_legajos():
     d = cliente("tok-o").get("/panel/api/nucleo/estado").json()
     assert d["sondas"][0]["ok"] and [c["id"] for c in d["productos"]] == ["legajo", "gemelo", "scriptorium"]
     assert d["buzonesPorProducto"]["activos"] == ["Legajo de la archivera"]
-    assert d["buzonesPorProducto"]["sensores"] == ["Gemelo del archivo"]
+    assert d["buzonesPorProducto"]["sensores"] == ["Gemelo patrimonial"]
 
 
 def test_cartas_solo_de_mi_institucion():
@@ -133,7 +133,7 @@ def test_cartas_solo_de_mi_institucion():
 
 def test_catalogo_lista_los_productos_y_como_conectar_uno():
     html = cliente("tok-o").get("/panel/productos").text
-    assert "Legajo de la archivera" in html and "Gemelo del archivo" in html and 'id="publicar"' in html
+    assert "Legajo de la archivera" in html and "Gemelo patrimonial" in html and 'id="publicar"' in html
     assert '<span class="modelo externo">Externo</span>' in html and 'href="/panel/marketplace/scriptorium"' in html
 
 

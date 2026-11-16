@@ -1,29 +1,41 @@
-# Producto: el gemelo digital del archivo (depósitos, cajas, sensores y conservación).
+# Producto: el gemelo digital patrimonial (inmueble, zonas, sensores, microclima EN 15757 y alertas con firma).
+# Incluye el gemelo del archivo de antes (depósitos y cajas), que sigue funcionando en sus dos vistas.
 id: gemelo
 orden: 2
-nombre: Gemelo del archivo
+nombre: Gemelo patrimonial
 color: "#D9A23B"
-resumen: Depósitos y cajas con sus sensores · lecturas cada 5 s, alertas de conservación y legajos afectados
+resumen: El inmueble y sus zonas con sensores · microclima objetivo EN 15757, alertas con firma y legajos afectados
 # Marketplace
 autor: Equipo PaaS Patrimonio
 oficio: Conservación
 modelo: integrado            # corre dentro de la consola
-version: 1.1.0
+version: 2.0.0
 precio: Incluido en la plataforma
 descripcion: >-
-  Escucha los sensores de los depósitos, muestra su temperatura y humedad y avisa a conservación cuando las
-  condiciones ponen en riesgo los fondos, con los legajos de cada caja afectada.
+  Un gemelo digital del edificio: zonas, elementos y sensores en el catastro de tu institución. Cada hora calcula,
+  con la capacidad EN 15757, la banda de temperatura y humedad que los objetos de cada zona han soportado siempre,
+  y avisa cuando se salen de ella. Conservación cierra cada alerta con su causa, y queda en el notario (también en
+  el libro de los legajos de un depósito afectado).
 permisos:
-  - {id: depositos, texto: Leer los depósitos y las lecturas de sus sensores, detalle: Solo los de tu institución}
-  - {id: alertas, texto: Crear alertas de conservación, detalle: Las ve tu equipo}
-  - {id: avisos-sensores, texto: Recibir avisos de los sensores, detalle: Cada lectura nueva}
-usa: [identidad, correos, catastro, notario, trazas]
+  - {id: inmuebles, texto: Leer y editar el inmueble, sus zonas, elementos y sensores, detalle: Solo los de tu institución}
+  - {id: series, texto: Leer las series de temperatura y humedad, detalle: Las de tus sensores}
+  - {id: alertas, texto: Crear y cerrar alertas de conservación, detalle: El cierre lo firma una persona}
+  - {id: evaluaciones, texto: Evaluar las zonas con EN 15757, detalle: Cada hora · cuenta en tu consumo de la capacidad}
+  - {id: avisos-sensores, texto: Recibir avisos de los sensores, detalle: Cada lectura nueva, opcional: true}
+# Roles que se proponen al activarlo (quien administra la institución decide)
+roles: [gestor, conservador, tecnico, archivera, admin-institucion]
+usa: [identidad, correos, catastro, procesos, notario, trazas]
 # Capacidades del catálogo que necesita (capacidades/<id>)
-requiere: []
+requiere: [evaluacion-en15757]
 # Contenedores propios del producto (docker compose); no son del núcleo
 contenedores: [sensores, conservacion]
 # Buzones del bus en los que publica o lee
 buzones: [sensores, conservacion]
 vistas:
-  - {id: depositos, nombre: Depósitos}
+  - {id: inicio, nombre: Inicio}
+  - {id: zona, nombre: Zona, ruta: zona}
+  - {id: mapa, nombre: Mapa, ruta: mapa}
+  - {id: alertas, nombre: Alertas, ruta: alertas}
+  - {id: configuracion, nombre: Configuración, ruta: configuracion}
+  - {id: depositos, nombre: Depósitos, ruta: depositos}
   - {id: cajas, nombre: Cajas y legajos, ruta: cajas}

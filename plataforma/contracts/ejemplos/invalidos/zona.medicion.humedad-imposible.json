@@ -1,0 +1,16 @@
+{
+  "specversion": "1.0",
+  "id": "7d1f0a3e-2b1c-5d7e-9f00-1a2b3c4d5e05",
+  "source": "/tenants/archivo-villanueva/servicios/puente",
+  "type": "zona.medicion",
+  "time": "2026-11-16T10:00:00.000Z",
+  "subject": "urn:ngsi-ld:HeritageZone:archivo-villanueva:Z01",
+  "datacontenttype": "application/json",
+  "tenant": "archivo-villanueva",
+  "data": {
+    "sensor": "urn:ngsi-ld:EnvironmentalSensor:archivo-villanueva:S01",
+    "temperatura": 18.4,
+    "humedad": 130,
+    "observadoEn": "2026-11-16T10:00:00Z"
+  }
+}

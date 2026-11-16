@@ -25,6 +25,7 @@ import logging
 import os
 import time
 import urllib.error
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -45,6 +46,9 @@ from services.panel.nucleo import COOKIE, Nucleo
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger("panel")
 __all__ = ["COOKIE", "crear_app"]
+
+
+RAIZ_CONTRATOS = Path(__file__).resolve().parents[2] / "contracts"
 
 
 def crear_app(*, registro, verificador, expedientes, keycloak_interno: str, procedencia: str, api_publico: str,
@@ -137,6 +141,16 @@ def crear_app(*, registro, verificador, expedientes, keycloak_interno: str, proc
         r = RedirectResponse("/panel", status_code=303)
         r.set_cookie(COOKIE, token, httponly=True, samesite="lax", path="/panel", max_age=900)
         return r
+
+    @app.get("/contexts/v{version}/{nombre}.jsonld")
+    def contexto(version: int, nombre: str):
+        """Los contextos JSON-LD de contracts/contextos (públicos; la puerta los publica en /contexts/*)."""
+        from fastapi.responses import FileResponse
+        ruta = RAIZ_CONTRATOS / "contextos" / f"{nombre}-v{version}.jsonld"
+        if not nombre.isalnum() or not ruta.is_file():
+            raise HTTPException(404, "no hay ese contexto")
+        return FileResponse(ruta, media_type="application/ld+json",
+                            headers={"Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=3600"})
 
     @app.get("/panel/api/autorizar")
     def autorizar(req: Request):

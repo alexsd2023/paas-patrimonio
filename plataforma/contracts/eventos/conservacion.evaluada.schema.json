@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/eventos/conservacion.evaluada.schema.json",
+  "title": "conservacion.evaluada · microclima objetivo recalculado",
+  "description": "Lo emite el servicio de conservación cada vez que evalúa una zona con la capacidad evaluacion-en15757.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "conservacion.evaluada"
+    },
+    "subject": {
+      "pattern": "^urn:ngsi-ld:HeritageZone:"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "evaluacion",
+        "nivel",
+        "metodo",
+        "desviacion30d",
+        "objetivoHumedad",
+        "objetivoTemperatura"
+      ],
+      "properties": {
+        "evaluacion": {
+          "type": "string",
+          "pattern": "^urn:ngsi-ld:ClimateAssessment:[a-z0-9-]+:[A-Za-z0-9-]+$"
+        },
+        "nombre": {
+          "type": "string"
+        },
+        "nivel": {
+          "enum": [
+            "bajo",
+            "medio",
+            "alto"
+          ]
+        },
+        "metodo": {
+          "enum": [
+            "en15757",
+            "simplificado"
+          ]
+        },
+        "origenDatos": {
+          "enum": [
+            "historico",
+            "sintetico",
+            "mixto"
+          ]
+        },
+        "desviacion30d": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "objetivoHumedad": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "objetivoTemperatura": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "causa": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -17,7 +17,8 @@ from services.panel.productos import MODELOS, OFICIOS, PIEZAS_NUCLEO
 CANDADO = ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
            'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:2px;color:var(--teal)">'
            '<rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>')
-ROLES = [("archivera", "Archiveras"), ("paleografa", "Paleógrafas"), ("admin-institucion", "Administración")]
+ROLES = [("archivera", "Archiveras"), ("paleografa", "Paleógrafas"), ("gestor", "Gestión del inmueble"),
+         ("conservador", "Conservación"), ("tecnico", "Técnicos"), ("admin-institucion", "Administración")]
 _FLUJOS = Path(__file__).resolve().parents[2] / "flujos"
 # El Marketplace no enseña precios. Para volver a enseñarlos: MOSTRAR_PRECIOS=si
 MOSTRAR_PRECIOS = os.environ.get("MOSTRAR_PRECIOS", "no").strip().lower() in ("si", "sí", "1", "true")
@@ -225,7 +226,7 @@ def activar(c, act: Optional[Dict[str, Any]], quien: Any) -> str:
         f'{" disabled" if not x.opcional else ""}><span>{e(x.texto)}<small style="display:block;color:var(--muted)">'
         f'{e(x.detalle)} · {"opcional" if x.opcional else "imprescindible"}</small></span></label>' for x in c.permisos) \
         or '<p style="margin:0;color:var(--muted)">No pide permisos sobre tus datos.</p>'
-    por_defecto = ["archivera", "paleografa"]
+    por_defecto = c.roles_sugeridos or ["archivera", "paleografa"]
     rol = "".join(f'<label><input type="checkbox" name="rol" value="{r}"'
                   f'{" checked" if (r in roles if roles is not None else r in por_defecto) else ""}> {n}</label>' for r, n in ROLES)
     accion = "Guardar cambios" if det else "Aceptar y activar"

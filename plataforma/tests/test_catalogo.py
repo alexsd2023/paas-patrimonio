@@ -266,3 +266,35 @@ def test_tres_modos_y_los_antiguos_siguen_valiendo():
     with pytest.raises(ManifiestoInvalido, match="necesita url"):
         leer_manifiesto({**base, "modo": "externa"})
     assert {s.modo for s in descubrir().values()} == {"integrada", "externa"}
+
+
+def test_uso_interno_de_una_capacidad_cuenta_para_la_institucion(tmp_path):
+    """Un producto (conservación) usa evaluacion-en15757 para una institución, con la clave interna."""
+    from datetime import datetime, timezone
+    from capacidades.evaluacion_en15757.motor import evaluar
+    from productos.gemelo.clima import CLIMA_POR_DEFECTO, historico
+    from services.catalogo.app import Indice, crear_app
+
+    hechos = {}
+
+    def capacidad(req: httpx.Request):
+        if req.method == "POST":
+            cuerpo = json.loads(req.content)
+            hechos["t1"] = evaluar(cuerpo["entrada"], cuerpo["parametros"])
+            return httpx.Response(202, json={"id": "t1", "estado": "en-cola"})
+        return httpx.Response(200, json={"id": "t1", "estado": "terminado", "salida": hechos["t1"]})
+
+    cat = Catalogo(descubrir(), http=httpx.Client(transport=httpx.MockTransport(capacidad)), sondeo=0)
+    c = TestClient(crear_app(verificador=Verif(), catalogo=cat, flujos=FlujosFalsos(), indice=Indice(str(tmp_path / "f.db")),
+                             clave_interna="clave-x"))
+    serie = {"zona": "urn:ngsi-ld:HeritageZone:otro-archivo:Z01",
+             "puntos": list(historico(CLIMA_POR_DEFECTO, "z", datetime(2026, 11, 16, tzinfo=timezone.utc), 90))}
+    url = "/interno/servicios/evaluacion-en15757/ejecutar"
+    assert c.post(url, json={"tenant": "otro-archivo", "entrada": serie}).status_code == 401
+    assert c.post(url, json={"tenant": "otro-archivo", "entrada": serie}, headers={"X-Clave-Interna": "mala"}).status_code == 401
+    assert c.post(url, json={"entrada": serie}, headers={"X-Clave-Interna": "clave-x"}).status_code == 422
+    r = c.post(url, json={"tenant": "otro-archivo", "entrada": serie}, headers={"X-Clave-Interna": "clave-x", "X-Producto": "gemelo"})
+    assert r.status_code == 200 and r.json()["salida"]["nivel"] == "bajo"
+    assert cat.contador.uso("otro-archivo") == {"evaluacion-en15757": 1}
+    sin = TestClient(crear_app(verificador=Verif(), catalogo=cat, flujos=FlujosFalsos(), indice=Indice(str(tmp_path / "g.db"))))
+    assert sin.post(url, json={"tenant": "otro-archivo", "entrada": serie}, headers={"X-Clave-Interna": "x"}).status_code == 404

@@ -1,0 +1,28 @@
+# Capacidad: el microclima objetivo de una zona según EN 15757:2010 (o el método simplificado de la v1.0).
+# Pura: recibe la serie y devuelve la evaluación. No lee ni escribe el catastro: eso lo hace el producto.
+id: evaluacion-en15757
+nombre: Microclima objetivo EN 15757
+resumen: Calcula la banda de temperatura y humedad que los objetos de una zona han soportado siempre y cuánto se sale de ella ahora
+autor: Equipo PaaS Patrimonio
+tipo: tarea
+entrada: serie-ambiental
+salida: evaluacion-climatica
+version: 1.0.0
+modo: integrada
+parametros:
+  metodo:
+    tipo: texto
+    valores: [en15757, simplificado]
+    defecto: en15757
+    descripcion: "en15757: media de 30 días y percentiles 7-93 de las fluctuaciones · simplificado: media de 7 días y P10-P90 de la serie suavizada"
+  media_movil_dias: {tipo: numero, descripcion: "Ventana de la media móvil (por defecto 30 en EN 15757, 7 en el simplificado)"}
+  percentil_bajo: {tipo: numero, descripcion: "Por defecto 7 (EN 15757) o 10 (simplificado)"}
+  percentil_alto: {tipo: numero, descripcion: "Por defecto 93 (EN 15757) o 90 (simplificado)"}
+  minimo_hr: {tipo: numero, defecto: 10, descripcion: "Semiancho mínimo de la banda de humedad, en puntos (EN 15757)"}
+  minimo_temperatura: {tipo: numero, defecto: 1, descripcion: "Semiancho mínimo de la banda de temperatura, en °C (no es de la norma)"}
+  reciente_dias: {tipo: numero, defecto: 30, descripcion: "Periodo que se evalúa (el resto calibra)"}
+  umbral_medio: {tipo: numero, defecto: 5, descripcion: "Puntos de % de tiempo fuera de banda, sobre el clima histórico, para nivel medio"}
+  umbral_alto: {tipo: numero, defecto: 15, descripcion: "Ídem para nivel alto"}
+  fluctuacion_hr_2h: {tipo: numero, defecto: 8, descripcion: "Un cambio de humedad mayor en 2 horas es nivel alto"}
+acceso: [registrado]
+cuota: {trabajos_dia: 5000}

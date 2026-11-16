@@ -1,14 +1,21 @@
-"""Producto · el gemelo digital del archivo.
+"""Producto · el gemelo digital patrimonial (y, dentro, el gemelo del archivo de antes).
 
 Vistas (dentro de la consola, en /panel/productos/gemelo):
-    ""        Depósitos        lecturas, umbrales y estado de cada depósito; simular una fuga o una avería
-    /cajas    Cajas y legajos  qué legajos hay en cada caja y en qué condiciones están
+    ""               Inicio          estado del inmueble: ¿qué zona me preocupa hoy y por qué?
+    /zona?z=Z01      Zona            series de 7 días con la banda objetivo EN 15757, evaluación y sensores
+    /mapa            Mapa            la planta con las zonas y los sensores
+    /alertas         Alertas         reconocer y cerrar (con la causa) · el historial del notario
+    /configuracion   Configuración   inmueble de ejemplo, zonas, sensores y simulación para la demo
+    /depositos       Depósitos       el gemelo del archivo (umbrales fijos), como antes
+    /cajas           Cajas y legajos
 
-API: /api/depositos · /api/cajas · POST /api/escenario
+API (la misma, con token, en /api/v1/gemelo/… por la puerta): ver las rutas /api/… de montar().
+Cada ruta comprueba el rol: la consola oculta lo no permitido, pero nunca es el único control.
 
 Sus servicios propios (sensores, conservacion) se llaman por ``nucleo.servicio``.
 """
 import json
+import re
 import urllib.request
 from typing import Any, Dict, List
 
@@ -16,14 +23,18 @@ import httpx
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from productos.gemelo import modelo as M
 from productos.gemelo import vistas as V
+from productos.gemelo import vistas_patrimonial as VP
+
+LEER = {"gestor", "conservador", "tecnico", "archivera", "admin-institucion"}
+FIRMAR = {"conservador", "archivera", "admin-institucion"}
+CONFIGURAR = {"admin-institucion", "archivera"}
+CODIGO = re.compile(r"^[A-Za-z0-9-]{1,20}$")
 
 
 def v(entidad, attr, defecto=None):
-    if not entidad or attr not in entidad:
-        return defecto
-    a = entidad[attr]
-    return a.get("value", a.get("object", defecto)) if isinstance(a, dict) else a
+    return M.v(entidad, attr, defecto)
 
 
 def _get(url):
@@ -31,11 +42,49 @@ def _get(url):
         return json.loads(r.read())
 
 
+def exigir(quien, roles: set, que: str):
+    if not set(quien.roles) & roles:
+        raise HTTPException(403, f"tu rol no permite {que}")
+
+
 def montar(nucleo, producto) -> APIRouter:
     r = APIRouter()
     conservacion, sensores = nucleo.servicio("conservacion"), nucleo.servicio("sensores")
 
-    @r.get("")
+    def servicio(metodo: str, url: str, cuerpo=None, params=None, timeout=60):
+        """Llama a un servicio propio y traslada su error tal cual (con su código)."""
+        try:
+            resp = httpx.request(metodo, url, json=cuerpo, params=params, timeout=timeout)
+        except httpx.HTTPError as e:
+            raise HTTPException(503, f"{url.split('/')[2].split(':')[0]} no responde: {e}")
+        try:
+            datos = resp.json()
+        except ValueError:
+            datos = {"detail": resp.text[:300]}
+        if resp.status_code >= 400:
+            raise HTTPException(resp.status_code, datos.get("detail") if isinstance(datos, dict) else datos)
+        return datos
+
+    def codigo_ok(cod: str) -> str:
+        if not CODIGO.match(cod or ""):
+            raise HTTPException(422, "código: letras, cifras y guiones (máx. 20)")
+        return cod
+
+    # ---------- vistas ----------
+    def vista(id_, cuerpo, script):
+        def pintar(req: Request):
+            return nucleo.pagina(req, producto.id, id_, cuerpo, script, VP.ESTILO,
+                                 datos={"puedeFirmar": bool(set(nucleo.yo(req).roles) & FIRMAR),
+                                        "puedeConfigurar": bool(set(nucleo.yo(req).roles) & CONFIGURAR)})
+        return pintar
+
+    r.add_api_route("", vista("inicio", VP.INICIO, VP.SCRIPT_INICIO), methods=["GET"])
+    r.add_api_route("/zona", vista("zona", VP.ZONA, VP.SCRIPT_ZONA), methods=["GET"])
+    r.add_api_route("/mapa", vista("mapa", VP.MAPA, VP.SCRIPT_MAPA), methods=["GET"])
+    r.add_api_route("/alertas", vista("alertas", VP.ALERTAS, VP.SCRIPT_ALERTAS), methods=["GET"])
+    r.add_api_route("/configuracion", vista("configuracion", VP.CONFIGURACION, VP.SCRIPT_CONFIGURACION), methods=["GET"])
+
+    @r.get("/depositos")
     def depositos_v(req: Request):
         return nucleo.pagina(req, producto.id, "depositos", V.DEPOSITOS, V.SCRIPT_DEPOSITOS, V.ESTILO)
 
@@ -43,6 +92,220 @@ def montar(nucleo, producto) -> APIRouter:
     def cajas_v(req: Request):
         return nucleo.pagina(req, producto.id, "cajas", V.CAJAS, V.SCRIPT_CAJAS, V.ESTILO)
 
+    # ---------- API del gemelo patrimonial ----------
+    @r.get("/api/inmueble")
+    def inmueble(req: Request):
+        quien = nucleo.yo(req)
+        exigir(quien, LEER, "ver el gemelo")
+        reg, t = nucleo.registro, quien.tenant
+        edificios = reg.listar(t, "HeritageBuilding")
+        zonas = {z["id"]: z for z in reg.listar(t, "HeritageZone")}
+        sens = reg.listar(t, "EnvironmentalSensor")
+        try:
+            resumen = {z["zona"]: z for z in servicio("GET", f"{conservacion}/gemelo/resumen", params={"tenant": t})}
+            sin_conservacion = None
+        except HTTPException as e:
+            resumen, sin_conservacion = {}, e.detail
+        alertas = [a for a in reg.listar(t, "ConservationAlert", limite=1000) if v(a, "alertStatus") in ("activa", "reconocida")]
+        orden = {"alto": 0, "medio": 1, "bajo": 2, None: 3}
+        filas = []
+        for zid, z in zonas.items():
+            s = resumen.get(zid, {})
+            filas.append({"zona": zid, "codigo": M.codigo(zid), "nombre": v(z, "name"), "tipo": v(z, "zoneType"),
+                          "materiales": v(z, "dominantMaterials", []), "plano": v(z, "planPosition"),
+                          "deposito": v(z, "refDeposito"), **{k: s.get(k) for k in (
+                              "nivel", "causa", "desviacion30d", "objetivoHumedad", "objetivoTemperatura", "metodo",
+                              "origenDatos", "calculadaEn", "temperatura", "humedad", "alerta")}})
+        filas.sort(key=lambda f: (orden.get(f["nivel"], 3), f["codigo"]))
+        e0 = edificios[0] if edificios else None
+        return {"edificio": e0 and {"id": e0["id"], "nombre": v(e0, "name"), "proteccion": v(e0, "protectionLevel"),
+                                    "ano": v(e0, "yearOfConstruction"), "estilo": v(e0, "architecturalStyle")},
+                "zonas": filas, "aviso": sin_conservacion,
+                "kpis": {"zonas": len(filas), "enRiesgo": sum(1 for f in filas if f["nivel"] in ("medio", "alto")),
+                         "alertas": len(alertas), "criticas": sum(1 for a in alertas if v(a, "riskLevel") == "alto"),
+                         "sensores": len(sens), "sensoresOK": sum(1 for s in sens if v(s, "operStatus") == "OK")}}
+
+    @r.get("/api/zonas/{cod}")
+    def zona(cod: str, req: Request, dias: int = 7):
+        quien = nucleo.yo(req)
+        exigir(quien, LEER, "ver el gemelo")
+        reg, t = nucleo.registro, quien.tenant
+        z = reg.leer(t, M.urn("HeritageZone", t, codigo_ok(cod)))
+        if not z:
+            raise HTTPException(404, f"no hay ninguna zona {cod}")
+        estado = servicio("GET", f"{conservacion}/gemelo/zonas/{cod}", params={"tenant": t, "dias": max(1, min(dias, 60))})
+        ahora = {x["sensor"]: x for x in estado.get("ahora", [])}
+        return {"zona": z["id"], "codigo": cod, "nombre": v(z, "name"), "tipo": v(z, "zoneType"),
+                "materiales": v(z, "dominantMaterials", []), "area": v(z, "areaSqm"), "deposito": v(z, "refDeposito"),
+                "elementos": [{"nombre": v(e, "name"), "tipo": v(e, "elementType"), "material": v(e, "material"),
+                               "estado": v(e, "conditionStatus"), "inspeccion": v(e, "lastInspection")}
+                              for e in reg.listar(t, "HeritageElement") if v(e, "refZone") == z["id"]],
+                "sensores": [{"codigo": M.codigo(s["id"]), "nombre": v(s, "name"), "estado": v(s, "operStatus"),
+                              "ahora": ahora.get(s["id"])} for s in reg.listar(t, "EnvironmentalSensor") if v(s, "refZone") == z["id"]],
+                "alertas": [_alerta(a) for a in reg.listar(t, "ConservationAlert", limite=1000) if v(a, "refZone") == z["id"]],
+                "serie": estado.get("serie", []), "evaluacion": estado.get("evaluacion"), "origenSeries": estado.get("origenSeries")}
+
+    def _alerta(a, nombres=None):
+        return {"id": a["id"], "codigo": M.codigo(a["id"]), "zona": v(a, "refZone"), "zonaCodigo": M.codigo(v(a, "refZone", "")),
+                "zonaNombre": (nombres or {}).get(v(a, "refZone")), "nivel": v(a, "riskLevel"), "estado": v(a, "alertStatus"),
+                "causa": v(a, "cause"), "detectada": v(a, "detectedAt"), "evaluacion": v(a, "refAssessment"),
+                "propuestaCierre": v(a, "closureProposed", False), "reconocidaPor": v(a, "acknowledgedBy"),
+                "cerradaPor": v(a, "closedBy"), "causaCierre": v(a, "closureCause"), "cerrada": v(a, "closedAt")}
+
+    @r.get("/api/alertas")
+    def alertas(req: Request, estado: str = "abiertas"):
+        quien = nucleo.yo(req)
+        exigir(quien, LEER, "ver el gemelo")
+        reg, t = nucleo.registro, quien.tenant
+        nombres = {z["id"]: v(z, "name") for z in reg.listar(t, "HeritageZone")}
+        xs = [_alerta(a, nombres) for a in reg.listar(t, "ConservationAlert", limite=1000)]
+        if estado == "abiertas":
+            xs = [a for a in xs if a["estado"] in ("activa", "reconocida")]
+        return sorted(xs, key=lambda a: a["detectada"] or "", reverse=True)
+
+    @r.get("/api/alertas/{cod}/actas")
+    def actas_alerta(cod: str, req: Request):
+        quien = nucleo.yo(req)
+        exigir(quien, LEER, "ver el gemelo")
+        try:
+            return nucleo.actas(M.urn("ConservationAlert", quien.tenant, codigo_ok(cod)))
+        except OSError as e:
+            raise HTTPException(503, f"el notario no responde: {e}")
+
+    def firmar(cod: str, req: Request, accion: str, causa: str = ""):
+        quien = nucleo.yo(req)
+        exigir(quien, FIRMAR, f"{accion} alertas")
+        cuerpo = {"tenant": quien.tenant, "alerta": M.urn("ConservationAlert", quien.tenant, codigo_ok(cod)),
+                  "por": quien.usuario}
+        if accion == "cerrar":
+            cuerpo["causa"] = causa
+        return servicio("POST", f"{conservacion}/gemelo/alertas/{accion}", cuerpo)
+
+    @r.post("/api/alertas/{cod}/reconocer")
+    def reconocer(cod: str, req: Request):
+        return firmar(cod, req, "reconocer")
+
+    @r.post("/api/alertas/{cod}/cerrar")
+    def cerrar(cod: str, req: Request, p: Dict[str, Any] = Body(...)):
+        return firmar(cod, req, "cerrar", str(p.get("causa") or ""))
+
+    @r.post("/api/zonas/{cod}/evaluacion")
+    def recalcular(cod: str, req: Request):
+        quien = nucleo.yo(req)
+        exigir(quien, FIRMAR | CONFIGURAR, "recalcular la evaluación")
+        return servicio("POST", f"{conservacion}/gemelo/zonas/{codigo_ok(cod)}/evaluar", {"tenant": quien.tenant}, timeout=120)
+
+    @r.get("/api/sensores")
+    def lista_sensores(req: Request):
+        quien = nucleo.yo(req)
+        exigir(quien, LEER, "ver el gemelo")
+        reg, t = nucleo.registro, quien.tenant
+        zonas = {z["id"]: z for z in reg.listar(t, "HeritageZone")}
+        try:
+            ahora = {x["sensor"]: x for z in servicio("GET", f"{conservacion}/gemelo/resumen", params={"tenant": t})
+                     for x in z.get("lecturas", [])}
+        except HTTPException:
+            ahora = {}
+        return sorted(({"id": s["id"], "codigo": M.codigo(s["id"]), "nombre": v(s, "name"), "estado": v(s, "operStatus"),
+                        "zona": M.codigo(v(s, "refZone", "")), "zonaNombre": v(zonas.get(v(s, "refZone")), "name"),
+                        "posicion": v(s, "planPosition"), "serie": v(s, "serialNumber"), "ahora": ahora.get(s["id"])}
+                       for s in reg.listar(t, "EnvironmentalSensor")), key=lambda x: x["codigo"])
+
+    # ---------- configuración y demo ----------
+    @r.post("/api/semilla")
+    def semilla(req: Request):
+        quien = nucleo.yo(req)
+        exigir(quien, CONFIGURAR, "configurar el inmueble")
+        s = servicio("POST", f"{sensores}/gemelo/semilla", {"tenant": quien.tenant})
+        p = servicio("POST", f"{conservacion}/gemelo/preparar", {"tenant": quien.tenant}, timeout=300)
+        return {**s, **p}
+
+    @r.post("/api/simular")
+    def simular(req: Request, p: Dict[str, Any] = Body(...)):
+        quien = nucleo.yo(req)
+        exigir(quien, CONFIGURAR, "lanzar simulaciones")
+        cod, perfil = codigo_ok(str(p.get("zona", ""))), str(p.get("perfil", ""))
+        try:
+            servicio("POST", f"{sensores}/gemelo/perfil", {"tenant": quien.tenant, "zona": cod, "perfil": perfil})
+        except HTTPException as e:
+            if e.status_code != 404:     # zona sin sensores simulados: se simula solo la serie
+                raise
+        return servicio("POST", f"{conservacion}/gemelo/zonas/{cod}/simular",
+                        {"tenant": quien.tenant, "perfil": perfil, "dias": p.get("dias", 7)}, timeout=120)
+
+    @r.get("/api/perfiles")
+    def perfiles(req: Request):
+        quien = nucleo.yo(req)
+        exigir(quien, LEER, "ver el gemelo")
+        try:
+            return servicio("GET", f"{sensores}/gemelo/perfiles", params={"tenant": quien.tenant})
+        except HTTPException:
+            return []
+
+    @r.post("/api/zonas")
+    def nueva_zona(req: Request, p: Dict[str, Any] = Body(...)):
+        quien = nucleo.yo(req)
+        exigir(quien, CONFIGURAR, "configurar el inmueble")
+        t, reg = quien.tenant, nucleo.registro
+        edificios = reg.listar(t, "HeritageBuilding")
+        if not edificios:
+            raise HTTPException(409, "primero hace falta el inmueble (crea el de ejemplo o súbelo al catastro)")
+        try:
+            clima = {"temperatura": float(p.get("temperatura", 18)), "humedad": float(p.get("humedad", 55))}
+            e = M.zona(t, codigo_ok(str(p.get("codigo", ""))), edificio_cod=M.codigo(edificios[0]["id"]),
+                       nombre=str(p.get("nombre") or "").strip() or str(p.get("codigo")), tipo=str(p.get("tipo", "sala")),
+                       materiales=[x.strip() for x in str(p.get("materiales", "")).split(",") if x.strip()],
+                       area=float(p.get("area", 0) or 0), clima=clima,
+                       plano={k: float(p.get(k, d)) for k, d in (("x", 4), ("y", 4), ("w", 20), ("h", 14))})
+        except (TypeError, ValueError) as ex:
+            raise HTTPException(422, str(ex))
+        if reg.crear(t, e) != 201:
+            raise HTTPException(409, "ya existe una zona con ese código")
+        return {"zona": e["id"]}
+
+    @r.post("/api/sensores")
+    def nuevo_sensor(req: Request, p: Dict[str, Any] = Body(...)):
+        quien = nucleo.yo(req)
+        exigir(quien, CONFIGURAR, "configurar el inmueble")
+        t, reg = quien.tenant, nucleo.registro
+        zc = codigo_ok(str(p.get("zona", "")))
+        if not reg.leer(t, M.urn("HeritageZone", t, zc)):
+            raise HTTPException(404, f"no hay ninguna zona {zc}")
+        try:
+            ents = M.sensor(t, codigo_ok(str(p.get("codigo", ""))), zona_cod=zc, nombre=str(p.get("nombre") or p.get("codigo")),
+                            x=float(p.get("x", 50)), y=float(p.get("y", 30)))
+        except (TypeError, ValueError) as ex:
+            raise HTTPException(422, str(ex))
+        for e in ents:
+            if reg.crear(t, e) != 201:
+                raise HTTPException(409, f"ya existe {e['id']}")
+        try:   # que el simulador lo lea ya (si no, lo encontrará en su próxima vuelta)
+            servicio("POST", f"{sensores}/gemelo/tenants", {"tenant": t}, timeout=10)
+        except HTTPException:
+            pass
+        return {"sensor": ents[0]["id"], "observacion": ents[1]["id"]}
+
+    @r.post("/api/ingesta/observacion")
+    def ingesta(req: Request, p: Dict[str, Any] = Body(...)):
+        """Ingesta alternativa a los sensores simulados: un sistema de la institución (con una credencial de API de
+        «Mi institución») envía la lectura de uno de sus sensores."""
+        quien = nucleo.yo(req)
+        if not (set(quien.roles) & CONFIGURAR or quien.usuario.startswith("service-account-")):
+            raise HTTPException(403, "hace falta una credencial de API de tu institución")
+        t = quien.tenant
+        cod = codigo_ok(str(p.get("sensor", "")))
+        try:
+            temp, hr, cuando = float(p["temperatura"]), float(p["humedad"]), str(p["observadoEn"])
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(422, "sensor, temperatura, humedad y observadoEn (ISO 8601)")
+        if not (-30 <= temp <= 60 and 0 <= hr <= 100):
+            raise HTTPException(422, "lectura fuera de rango")
+        estado = nucleo.registro.anadir_atributos(t, M.urn("IndoorEnvironmentObserved", t, cod), M.lectura_attrs(temp, hr, cuando))
+        if estado == 404:
+            raise HTTPException(404, f"no hay ningún sensor {cod}")
+        return {"sensor": cod, "estado": estado}
+
+    # ---------- API del gemelo del archivo (depósitos con umbrales fijos) ----------
     @r.get("/api/depositos")
     def depositos(req: Request):
         quien = nucleo.yo(req)

@@ -41,7 +41,11 @@ class Nucleo:
 
     # ---------- identidad ----------
     def yo(self, req: Request) -> Identidad:
+        """Quién llama: la sesión de la consola o, por la API pública (/api/v1/<producto>/…), su token."""
         t = req.cookies.get(COOKIE)
+        auth = req.headers.get("authorization", "")
+        if not t and auth.lower().startswith("bearer "):
+            t = auth[7:].strip()
         if not t:
             raise HTTPException(401, "inicia sesión")
         try:
@@ -50,7 +54,8 @@ class Nucleo:
             raise HTTPException(401, e.motivo)
 
     def token(self, req: Request) -> str:
-        return req.cookies.get(COOKIE, "")
+        auth = req.headers.get("authorization", "")
+        return req.cookies.get(COOKIE) or (auth[7:].strip() if auth.lower().startswith("bearer ") else "")
 
     @staticmethod
     def de_mi_institucion(urn: str, quien: Identidad) -> None:

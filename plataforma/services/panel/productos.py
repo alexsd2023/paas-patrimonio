@@ -94,6 +94,7 @@ class Producto:
     descripcion: str = ""
     recetas: List[str] = field(default_factory=list)
     permisos: List[Permiso] = field(default_factory=list)
+    roles_sugeridos: List[str] = field(default_factory=list)   # los que se marcan al activarlo en el Marketplace
 
     @property
     def externo(self) -> bool:
@@ -179,7 +180,8 @@ def leer_manifiesto(datos: Dict[str, Any], id_carpeta: str) -> Producto:
                 modelo=modelo, url_externa=url, version=str(datos.get("version", "1.0.0")),
                 precio=str(datos.get("precio", "Incluido en la plataforma")),
                 descripcion=str(datos.get("descripcion", "") or datos["resumen"]),
-                recetas=[str(x) for x in datos.get("recetas", [])], permisos=permisos)
+                recetas=[str(x) for x in datos.get("recetas", [])], permisos=permisos,
+                roles_sugeridos=[str(x) for x in datos.get("roles", [])])
 
 
 def descubrir(carpeta: Path = CARPETA, paquete: str = "productos") -> List[Producto]:

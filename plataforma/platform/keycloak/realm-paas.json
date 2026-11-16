@@ -21,6 +21,18 @@
       {
         "name": "admin-paas",
         "description": "Opera la plataforma: secretos de plataforma y lista de instituciones"
+      },
+      {
+        "name": "gestor",
+        "description": "Gestor del inmueble: estado global del gemelo patrimonial"
+      },
+      {
+        "name": "conservador",
+        "description": "Conservación: evaluaciones del microclima y cierre de alertas con su causa"
+      },
+      {
+        "name": "tecnico",
+        "description": "Técnico: sensores y su estado en el mapa del inmueble"
       }
     ]
   },
@@ -169,6 +181,69 @@
       ],
       "realmRoles": [
         "admin-paas"
+      ]
+    },
+    {
+      "username": "conservador-test",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "conservador@archivo-villanueva.example",
+      "firstName": "Conservadora",
+      "lastName": "De pruebas",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "conservador",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "conservador"
+      ],
+      "groups": [
+        "/archivo-villanueva"
+      ]
+    },
+    {
+      "username": "tecnico-test",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "tecnico@archivo-villanueva.example",
+      "firstName": "Técnico",
+      "lastName": "De pruebas",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "tecnico",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "tecnico"
+      ],
+      "groups": [
+        "/archivo-villanueva"
+      ]
+    },
+    {
+      "username": "gestor-test",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "gestor@archivo-villanueva.example",
+      "firstName": "Gestora",
+      "lastName": "De pruebas",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "gestor",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "gestor"
+      ],
+      "groups": [
+        "/archivo-villanueva"
       ]
     },
     {

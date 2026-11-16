@@ -4,7 +4,8 @@ Scorpio (el catastro) avisa por HTTP cada vez que se inscribe una entidad; el pu
 redacta la carta estándar y la echa al bus. En el esqueleto solo traduce una cosa:
 
     ActivoPatrimonial nuevo         →  legajo.ingestado   (topic activos)
-    Deposito con lectura nueva      →  deposito.medicion  (topic sensores)   · gemelo digital
+    Deposito con lectura nueva      →  deposito.medicion  (topic sensores)   · gemelo del archivo
+    IndoorEnvironmentObserved       →  zona.medicion      (topic sensores)   · gemelo patrimonial
 
 Endpoints
     POST /ngsi-ld/notificaciones/{tenant}   destino de la suscripción de Scorpio
@@ -71,8 +72,24 @@ def medicion(entidad: Dict[str, Any], tenant: str) -> Optional[dict]:
         tenant=tenant, subject=entidad.get("id", ""), source=f"/tenants/{tenant}/servicios/puente", data=data)
 
 
+def observacion(entidad: Dict[str, Any], tenant: str) -> Optional[dict]:
+    """Lectura de un sensor de una zona patrimonial → zona.medicion (subject = la zona), o None si aún no hay lectura."""
+    t, h = entidad.get("temperature"), entidad.get("relativeHumidity")
+    zona, sensor = valor(entidad.get("refZone")), valor(entidad.get("refDevice"))
+    cuando = observado(h) or observado(t)
+    if t is None or h is None or not zona or not sensor or not cuando:
+        return None
+    return nuevo_evento(
+        "zona.medicion",
+        id=str(uuid.uuid5(ESPACIO_IDS, f"zona.medicion|{entidad.get('id')}|{cuando}")),
+        tenant=tenant, subject=zona, source=f"/tenants/{tenant}/servicios/puente",
+        data={"sensor": sensor, "temperatura": float(valor(t)), "humedad": float(valor(h)), "observadoEn": cuando})
+
+
 def a_evento(entidad: Dict[str, Any], tenant: str) -> Optional[dict]:
     """Traduce una entidad notificada a su CloudEvent, o None si no le toca carta."""
+    if str(entidad.get("type", "")).endswith("IndoorEnvironmentObserved"):
+        return observacion(entidad, tenant)
     if str(entidad.get("type", "")).endswith("Deposito"):
         return medicion(entidad, tenant)
     if not str(entidad.get("type", "")).endswith("ActivoPatrimonial"):

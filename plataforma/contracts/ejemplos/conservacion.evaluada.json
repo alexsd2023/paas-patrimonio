@@ -1,0 +1,27 @@
+{
+  "specversion": "1.0",
+  "id": "7d1f0a3e-2b1c-5d7e-9f00-1a2b3c4d5e02",
+  "source": "/tenants/archivo-villanueva/servicios/conservacion",
+  "type": "conservacion.evaluada",
+  "time": "2026-11-16T10:00:00.000Z",
+  "subject": "urn:ngsi-ld:HeritageZone:archivo-villanueva:Z01",
+  "datacontenttype": "application/json",
+  "tenant": "archivo-villanueva",
+  "data": {
+    "evaluacion": "urn:ngsi-ld:ClimateAssessment:archivo-villanueva:Z01",
+    "nombre": "Sala de lectura",
+    "nivel": "medio",
+    "metodo": "en15757",
+    "origenDatos": "mixto",
+    "desviacion30d": 7.5,
+    "objetivoHumedad": [
+      46.1,
+      66.4
+    ],
+    "objetivoTemperatura": [
+      16.2,
+      21.0
+    ],
+    "causa": "La humedad pasa un 7,5 % más de tiempo fuera de su banda que en su clima histórico"
+  }
+}

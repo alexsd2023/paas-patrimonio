@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/eventos/conservacion.riesgo.schema.json",
+  "title": "conservacion.riesgo · una alerta de conservación de una zona cambia de estado",
+  "description": "Lo emite el servicio de conservación al abrir, agravar, reconocer, proponer cerrar o cerrar una ConservationAlert. Al cerrarla consta quién y por qué.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "conservacion.riesgo"
+    },
+    "subject": {
+      "pattern": "^urn:ngsi-ld:HeritageZone:"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "alerta",
+        "estado",
+        "nivel",
+        "causa",
+        "evaluacion"
+      ],
+      "properties": {
+        "alerta": {
+          "type": "string",
+          "pattern": "^urn:ngsi-ld:ConservationAlert:[a-z0-9-]+:[A-Za-z0-9-]+$"
+        },
+        "estado": {
+          "enum": [
+            "abierta",
+            "agravada",
+            "reconocida",
+            "propuesta-cierre",
+            "cerrada"
+          ]
+        },
+        "nivel": {
+          "enum": [
+            "medio",
+            "alto"
+          ]
+        },
+        "causa": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evaluacion": {
+          "type": "string",
+          "pattern": "^urn:ngsi-ld:ClimateAssessment:[a-z0-9-]+:[A-Za-z0-9-]+$"
+        },
+        "nombre": {
+          "type": "string"
+        },
+        "por": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cierre": {
+          "type": "string",
+          "minLength": 1
+        },
+        "legajos": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^urn:ngsi-ld:ActivoPatrimonial:[a-z0-9-]+:[A-Za-z0-9-]+$"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "cerrada",
+                  "reconocida"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "por"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "cerrada"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "cierre"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -17,7 +17,7 @@ def test_escaparate_con_los_tres_modelos(entorno):  # noqa: F811
     c, _ = entorno
     c.post("/panel/alta", data=ALTA)
     html = _como(c, ADMIN).get("/panel/productos").text
-    for nombre in ("Legajo de la archivera", "Gemelo del archivo", "Scriptorium"):
+    for nombre in ("Legajo de la archivera", "Gemelo patrimonial", "Scriptorium"):
         assert nombre in html
     assert html.count('class="modelo integrado"') == 2 and html.count('class="modelo externo"') == 1
     assert 'data-fuera="true"' in html and 'id="solo-dentro"' in html and 'data-oficio="Investigación"' in html

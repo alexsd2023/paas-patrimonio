@@ -49,6 +49,7 @@ Desde el Mac, en `plataforma/`:
 | 8 · Puerta | `python scripts/puerta_check.py` |
 | 9 · Sala de lectura (IIIF) | `python scripts/ingesta_check.py` |
 | Gemelo digital | `python scripts/gemelo_check.py` |
+| Gemelo patrimonial (EN 15757) | `python scripts/gemelo_patrimonial_check.py` · antes, una vez: `python scripts/scorpio_temporal_check.py` |
 | Servicios y flujos | `python scripts/catalogo_check.py` |
 | 10 · Notario en Fuseki | `python scripts/fuseki_check.py` |
 | 11 · Trazas | `python scripts/traza_check.py` (Jaeger en http://servidor:16686) |
@@ -72,7 +73,7 @@ tipos `escribe` en el catastro; una capacidad declara qué tipo de documento rec
   `platform/.env`). El catálogo (`services/catalogo`) los publica, controla acceso y cuotas, y ejecuta los flujos
   con un único workflow de Temporal (`FlujoReceta`). API: `/api/v1/servicios`, `/api/v1/trabajos/<id>`, `/api/v1/flujos`.
 - **Productos** · se montan en `/panel/productos/<id>`. `legajo`: Legajos · Entregar · Validar · Tramos.
-  `gemelo`: Depósitos · Cajas y legajos.
+  `gemelo` (Gemelo patrimonial): Inicio · Zona · Mapa · Alertas · Configuración, y Depósitos · Cajas y legajos.
 - **Conectores** · cada institución rellena en la consola el formulario que pide su `conector.yaml` y lo ejecuta.
   `oai-pmh` cosecha Dublin Core y lo inscribe como `RegistroCatalografico` (cosechar dos veces actualiza, no
   duplica). Al terminar sale la carta `conector.ejecutado`. API: `/api/v1/conectores`, `/api/v1/ejecuciones/<id>`,
@@ -165,6 +166,7 @@ Piezas: `services/instituciones` (usa la API de administración de Keycloak con 
 ```bash
 echo "PAAS_GESTION_SECRET=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')" >> .env
 echo "CATALOGO_CLAVE=$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')" >> .env
+echo "CATALOGO_INTERNO_CLAVE=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')" >> .env
 echo "REGISTRO=abierto" >> .env
 ```
 
@@ -189,3 +191,48 @@ moderna (donde el NER acierta más) y las marca sobre la grafía antigua (*Johan
 Claves, en la consola (Mi institución → Secretos): `SCRIPTORIUM_API_KEY` si el despliegue de Ameyalli la
 exige, y opcionalmente `GROQ_API_KEY`/`OPENROUTER_API_KEY` propias de cada institución para el modernizador.
 Comprobación contra la API real: `python scripts/edicion_anotada_check.py --motor mt5`.
+
+## Gemelo patrimonial: el microclima objetivo EN 15757
+
+Especificación: «Gemelo Digital Patrimonial · especificación adaptada al PaaS» (v1.1). Reparto en las capas:
+
+| Capa | Pieza | Qué hace |
+|---|---|---|
+| Capacidad | `capacidades/evaluacion_en15757` (`srv-evaluacion-en15757`) | `serie-ambiental` → `evaluacion-climatica`. Pura: no lee ni escribe el catastro. Cualquier institución la usa por API con sus propias series |
+| Producto | `productos/gemelo` (v2.0) | Vistas, API `/api/v1/gemelo/…` y sus servicios `sensores` (simulador) y `conservacion` (series, evaluación, alertas) |
+| Núcleo | contratos | `contracts/contextos/gdp-v1.jsonld` (público en `/contexts/v1/gdp.jsonld`), tipos `serie-ambiental` y `evaluacion-climatica`, eventos `zona.medicion`, `conservacion.evaluada` y `conservacion.riesgo` |
+| Núcleo | identidad | Roles `gestor`, `conservador` y `tecnico` (asignables desde «Mi institución») |
+| Núcleo | catálogo | `POST /interno/servicios/<id>/ejecutar`: un servicio de un producto usa una capacidad para una institución, con `CATALOGO_INTERNO_CLAVE` (no lo publica la puerta). Cuenta en el consumo de la institución |
+
+**El cálculo (EN 15757:2010).** Media móvil centrada de 30 días; fluctuaciones = lectura − media; banda objetivo =
+media + [P7, P93] de las fluctuaciones, con al menos ±10 puntos de humedad relativa. Se calibra con todo menos los
+últimos 30 días, que se evalúan contra la media del clima histórico (la del mismo momento del año anterior, si hay
+un año). Nivel: «medio» si el tiempo fuera de banda supera en 5 puntos al de su clima histórico, «alto» si lo supera
+en 15 o si la humedad cambia más de 8 puntos en 2 horas. Todo son parámetros de la capacidad; el método simplificado
+de la especificación v1.0 (media de 7 días, P10–P90) sigue disponible con `metodo: simplificado`.
+
+**El recorrido.** El simulador escribe cada 30 s la lectura de cada sensor en su `IndoorEnvironmentObserved` →
+la suscripción avisa al puente → `zona.medicion` → conservación la guarda. Cada hora (programación
+`evaluacion-en15757` de Temporal, `EVALUACION_CRON`) conservación evalúa cada zona con la capacidad, escribe
+`ClimateAssessment` y abre, agrava o propone cerrar `ConservationAlert`. Conservación reconoce y cierra cada alerta
+con su causa: la firma va al proceso `AlertaConservacion` de Temporal y el notario la anota (también en el libro de
+los legajos, si la zona es un depósito enlazado con su `Deposito`).
+
+**Series.** Por defecto (`SERIES_ORIGEN=local`) conservación guarda las lecturas en su volumen (SQLite) y las de más
+de 48 h las resume por horas. Si `python scripts/scorpio_temporal_check.py` pasa en tu servidor, `SERIES_ORIGEN=scorpio`
+lee las lecturas reales del historial de Scorpio (API temporal NGSI-LD). El histórico sintético para calibrar
+(13 meses, marcado `sintetico`) siempre está en conservación.
+
+**La demo.** Al arrancar, el simulador inscribe el inmueble de ejemplo en `GEMELO_SEMILLA_TENANT`
+(archivo-villanueva) y conservación genera su histórico y lo evalúa. Para otra institución: Gemelo patrimonial →
+Configuración → «Crear el inmueble de ejemplo». En Configuración → «Simular para la demo», una desviación de 8 días
+en el sótano abre una alerta alta en un momento.
+
+**Al desplegarlo en un servidor que ya tenía la plataforma:**
+1. `CATALOGO_INTERNO_CLAVE` en `platform/.env` (ver arriba cómo generarla).
+2. Los roles en el Keycloak en marcha: `sh keycloak/roles-gemelo.sh` (desde `platform/`; con `--usuarios-prueba`
+   crea también `conservador-test`, `tecnico-test` y `gestor-test`, contraseña = su rol).
+3. `docker compose up -d --build srv-evaluacion-en15757 catalogo conservacion sensores puente procedencia panel instituciones`,
+   y `docker compose up -d --force-recreate apisix` (rutas nuevas) y `docker compose run --rm suscripciones`
+   (la suscripción de las observaciones; las instituciones dadas de alta después ya la reciben al registrarse,
+   y las anteriores en el siguiente arranque de instituciones).

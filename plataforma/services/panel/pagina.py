@@ -196,7 +196,8 @@ def barra(productos: List[Any], activo: str, quien: Any, enlaces: Dict[str, str]
     mis = "".join(_a(c.entrada, f'<span class="punto" style="background:{e(c.color)}" aria-hidden="true"></span>{e(c.nombre)}'
                      + (" ↗" if c.externo else ""), activo == f"producto:{c.id}", externo=c.externo) for c in productos
                   if c.estado == "conectado" and (activos is None or c.id in activos))
-    roles = " · ".join(r for r in quien.roles if r in ("archivera", "paleografa", "admin-institucion", "admin-paas")) or "sin rol"
+    roles = " · ".join(r for r in quien.roles if r in ("archivera", "paleografa", "gestor", "conservador", "tecnico",
+                                                       "admin-institucion", "admin-paas")) or "sin rol"
     gestiona = any(r in quien.roles for r in ("admin-institucion", "admin-paas"))
     mia = _grupo("institucion", "Mi institución",
                  _a("/panel/institucion", "Personas, productos y claves" if gestiona else "Mi institución", activo == "institucion")
@@ -287,7 +288,7 @@ def entrar_html(error: str = "") -> str:
 <label>Contraseña<input type="password" id="clave" name="clave" autocomplete="current-password" required></label>
 <button class="btn" type="submit">Entrar</button></form>
 <p class="pista">¿Tu institución aún no usa la plataforma? <a href="/panel/alta">Dadla de alta</a>.</p>
-<p class="pista">Usuarios de prueba: <span class="mono">m.ortega</span> (archivera), <span class="mono">paleografa-test</span> (paleógrafa), <span class="mono">p.otro</span> (otra institución).</p>
+<p class="pista">Usuarios de prueba: <span class="mono">m.ortega</span> (archivera), <span class="mono">paleografa-test</span> (paleógrafa), <span class="mono">p.otro</span> (otra institución); en el gemelo patrimonial, <span class="mono">conservador-test</span>, <span class="mono">tecnico-test</span> y <span class="mono">gestor-test</span>.</p>
 </div></body></html>"""
 
 

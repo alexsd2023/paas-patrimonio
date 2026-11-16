@@ -40,7 +40,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 log = logging.getLogger("instituciones")
 
 RAIZ = Path(__file__).resolve().parents[2]
-ROLES_ASIGNABLES = ["archivera", "paleografa", "admin-institucion"]
+ROLES_ASIGNABLES = ["archivera", "paleografa", "gestor", "conservador", "tecnico", "admin-institucion"]
 GRUPO_OPERADORES = "paas"
 RESERVADAS = {"paas", "admin", "master", "sistema", "plataforma"}
 _ID = re.compile(r"^[a-z][a-z0-9-]{2,39}$")

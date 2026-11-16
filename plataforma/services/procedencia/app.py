@@ -8,7 +8,7 @@ Dónde guarda el libro:
     consultable con SPARQL desde fuera.             → FUSEKI_URL definido
   · un fichero Turtle local (tests, o sin Fuseki).   → PROCEDENCIA_RUTA
 
-    GET /actas?activo=<urn>   actas de un legajo (o de un depósito), en orden
+    GET /actas?activo=<urn>   actas de un legajo, un depósito, una zona o una alerta, en orden
     GET /prov.ttl             el grafo completo
     GET /salud
 """
@@ -120,6 +120,40 @@ def tripletas(ev: dict) -> Graph:
         g.add((act, PAAS.sobre, dep))
         g.add((dep, RDF.type, PROV.Entity))
         for leg in data.get("legajos", []):  # consta también en el libro de cada legajo afectado
+            g.add((act, PAAS.sobre, URIRef(leg)))
+    elif ev["type"] == "conservacion.evaluada":
+        zona, evaluacion = URIRef(ev["subject"]), URIRef(data["evaluacion"])
+        capacidad = URIRef("urn:paas:capacidad:evaluacion-en15757")
+        g.add((act, PAAS.tipoActa, Literal("evaluacion-climatica")))
+        g.add((act, PAAS.sobre, zona))
+        g.add((act, PAAS.sobre, evaluacion))
+        g.add((act, PROV.used, zona))
+        g.add((evaluacion, RDF.type, PROV.Entity))
+        g.add((evaluacion, PROV.wasGeneratedBy, act))
+        g.add((capacidad, RDF.type, PROV.SoftwareAgent))
+        g.add((act, PROV.wasAssociatedWith, capacidad))
+        g.add((act, PAAS.detalle, Literal(f"{data.get('nombre', '')}: riesgo {data['nivel']} · {data['metodo']} · "
+                                          f"desviación {data['desviacion30d']} % · datos {data.get('origenDatos', '?')}")))
+    elif ev["type"] == "conservacion.riesgo":
+        zona, alerta, evaluacion = URIRef(ev["subject"]), URIRef(data["alerta"]), URIRef(data["evaluacion"])
+        g.add((act, PAAS.tipoActa, Literal(f"alerta-zona-{data['estado']}")))
+        for x in (zona, alerta):
+            g.add((act, PAAS.sobre, x))
+        g.add((alerta, RDF.type, PROV.Entity))
+        g.add((act, PROV.used, evaluacion))                 # toda alerta remite a la evaluación que la originó
+        if data["estado"] == "abierta":
+            g.add((alerta, PROV.wasGeneratedBy, act))
+            g.add((alerta, PROV.wasDerivedFrom, evaluacion))
+        detalle = f"{data.get('nombre', '')}: {data['estado']} · nivel {data['nivel']} · {data['causa']}"
+        if data.get("por"):
+            persona = URIRef(f"urn:paas:usuario:{tenant}:{data['por']}")
+            g.add((persona, RDF.type, PROV.Person))
+            g.add((act, PROV.wasAssociatedWith, persona))
+            detalle += f" · {data['por']}"
+        if data.get("cierre"):
+            detalle += f" · causa del cierre: {data['cierre']}"
+        g.add((act, PAAS.detalle, Literal(detalle)))
+        for leg in data.get("legajos", []):  # zona de depósito: consta también en el libro de cada legajo
             g.add((act, PAAS.sobre, URIRef(leg)))
     else:
         g.add((act, PAAS.tipoActa, Literal(ev["type"])))

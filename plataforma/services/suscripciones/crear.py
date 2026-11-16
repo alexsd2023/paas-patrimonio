@@ -50,7 +50,25 @@ def suscripcion_depositos(tenant: str) -> dict:
     }
 
 
-SUSCRIPCIONES_PUENTE = [(SUB_ID, suscripcion), (SUB_DEPOSITOS, suscripcion_depositos)]
+SUB_OBSERVACIONES = "urn:ngsi-ld:Subscription:puente-observaciones"
+
+
+def suscripcion_observaciones(tenant: str) -> dict:
+    """Gemelo patrimonial: cada lectura de un sensor de una zona (IndoorEnvironmentObserved → zona.medicion)."""
+    return {
+        "id": SUB_OBSERVACIONES,
+        "type": "Subscription",
+        "description": "Avisa al puente de cada lectura de los sensores de las zonas patrimoniales",
+        "entities": [{"type": "IndoorEnvironmentObserved"}],
+        "watchedAttributes": ["temperature", "relativeHumidity"],
+        "notification": {
+            "endpoint": {"uri": f"{PUENTE}/ngsi-ld/notificaciones/{tenant}", "accept": "application/json"},
+        },
+    }
+
+
+SUSCRIPCIONES_PUENTE = [(SUB_ID, suscripcion), (SUB_DEPOSITOS, suscripcion_depositos),
+                        (SUB_OBSERVACIONES, suscripcion_observaciones)]
 
 
 def preparar(reg: Registro, t: str) -> list:

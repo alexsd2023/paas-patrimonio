@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/tipos/serie-ambiental.schema.json",
+  "title": "serie-ambiental",
+  "type": "object",
+  "description": "Serie de temperatura (°C) y humedad relativa (%) de una zona, ordenada en el tiempo. Lo normal: un punto por hora y al menos un año para calibrar.",
+  "required": [
+    "zona",
+    "puntos"
+  ],
+  "properties": {
+    "zona": {
+      "type": "string",
+      "description": "Identificador de la zona (URN o código)"
+    },
+    "nombre": {
+      "type": "string"
+    },
+    "desde": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "hasta": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "metodo": {
+      "enum": [
+        "historico",
+        "sintetico",
+        "mixto"
+      ],
+      "description": "Origen de los datos: lecturas reales, generadas o ambas"
+    },
+    "puntos": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "t",
+          "temperatura",
+          "humedad"
+        ],
+        "properties": {
+          "t": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "temperatura": {
+            "type": "number",
+            "minimum": -30,
+            "maximum": 60
+          },
+          "humedad": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

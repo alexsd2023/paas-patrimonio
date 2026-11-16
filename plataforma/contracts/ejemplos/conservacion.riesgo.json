@@ -1,0 +1,20 @@
+{
+  "specversion": "1.0",
+  "id": "7d1f0a3e-2b1c-5d7e-9f00-1a2b3c4d5e03",
+  "source": "/tenants/archivo-villanueva/servicios/conservacion",
+  "type": "conservacion.riesgo",
+  "time": "2026-11-16T10:00:00.000Z",
+  "subject": "urn:ngsi-ld:HeritageZone:archivo-villanueva:Z01",
+  "datacontenttype": "application/json",
+  "tenant": "archivo-villanueva",
+  "data": {
+    "alerta": "urn:ngsi-ld:ConservationAlert:archivo-villanueva:Z01-1",
+    "estado": "cerrada",
+    "nivel": "medio",
+    "causa": "Humedad fuera de su banda histórica",
+    "evaluacion": "urn:ngsi-ld:ClimateAssessment:archivo-villanueva:Z01",
+    "nombre": "Sala de lectura",
+    "por": "conservador-test",
+    "cierre": "Deshumidificador reparado el 14/11"
+  }
+}

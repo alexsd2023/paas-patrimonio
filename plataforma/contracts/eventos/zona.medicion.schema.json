@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/eventos/zona.medicion.schema.json",
+  "title": "zona.medicion · lectura de un sensor de una zona patrimonial",
+  "description": "Lo emite el puente cuando el catastro registra una observación nueva (IndoorEnvironmentObserved) de un sensor. El subject es la zona.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "zona.medicion"
+    },
+    "subject": {
+      "pattern": "^urn:ngsi-ld:HeritageZone:"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "sensor",
+        "temperatura",
+        "humedad",
+        "observadoEn"
+      ],
+      "properties": {
+        "sensor": {
+          "type": "string",
+          "pattern": "^urn:ngsi-ld:EnvironmentalSensor:[a-z0-9-]+:[A-Za-z0-9-]+$"
+        },
+        "temperatura": {
+          "type": "number",
+          "minimum": -30,
+          "maximum": 60
+        },
+        "humedad": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "observadoEn": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
