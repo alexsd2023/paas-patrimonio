@@ -4,8 +4,22 @@
 	email {$ACME_EMAIL}
 }
 
+# Registro de accesos (JSON) para las estadísticas por país (platform/visitas.sh).
+# Guarda las IP de los visitantes: se conservan 30 días como máximo.
+(registro) {
+	log {
+		output file /var/log/caddy/accesos.log {
+			roll_size 50MiB
+			roll_keep 10
+			roll_keep_for 720h
+		}
+		format json
+	}
+}
+
 # Consola y API → APISIX
 {$DOMINIO} {
+	import registro
 	encode zstd gzip
 	reverse_proxy apisix:9080 {
 		# la cookie de sesión de la consola solo viaja por HTTPS
@@ -19,6 +33,7 @@
 
 # Inicio de sesión y tokens → Keycloak
 {$AUTH_DOMINIO} {
+	import registro
 	encode zstd gzip
 	# La consola de administración de Keycloak solo desde ADMIN_IP (por defecto, nadie)
 	@admin_fuera {

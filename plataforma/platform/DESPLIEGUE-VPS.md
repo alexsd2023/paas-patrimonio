@@ -250,3 +250,19 @@ Guarda también la clave nueva en tu gestor de contraseñas, con el resto del `.
 - **Usuarios de prueba en la pantalla de entrada.** La consola sigue mostrando los nombres de los usuarios de prueba, aunque sus contraseñas ya no son las de ejemplo. Quitarlos requiere un pequeño cambio de código.
 - **Consolas técnicas compartidas.** Enseñan los datos de todas las instituciones. Conviene un aviso de «no subas datos reales» y un reinicio periódico de la demo.
 - **Componentes en modo desarrollo.** Keycloak (H2) y Temporal funcionan en modo desarrollo, Kafka tiene un solo nodo y las imágenes no tienen versión fija. No hay monitorización ni alertas. Todo eso es la fase siguiente si la demo pasa a ser un servicio.
+
+## 12 · Visitas por país
+
+Caddy guarda un registro de accesos en `/var/log/caddy/accesos.log` (JSON, con rotación; como máximo 30 días, porque contiene IP de visitantes). Para ver un informe por países, páginas, navegadores y horas:
+
+```bash
+~/paas-patrimonio/plataforma/platform/visitas.sh
+```
+
+Genera `~/visitas.html` con GoAccess (en Docker) y la base de países gratuita de DB-IP (CC BY 4.0), que se baja sola una vez al mes. Para verlo en el Mac:
+
+```bash
+scp paas@‹IP›:visitas.html ~/Downloads/ && open ~/Downloads/visitas.html
+```
+
+El informe anonimiza el último bloque de cada IP. Solo cuenta desde que se activó el registro: los accesos anteriores no se guardaron.

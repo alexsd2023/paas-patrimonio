@@ -29,6 +29,7 @@ services:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
+      - /var/log/caddy:/var/log/caddy     # registro de accesos (visitas.sh)
     depends_on:
       - apisix
       - keycloak
