@@ -269,11 +269,7 @@ Neo4j Community va en el perfil público: la plataforma llega a él por `bolt://
 
 1. En `platform/.env`, añade `NEO4J_PASSWORD` (8 caracteres o más) y, si quieres, `NEO4J_HEAP` y `NEO4J_PAGECACHE`.
 2. Arráncalo: `dc up -d neo4j` y espera a `dc ps neo4j` → `healthy`.
-3. Para abrir Neo4j Browser desde el Mac, con un túnel:
-   ```bash
-   ssh -L 7474:localhost:7474 -L 7687:localhost:7687 paas@‹IP›
-   ```
-   y en el navegador `http://localhost:7474` (usuario `neo4j`, conexión `bolt://localhost:7687`).
+3. Desde internet: crea en el DNS el registro A `neo4j.paas` → ‹IP›, pon `NEO4J_DOMINIO=neo4j.paas.‹dominio›` en `platform/.env` y recrea Caddy (`dc up -d --force-recreate caddy`). Abre `https://neo4j.paas.‹dominio›` y conecta con `bolt+s://neo4j.paas.‹dominio›:443`, usuario `neo4j`. Sin exponerlo, también vale un túnel: `ssh -L 7474:localhost:7474 -L 7687:localhost:7687 paas@‹IP›` y `http://localhost:7474`.
 4. La copia diaria lo incluye: lo para unos segundos y guarda `neo4j.dump`. Para restaurarlo:
    ```bash
    dc stop neo4j

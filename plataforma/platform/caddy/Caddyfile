@@ -1,5 +1,5 @@
 # Caddy: la única puerta del VPS. Certificados de Let's Encrypt automáticos.
-# Los nombres vienen de platform/.env (DOMINIO, AUTH_DOMINIO, ACME_EMAIL, ADMIN_IP).
+# Los nombres vienen de platform/.env (DOMINIO, AUTH_DOMINIO, NEO4J_DOMINIO, ACME_EMAIL, ADMIN_IP).
 {
 	email {$ACME_EMAIL}
 }
@@ -42,6 +42,22 @@
 	}
 	respond @admin_fuera "Forbidden" 403
 	reverse_proxy keycloak:8080
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+}
+
+# Neo4j Browser → Neo4j. La misma dirección sirve la interfaz (HTTP, 7474) y la conexión del navegador
+# a la base (Bolt sobre WebSocket, 7687). En el Browser: bolt+s://NEO4J_DOMINIO:443
+{$NEO4J_DOMINIO} {
+	import registro
+	@bolt {
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+	reverse_proxy @bolt neo4j:7687
+	reverse_proxy neo4j:7474
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		-Server

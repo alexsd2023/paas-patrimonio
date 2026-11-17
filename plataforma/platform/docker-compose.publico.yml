@@ -23,6 +23,7 @@ services:
     environment:
       DOMINIO: ${DOMINIO:?Define DOMINIO en platform/.env}
       AUTH_DOMINIO: ${AUTH_DOMINIO:?Define AUTH_DOMINIO en platform/.env}
+      NEO4J_DOMINIO: ${NEO4J_DOMINIO:?Define NEO4J_DOMINIO en platform/.env}
       ACME_EMAIL: ${ACME_EMAIL:?Define ACME_EMAIL en platform/.env}
       ADMIN_IP: ${ADMIN_IP:-127.0.0.1/32}
     volumes:
@@ -33,6 +34,7 @@ services:
     depends_on:
       - apisix
       - keycloak
+      - neo4j
 
   keycloak:
     ports: !reset []
@@ -64,9 +66,9 @@ services:
     ports: !reset []
 
   neo4j:
-    # Grafo (Neo4j Community). Solo para la red interna (bolt://neo4j:7687) y para ti por túnel SSH:
-    # los puertos se publican SOLO en 127.0.0.1 del VPS, no en internet.
-    #   ssh -L 7474:localhost:7474 -L 7687:localhost:7687 paas@‹IP›   →   http://localhost:7474
+    # Grafo (Neo4j Community). Desde internet, por Caddy: https://NEO4J_DOMINIO (Browser) y
+    # bolt+s://NEO4J_DOMINIO:443 (conexión). Dentro de la plataforma: bolt://neo4j:7687.
+    # Los puertos de abajo solo existen en 127.0.0.1 del VPS (túnel SSH), no en internet.
     image: neo4j:2026-community
     restart: unless-stopped
     environment:
