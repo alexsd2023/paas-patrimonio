@@ -52,10 +52,9 @@
 # a la base (Bolt sobre WebSocket, 7687). En el Browser: bolt+s://NEO4J_DOMINIO:443
 {$NEO4J_DOMINIO} {
 	import registro
-	@bolt {
-		header Connection *Upgrade*
-		header Upgrade websocket
-	}
+	# Conexión del Browser a la base: WebSocket por HTTP/1.1 (Upgrade) o por HTTP/2 (CONNECT).
+	# En los dos casos llega la cabecera Sec-WebSocket-Version.
+	@bolt header Sec-WebSocket-Version *
 	reverse_proxy @bolt neo4j:7687
 	reverse_proxy neo4j:7474
 	header {
