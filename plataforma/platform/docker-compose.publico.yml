@@ -63,6 +63,28 @@ services:
   jaeger:
     ports: !reset []
 
+  neo4j:
+    # Grafo (Neo4j Community). Solo para la red interna (bolt://neo4j:7687) y para ti por túnel SSH:
+    # los puertos se publican SOLO en 127.0.0.1 del VPS, no en internet.
+    #   ssh -L 7474:localhost:7474 -L 7687:localhost:7687 paas@‹IP›   →   http://localhost:7474
+    image: neo4j:2026-community
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Define NEO4J_PASSWORD en platform/.env}
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP:-1g}
+      NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE:-512m}
+    volumes:
+      - neo4j-data:/data
+    ports:
+      - "127.0.0.1:7474:7474"     # Neo4j Browser
+      - "127.0.0.1:7687:7687"     # Bolt
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/7687'"]
+      interval: 15s
+      retries: 20
+
 volumes:
   caddy-data:
   caddy-config:
+  neo4j-data:

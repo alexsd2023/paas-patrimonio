@@ -262,3 +262,22 @@ Caddy guarda un registro de accesos en `/var/log/caddy/accesos.log` (JSON, con r
 ```
 
 Saca una línea por visita, la más reciente primero: hora de llegada, IP y país. Una visita son las peticiones seguidas de una misma IP sin más de 30 minutos de pausa. El país sale de la base gratuita de DB-IP (CC BY 4.0), que el script baja sola una vez al mes. Solo cuenta desde que se activó el registro.
+
+## 13 · Neo4j
+
+Neo4j Community va en el perfil público: la plataforma llega a él por `bolt://neo4j:7687` y sus puertos solo se abren en `127.0.0.1` del VPS (no en internet).
+
+1. En `platform/.env`, añade `NEO4J_PASSWORD` (8 caracteres o más) y, si quieres, `NEO4J_HEAP` y `NEO4J_PAGECACHE`.
+2. Arráncalo: `dc up -d neo4j` y espera a `dc ps neo4j` → `healthy`.
+3. Para abrir Neo4j Browser desde el Mac, con un túnel:
+   ```bash
+   ssh -L 7474:localhost:7474 -L 7687:localhost:7687 paas@‹IP›
+   ```
+   y en el navegador `http://localhost:7474` (usuario `neo4j`, conexión `bolt://localhost:7687`).
+4. La copia diaria lo incluye: lo para unos segundos y guarda `neo4j.dump`. Para restaurarlo:
+   ```bash
+   dc stop neo4j
+   docker run --rm -v paas_neo4j-data:/data -v /var/backups/paas/‹fecha›:/backups neo4j:2026-community \
+     neo4j-admin database load neo4j --from-path=/backups --overwrite-destination=true
+   dc start neo4j
+   ```
