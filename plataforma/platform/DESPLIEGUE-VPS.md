@@ -251,17 +251,17 @@ Guarda también la clave nueva en tu gestor de contraseñas, con el resto del `.
 - **Consolas técnicas compartidas.** Enseñan los datos de todas las instituciones. Conviene un aviso de «no subas datos reales» y un reinicio periódico de la demo.
 - **Componentes en modo desarrollo.** Keycloak (H2) y Temporal funcionan en modo desarrollo, Kafka tiene un solo nodo y las imágenes no tienen versión fija. No hay monitorización ni alertas. Todo eso es la fase siguiente si la demo pasa a ser un servicio.
 
-## 12 · Visitas: IP, hora y país
+## 12 · Visitas: IP, hora, tiempo dentro y ubicación
 
-Caddy guarda un registro de accesos en `/var/log/caddy/accesos.log` (JSON, con rotación; como máximo 30 días, porque contiene IP de visitantes). Para ver las visitas:
+Caddy guarda un registro de accesos en `/var/log/caddy/accesos.log` (JSON, con rotación; como máximo 30 días, porque contiene IP de visitantes).
 
 ```bash
-~/paas-patrimonio/plataforma/platform/visitas.sh            # últimos 7 días
-~/paas-patrimonio/plataforma/platform/visitas.sh 30         # últimos 30 días
-~/paas-patrimonio/plataforma/platform/visitas.sh 30 csv > ~/visitas.csv   # para Excel
+platform/visitas.sh                 # últimos 7 días
+platform/visitas.sh 30 MX           # 30 días, solo México (ES, US…)
+platform/visitas.sh 30 csv > ~/visitas.csv     # para Excel
 ```
 
-Saca una línea por visita, la más reciente primero: hora de llegada, IP y país. Una visita son las peticiones seguidas de una misma IP sin más de 30 minutos de pausa. El país sale de la base gratuita de DB-IP (CC BY 4.0), que el script baja sola una vez al mes. Solo cuenta desde que se activó el registro.
+Una línea por visita (peticiones de una IP sin pausas de más de 30 minutos): hora de llegada, IP, tiempo dentro (de la primera a la última petición), sitio (`paas`, `auth`, `neo4j`) y ciudad, región y país según la base gratuita de DB-IP (CC BY 4.0), que el script baja sola una vez al mes. La ubicación es aproximada. Las conexiones directas a Neo4j por el 7687 no pasan por Caddy y no aparecen.
 
 ## 13 · Neo4j
 
