@@ -1,0 +1,17 @@
+{
+  "specversion": "1.0",
+  "id": "55555555-5555-4555-8555-555555555555",
+  "source": "/tenants/archivo-villanueva/servicios/procesos",
+  "type": "evidencia.anclada",
+  "time": "2026-11-19T17:30:05Z",
+  "subject": "urn:ngsi-ld:Transcripcion:archivo-villanueva:TEST-001-t1",
+  "datacontenttype": "application/json",
+  "tenant": "archivo-villanueva",
+  "data": {
+    "activo": "urn:ngsi-ld:ActivoPatrimonial:archivo-villanueva:TEST-001",
+    "huella": "3b1f5c9e8a7d6c5b4a39281706f5e4d3c2b1a0998877665544332211ffeeddcc",
+    "certificacion": "pendiente",
+    "anclajes": [{ "proveedor": "blockchain", "modo": "real", "estado": "pendiente" }],
+    "certificadoPor": "paleografa-test"
+  }
+}

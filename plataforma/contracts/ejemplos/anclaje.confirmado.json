@@ -1,0 +1,18 @@
+{
+  "specversion": "1.0",
+  "id": "2c4d6e8f-0a1b-4c3d-8e5f-6a7b8c9d0e12",
+  "source": "/tenants/archivo-villanueva/servicios/procesos",
+  "type": "anclaje.confirmado",
+  "time": "2026-11-19T21:02:41Z",
+  "subject": "urn:ngsi-ld:Transcripcion:archivo-villanueva:TEST-001-t1",
+  "datacontenttype": "application/json",
+  "tenant": "archivo-villanueva",
+  "data": {
+    "activo": "urn:ngsi-ld:ActivoPatrimonial:archivo-villanueva:TEST-001",
+    "huella": "3b1f5c9e8a7d6c5b4a39281706f5e4d3c2b1a0998877665544332211ffeeddcc",
+    "proveedor": "blockchain",
+    "modo": "real",
+    "bloque": 925000,
+    "fecha": "2026-11-19T20:41:10Z"
+  }
+}

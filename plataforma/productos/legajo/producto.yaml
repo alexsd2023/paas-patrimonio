@@ -22,11 +22,11 @@ permisos:
 # Piezas del núcleo que usa (ver services/panel/productos.py · PIEZAS_NUCLEO)
 usa: [identidad, puerta, imagenes, correos, catastro, procesos, notario, trazas, modelos]
 # Capacidades del catálogo que necesita (capacidades/<id>)
-requiere: []
+requiere: [certificacion-documental]
 # Contenedores propios del producto (docker compose); no son del núcleo
 contenedores: [iiif, gestoria, htr, procesos]
 # Buzones del bus en los que publica o lee
-buzones: [activos, htr]
+buzones: [activos, htr, certificacion]
 vistas:
   - {id: legajos, nombre: Legajos}
   - {id: entregar, nombre: Entregar, ruta: entregar}

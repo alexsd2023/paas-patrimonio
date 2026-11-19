@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/eventos/evidencia.anclada.schema.json",
+  "title": "evidencia.anclada · una transcripción validada queda certificada",
+  "description": "Lo emite el proceso de transcripción (producto legajo) tras certificar la transcripción con la capacidad certificacion-documental. La evidencia completa (con sus pruebas) queda en el catastro, en la entidad Transcripcion; aquí solo viaja el resumen.",
+  "type": "object",
+  "properties": {
+    "type": { "const": "evidencia.anclada" },
+    "subject": { "pattern": "^urn:ngsi-ld:Transcripcion:" },
+    "data": {
+      "type": "object",
+      "required": ["activo", "huella", "certificacion", "anclajes", "certificadoPor"],
+      "properties": {
+        "activo": { "type": "string", "pattern": "^urn:ngsi-ld:ActivoPatrimonial:" },
+        "huella": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "certificacion": { "enum": ["pendiente", "confirmada", "error"], "description": "pendiente: algún anclaje espera confirmación (Bitcoin tarda horas)" },
+        "anclajes": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["proveedor", "modo", "estado"],
+            "properties": {
+              "proveedor": { "enum": ["blockchain", "eidas", "nom151"] },
+              "modo": { "enum": ["real", "demo", "simulado"] },
+              "estado": { "enum": ["pendiente", "confirmado", "error"] }
+            },
+            "additionalProperties": false
+          }
+        },
+        "certificadoPor": { "type": "string", "pattern": "^[a-z0-9-]+@[0-9]+(\\.[0-9]+)*$", "description": "La capacidad y su versión (un agente de software, no una persona)" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -6,7 +6,7 @@ import os
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from services.procesos.actividades import registrar_validacion, transcribir
+from services.procesos.actividades import certificar, registrar_validacion, transcribir
 from services.procesos.flujo import TranscripcionEstandar
 from sdk.trazas import configurar, interceptores_temporal
 
@@ -27,7 +27,7 @@ async def main() -> None:
             await asyncio.sleep(3)
     log.info("trabajando en la cola %s", COLA)
     await Worker(cliente, task_queue=COLA, workflows=[TranscripcionEstandar],
-                 activities=[transcribir, registrar_validacion]).run()
+                 activities=[transcribir, registrar_validacion, certificar]).run()
 
 
 if __name__ == "__main__":

@@ -48,7 +48,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command: |
       "
-      for t in activos htr sensores conservacion flujos conectores; do
+      for t in activos htr sensores conservacion flujos conectores certificacion; do
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic $$t --partitions 3 --replication-factor 1
       done
       /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --list
@@ -323,6 +323,11 @@ services:
       HTR_URL: http://htr:8080
       SCORPIO_URL: http://scorpio:9090
       KAFKA_BOOTSTRAP: kafka:29092
+      # Certificación de cada transcripción validada (capacidad certificacion-documental, por el catálogo)
+      CERTIFICAR: ${CERTIFICAR:-si}
+      CERTIFICAR_ANCLAJES: ${CERTIFICAR_ANCLAJES:-blockchain}        # p. ej. blockchain,eidas,nom151
+      CATALOGO_INTERNO: http://catalogo:8080
+      CATALOGO_INTERNO_CLAVE: ${CATALOGO_INTERNO_CLAVE:?Define CATALOGO_INTERNO_CLAVE en platform/.env}
     depends_on:
       temporal:
         condition: service_started

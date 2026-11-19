@@ -30,6 +30,17 @@ async def validacion_falsa(d: dict) -> dict:
     return {"evento": "x"}
 
 
+@activity.defn(name="certificar")
+async def certificar_falso(d: dict) -> dict:
+    registro.append(("certificar", d["transcripcion"]))
+    return {"certificacion": "pendiente", "huella": "0" * 64}
+
+
+@activity.defn(name="certificar")
+async def certificar_caido(d: dict) -> dict:
+    raise RuntimeError("el catálogo no responde")
+
+
 def test_proceso_espera_la_firma_y_termina():
     async def caso():
         try:
@@ -38,7 +49,7 @@ def test_proceso_espera_la_firma_y_termina():
             pytest.skip(f"servidor de pruebas de Temporal no disponible: {e}")
         async with env:
             async with Worker(env.client, task_queue="t", workflows=[TranscripcionEstandar],
-                              activities=[transcribir_falso, validacion_falsa]):
+                              activities=[transcribir_falso, validacion_falsa, certificar_falso]):
                 h = await env.client.start_workflow(
                     TranscripcionEstandar.run,
                     {"activo": "urn:ngsi-ld:ActivoPatrimonial:archivo-villanueva:TEST-001",
@@ -53,5 +64,32 @@ def test_proceso_espera_la_firma_y_termina():
                 fin = await h.result()
                 assert fin["estado"] == "completado" and fin["validadoPor"] == "paleografa-test"
                 assert ("validacion", "paleografa-test") in registro
+                assert fin["certificacion"] == "pendiente"
+                assert ("certificar", "urn:ngsi-ld:Transcripcion:archivo-villanueva:TEST-001-t1") in registro
+
+    asyncio.run(caso())
+
+
+def test_si_la_certificacion_falla_el_proceso_termina_igual():
+    async def caso():
+        try:
+            env = await WorkflowEnvironment.start_time_skipping()
+        except Exception as e:  # sin red para descargar el servidor de pruebas
+            pytest.skip(f"servidor de pruebas de Temporal no disponible: {e}")
+        async with env:
+            async with Worker(env.client, task_queue="t2", workflows=[TranscripcionEstandar],
+                              activities=[transcribir_falso, validacion_falsa, certificar_caido]):
+                h = await env.client.start_workflow(
+                    TranscripcionEstandar.run,
+                    {"activo": "urn:ngsi-ld:ActivoPatrimonial:archivo-villanueva:TEST-002",
+                     "tenant": "archivo-villanueva", "signatura": "TEST-002"},
+                    id=f"t-{uuid.uuid4()}", task_queue="t2")
+                for _ in range(50):
+                    if (await h.query(TranscripcionEstandar.estado))["estado"] == "pendiente-validacion":
+                        break
+                    await asyncio.sleep(0.1)
+                await h.signal(TranscripcionEstandar.validar, "paleografa-test")
+                fin = await h.result()
+                assert fin["estado"] == "completado" and fin["certificacion"] == "error"
 
     asyncio.run(caso())

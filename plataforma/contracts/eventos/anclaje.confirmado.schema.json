@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/eventos/anclaje.confirmado.schema.json",
+  "title": "anclaje.confirmado · un anclaje pendiente queda confirmado",
+  "description": "Lo emite la confirmación periódica de certificaciones (producto legajo) cuando un anclaje pendiente se completa; p. ej. la huella entra en un bloque de Bitcoin.",
+  "type": "object",
+  "properties": {
+    "type": { "const": "anclaje.confirmado" },
+    "subject": { "pattern": "^urn:ngsi-ld:Transcripcion:" },
+    "data": {
+      "type": "object",
+      "required": ["activo", "huella", "proveedor", "modo"],
+      "properties": {
+        "activo": { "type": "string", "pattern": "^urn:ngsi-ld:ActivoPatrimonial:" },
+        "huella": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "proveedor": { "enum": ["blockchain", "eidas", "nom151"] },
+        "modo": { "enum": ["real", "demo", "simulado"] },
+        "bloque": { "type": "integer", "minimum": 0 },
+        "fecha": { "type": "string", "format": "date-time", "description": "La hora que certifica el tercero (para Bitcoin, la del bloque)" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

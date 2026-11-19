@@ -39,6 +39,8 @@ TOPIC_POR_TIPO = {
     "conservacion.riesgo": "conservacion",
     "flujo.completado": "flujos",
     "conector.ejecutado": "conectores",
+    "evidencia.anclada": "certificacion",
+    "anclaje.confirmado": "certificacion",
 }
 _SOBRE = ["specversion", "id", "source", "type", "time", "subject", "tenant", "traceparent"]
 
