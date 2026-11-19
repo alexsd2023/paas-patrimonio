@@ -124,7 +124,62 @@ def _certificar(d: dict, ejecutar=None, registro=None, publicador=None) -> dict:
               "anclajes": [{k: a[k] for k in ("proveedor", "modo", "estado")} for a in evidencia["anclajes"]],
               "certificadoPor": os.environ.get("CERTIFICADO_POR", "certificacion-documental@0.1.0")})
     (publicador or Publicador(os.environ["KAFKA_BOOTSTRAP"], client_id="procesos")).publicar(carta)
-    return {"certificacion": estado_certificacion(evidencia), "huella": evidencia["huella"], "evento": carta["id"]}
+    return {"certificacion": estado_certificacion(evidencia), "huella": evidencia["huella"], "evento": carta["id"],
+            **ritmo_confirmacion()}
+
+
+def ritmo_confirmacion() -> dict:
+    """Cada cuánto se comprueba un anclaje pendiente y cuántas veces (por defecto: cada hora, 72 h)."""
+    return {"cadaMinutos": int(os.environ.get("CONFIRMAR_CADA_MIN", "60")),
+            "maxIntentos": int(os.environ.get("CONFIRMAR_MAX_INTENTOS", "72"))}
+
+
+def _confirmar(d: dict, ejecutar=None, registro=None, publicador=None) -> dict:
+    """Completa los anclajes pendientes de una transcripción (o la certifica si antes falló).
+    Publica anclaje.confirmado por cada anclaje que pase de pendiente a confirmado."""
+    from sdk.eventos import Publicador, nuevo_evento
+    from sdk.registro import Registro
+
+    tenant, trans = d["tenant"], d["transcripcion"]
+    registro = registro or Registro(os.environ["SCORPIO_URL"])
+    ent = registro.leer(tenant, trans)
+    if not ent or "texto" not in ent:
+        raise RuntimeError(f"no encuentro {trans} en el catastro")
+    antes = leer_evidencia(ent)
+    if not antes:                                  # la certificación falló al validar: se intenta de nuevo
+        return _certificar(d, ejecutar=ejecutar, registro=registro, publicador=publicador)
+    if estado_certificacion(antes) != "pendiente":
+        return {"certificacion": estado_certificacion(antes), "huella": antes["huella"]}
+    despues = (ejecutar or ejecutar_capacidad)(tenant, {"texto": ent["texto"]["value"], "evidencia": antes},
+                                                {"operacion": "actualizar"})
+    prop = lambda v: {"type": "Property", "value": v}  # noqa: E731
+    codigo = registro.anadir_atributos(tenant, trans, {
+        "evidencia": prop(json.dumps(despues, ensure_ascii=False, separators=(",", ":"))),
+        "certificacion": prop(estado_certificacion(despues))})
+    if codigo not in (204, 207):
+        raise RuntimeError(f"el catastro respondió {codigo} al actualizar la evidencia")
+    bus = None
+    previos = {a["proveedor"]: a["estado"] for a in antes["anclajes"]}
+    for a in despues["anclajes"]:
+        if previos.get(a["proveedor"]) == "pendiente" and a["estado"] == "confirmado":
+            data = {"activo": d["activo"], "huella": despues["huella"], "proveedor": a["proveedor"], "modo": a["modo"]}
+            if a.get("bloque") is not None:
+                data["bloque"] = a["bloque"]
+            if a.get("fecha"):
+                data["fecha"] = a["fecha"]
+            carta = nuevo_evento(
+                "anclaje.confirmado",
+                id=str(uuid.uuid5(ESPACIO_IDS, f"anclaje.confirmado|{trans}|{despues['huella']}|{a['proveedor']}")),
+                tenant=tenant, subject=trans, source=f"/tenants/{tenant}/servicios/procesos", data=data)
+            bus = bus or publicador or Publicador(os.environ["KAFKA_BOOTSTRAP"], client_id="procesos")
+            bus.publicar(carta)
+    return {"certificacion": estado_certificacion(despues), "huella": despues["huella"]}
+
+
+@activity.defn(name="confirmar_certificacion")
+async def confirmar_certificacion(d: dict) -> dict:
+    """Una comprobación de la confirmación periódica (la programa el proceso ConfirmacionCertificacion)."""
+    return await asyncio.to_thread(_confirmar, d)
 
 
 @activity.defn(name="certificar")

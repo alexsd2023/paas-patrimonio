@@ -326,6 +326,8 @@ services:
       # Certificación de cada transcripción validada (capacidad certificacion-documental, por el catálogo)
       CERTIFICAR: ${CERTIFICAR:-si}
       CERTIFICAR_ANCLAJES: ${CERTIFICAR_ANCLAJES:-blockchain}        # p. ej. blockchain,eidas,nom151
+      CONFIRMAR_CADA_MIN: ${CONFIRMAR_CADA_MIN:-60}               # comprobación de anclajes pendientes (Bitcoin)
+      CONFIRMAR_MAX_INTENTOS: ${CONFIRMAR_MAX_INTENTOS:-72}       # 72 × 60 min = 3 días
       CATALOGO_INTERNO: http://catalogo:8080
       CATALOGO_INTERNO_CLAVE: ${CATALOGO_INTERNO_CLAVE:?Define CATALOGO_INTERNO_CLAVE en platform/.env}
     depends_on:

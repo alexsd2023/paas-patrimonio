@@ -12,7 +12,7 @@ from temporalio import activity  # noqa: E402
 from temporalio.testing import WorkflowEnvironment  # noqa: E402
 from temporalio.worker import Worker  # noqa: E402
 
-from services.procesos.flujo import TranscripcionEstandar  # noqa: E402
+from services.procesos.flujo import ConfirmacionCertificacion, TranscripcionEstandar  # noqa: E402
 
 registro = []
 
@@ -36,6 +36,13 @@ async def certificar_falso(d: dict) -> dict:
     return {"certificacion": "pendiente", "huella": "0" * 64}
 
 
+@activity.defn(name="confirmar_certificacion")
+async def confirmar_falso(d: dict) -> dict:
+    registro.append(("confirmar", d["transcripcion"]))
+    n = sum(1 for x in registro if x[0] == "confirmar")
+    return {"certificacion": "confirmada" if n >= 2 else "pendiente"}
+
+
 @activity.defn(name="certificar")
 async def certificar_caido(d: dict) -> dict:
     raise RuntimeError("el catálogo no responde")
@@ -48,8 +55,8 @@ def test_proceso_espera_la_firma_y_termina():
         except Exception as e:  # sin red para descargar el servidor de pruebas
             pytest.skip(f"servidor de pruebas de Temporal no disponible: {e}")
         async with env:
-            async with Worker(env.client, task_queue="t", workflows=[TranscripcionEstandar],
-                              activities=[transcribir_falso, validacion_falsa, certificar_falso]):
+            async with Worker(env.client, task_queue="t", workflows=[TranscripcionEstandar, ConfirmacionCertificacion],
+                              activities=[transcribir_falso, validacion_falsa, certificar_falso, confirmar_falso]):
                 h = await env.client.start_workflow(
                     TranscripcionEstandar.run,
                     {"activo": "urn:ngsi-ld:ActivoPatrimonial:archivo-villanueva:TEST-001",
@@ -66,6 +73,9 @@ def test_proceso_espera_la_firma_y_termina():
                 assert ("validacion", "paleografa-test") in registro
                 assert fin["certificacion"] == "pendiente"
                 assert ("certificar", "urn:ngsi-ld:Transcripcion:archivo-villanueva:TEST-001-t1") in registro
+                # el hijo sigue solo y confirma en la segunda comprobación (el tiempo se salta en las pruebas)
+                hijo = env.client.get_workflow_handle("confirmacion-urn:ngsi-ld:Transcripcion:archivo-villanueva:TEST-001-t1")
+                assert (await hijo.result())["certificacion"] == "confirmada"
 
     asyncio.run(caso())
 
@@ -77,8 +87,8 @@ def test_si_la_certificacion_falla_el_proceso_termina_igual():
         except Exception as e:  # sin red para descargar el servidor de pruebas
             pytest.skip(f"servidor de pruebas de Temporal no disponible: {e}")
         async with env:
-            async with Worker(env.client, task_queue="t2", workflows=[TranscripcionEstandar],
-                              activities=[transcribir_falso, validacion_falsa, certificar_caido]):
+            async with Worker(env.client, task_queue="t2", workflows=[TranscripcionEstandar, ConfirmacionCertificacion],
+                              activities=[transcribir_falso, validacion_falsa, certificar_caido, confirmar_falso]):
                 h = await env.client.start_workflow(
                     TranscripcionEstandar.run,
                     {"activo": "urn:ngsi-ld:ActivoPatrimonial:archivo-villanueva:TEST-002",

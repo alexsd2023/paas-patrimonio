@@ -6,8 +6,8 @@ import os
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from services.procesos.actividades import certificar, registrar_validacion, transcribir
-from services.procesos.flujo import TranscripcionEstandar
+from services.procesos.actividades import certificar, confirmar_certificacion, registrar_validacion, transcribir
+from services.procesos.flujo import ConfirmacionCertificacion, TranscripcionEstandar
 from sdk.trazas import configurar, interceptores_temporal
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -26,8 +26,8 @@ async def main() -> None:
             log.info("esperando a Temporal en %s (%s)", direccion, e)
             await asyncio.sleep(3)
     log.info("trabajando en la cola %s", COLA)
-    await Worker(cliente, task_queue=COLA, workflows=[TranscripcionEstandar],
-                 activities=[transcribir, registrar_validacion, certificar]).run()
+    await Worker(cliente, task_queue=COLA, workflows=[TranscripcionEstandar, ConfirmacionCertificacion],
+                 activities=[transcribir, registrar_validacion, certificar, confirmar_certificacion]).run()
 
 
 if __name__ == "__main__":
