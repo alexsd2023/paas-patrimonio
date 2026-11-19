@@ -127,7 +127,11 @@ async function cargarDetalle() {
       ${d.copia.modeloRun ? `<div class="linaje"><span class="eyebrow">De dónde sale esta copia</span>
         <span>Modelo <b class="mono">${esc(d.copia.modelo)}</b>${d.copia.cerModelo != null ? ` · CER ${NUM.format(d.copia.cerModelo * 100)} %` : ''}</span>
         <span>Entrenado en el run <span class="mono">${esc(d.copia.modeloRun.slice(0, 8))}</span> con los datos <span class="mono">${esc((d.copia.datosVersion || '').slice(0, 10))}</span> (DVC)</span>
-        ${d.copia.modeloUrl ? `<a href="${esc(d.copia.modeloUrl)}" target="_blank" rel="noopener">Ver el modelo en MLflow</a>` : ''}</div>` : ''}</div>` : ''}
+        ${d.copia.modeloUrl ? `<a href="${esc(d.copia.modeloUrl)}" target="_blank" rel="noopener">Ver el modelo en MLflow</a>` : ''}</div>` : ''}
+      ${d.copia.certificacion ? `<div class="linaje"><span class="eyebrow">Certificada · ${esc(d.copia.certificacion.estado)}</span>
+        <span class="mono" style="word-break:break-all">huella ${esc(d.copia.certificacion.huella)}</span>
+        <span>${d.copia.certificacion.anclajes.map(a => `<span class="pill ${a.estado === 'error' ? 'alerta' : 'ok'}" title="${esc(a.emisor || '')}">${esc({blockchain: 'Bitcoin', eidas: 'eIDAS', nom151: 'NOM-151'}[a.proveedor] || a.proveedor)} · ${esc(a.modo)} · ${esc(a.estado)}${a.bloque != null ? ' · bloque ' + a.bloque : ''}</span>`).join(' ')}</span>
+        <a href="${esc(d.copia.certificacion.pasaporte)}" target="_blank" rel="noopener">Ver el pasaporte público</a></div>` : ''}</div>` : ''}
     <div class="bloque"><h3>Libro del notario</h3>${d.actas.length ? `<div class="tabla"><table><thead><tr><th>Acta</th><th>Cuándo</th><th>Quién</th><th>Detalle</th></tr></thead><tbody>
       ${d.actas.map(a => `<tr><td>${esc(a.tipo)}</td><td class="mono">${fecha(a.tiempo)}</td><td class="mono">${(a.agentes || []).map(x => esc(x.split(/[:/]/).pop())).join(', ')}</td><td>${esc(a.detalle || '')}</td></tr>`).join('')}
       </tbody></table></div>` : '<p class="vacio">Aún no hay actas de este legajo.</p>'}</div>`;

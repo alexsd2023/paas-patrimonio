@@ -37,6 +37,16 @@ def _url_modelo(mlflow: Optional[str], modelo: Optional[str], run: Optional[str]
     return f"{mlflow}/#/models/{quote(nombre)}/versions/{quote(version)}"
 
 
+def _certificacion(copia: dict) -> Any:
+    """Insignias de la copia certificada y el enlace a su pasaporte público (None si no está certificada)."""
+    from sdk.pasaporte import anclajes_publicos, estado_certificacion, leer_evidencia
+    ev = leer_evidencia(copia)
+    if not ev:
+        return None
+    return {"estado": estado_certificacion(ev), "huella": ev["huella"], "anclajes": anclajes_publicos(ev),
+            "pasaporte": f"/pasaporte/{copia['id']}"}
+
+
 def montar(nucleo, producto) -> APIRouter:
     r = APIRouter()
     iiif, gestoria = nucleo.servicio("iiif"), nucleo.servicio("gestoria")
@@ -135,7 +145,8 @@ def montar(nucleo, producto) -> APIRouter:
                       "confianza": v(copia, "confianza"), "validadoPor": v(copia, "validadoPor"),
                       "texto": v(copia, "texto"), "modeloRun": v(copia, "modeloRun"),
                       "datosVersion": v(copia, "datosVersion"), "cerModelo": v(copia, "cerModelo"),
-                      "modeloUrl": _url_modelo(nucleo.enlaces.get("mlflow"), v(copia, "modelo"), v(copia, "modeloRun"))}
+                      "modeloUrl": _url_modelo(nucleo.enlaces.get("mlflow"), v(copia, "modelo"), v(copia, "modeloRun")),
+                      "certificacion": _certificacion(copia)}
             if copia else None,
             "actas": actas,
             "manifiesto": man if man.startswith(pub) else None,

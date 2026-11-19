@@ -63,18 +63,9 @@ def _anclajes_por_defecto() -> list:
     return [a.strip() for a in os.environ.get("CERTIFICAR_ANCLAJES", "blockchain").split(",") if a.strip()]
 
 
-def estado_certificacion(evidencia: dict) -> str:
-    """confirmada · pendiente (algún anclaje espera, p. ej. Bitcoin) · error (ninguno vale)"""
-    estados = [a["estado"] for a in evidencia["anclajes"]]
-    if all(e == "error" for e in estados):
-        return "error"
-    return "pendiente" if "pendiente" in estados else "confirmada"
+from sdk.pasaporte import estado_certificacion, leer_evidencia  # noqa: E402,F401  (las usan los tests)
 
 
-def leer_evidencia(ent: dict):
-    """La evidencia se guarda como texto JSON (el catastro no reinterpreta sus claves); se acepta también objeto."""
-    v = (ent.get("evidencia") or {}).get("value")
-    return json.loads(v) if isinstance(v, str) else v
 
 
 def ejecutar_capacidad(tenant: str, entrada: dict, parametros: dict) -> dict:

@@ -462,6 +462,9 @@ services:
       API_PUBLICO: ${API_PUBLICO:?Define API_PUBLICO en platform/.env}
       CONSERVACION_INTERNO: http://conservacion:8080
       SENSORES_INTERNO: http://sensores:8080
+      # pasaporte público: verifica con la capacidad de certificación; el texto solo se publica si se pide
+      CERTIFICACION_INTERNO: http://srv-certificacion-documental:8080
+      PASAPORTE_TEXTO_PUBLICO: ${PASAPORTE_TEXTO_PUBLICO:-no}
       # consola del núcleo: mira los buzones del bus y enlaza las consolas de cada pieza
       KAFKA_BOOTSTRAP: kafka:29092
       SCORPIO_PUBLICO: ${SCORPIO_PUBLICO:-}

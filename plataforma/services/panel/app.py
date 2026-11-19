@@ -107,6 +107,17 @@ def crear_app(*, registro, verificador, expedientes, keycloak_interno: str, proc
                     api_publico=api_publico, enlaces=enlaces, servicios=servicios, pintar=pintar)
     app.state.nucleo, app.state.productos = nucleo, productos
 
+    # ---------- el pasaporte público de cada activo (sin sesión; la puerta lo publica en /pasaporte) ----------
+    def verificar_con_capacidad(texto: str, evidencia: dict) -> dict:
+        r = httpx.post(f"{nucleo.servicio('certificacion')}/verificar", json={"texto": texto, "evidencia": evidencia},
+                       timeout=30)
+        r.raise_for_status()
+        return r.json()
+
+    from services.panel import pasaporte as PP
+    PP.montar(app, registro=registro, actas=nucleo.actas, verificar=verificar_con_capacidad,
+              texto_publico=os.environ.get("PASAPORTE_TEXTO_PUBLICO", "no").lower() in ("si", "sí", "true", "1"))
+
     def cfg_de(quien) -> Dict[str, Any]:
         return {"usuario": quien.usuario, "tenant": quien.tenant, "roles": list(quien.roles), "enlaces": enlaces,
                 "api": api_publico}

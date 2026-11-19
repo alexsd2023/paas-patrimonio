@@ -207,6 +207,15 @@ routes:
       proxy-rewrite:
         regex_uri: ["^/panel/fuseki/?(.*)", "/$1"]
 
+  - id: pasaporte
+    # El pasaporte de cada activo: público, sin sesión (identidad, procedencia, derechos, uso por IA y verificación)
+    uris: ["/pasaporte", "/pasaporte/*"]
+    methods: ["GET", "HEAD", "POST", "OPTIONS"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "panel:8080": 1
+
   - id: panel
     uris: ["/panel", "/panel/*"]
     upstream:
