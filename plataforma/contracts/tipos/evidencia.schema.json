@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paas-patrimonio/contracts/tipos/evidencia.schema.json",
+  "title": "evidencia",
+  "type": "object",
+  "description": "Prueba de que un texto existía en una fecha y no se ha alterado: su huella y uno o varios anclajes externos (blockchain abierta, sello eIDAS, constancia NOM-151). No contiene el texto.",
+  "required": ["huella", "algoritmo", "normalizacion", "fecha", "anclajes"],
+  "properties": {
+    "huella": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "SHA-256 del texto normalizado, en hexadecimal" },
+    "algoritmo": { "const": "sha256" },
+    "normalizacion": { "const": "nfc-lf-strip", "description": "Saltos de línea a \\n, sin espacios al principio ni al final, Unicode NFC" },
+    "fecha": { "type": "string", "format": "date-time", "description": "Cuándo se pidió la certificación (hora de la plataforma, solo informativa)" },
+    "anclajes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["proveedor", "modo", "valorLegal", "estado"],
+        "properties": {
+          "proveedor": { "enum": ["blockchain", "eidas", "nom151"] },
+          "modo": { "enum": ["real", "demo", "simulado"], "description": "real: con valor pleno · demo: técnica real, emisor sin valor legal · simulado: no sale de la plataforma" },
+          "valorLegal": { "enum": ["ninguno", "eidas-cualificado", "nom151"] },
+          "estado": { "enum": ["pendiente", "confirmado", "error"] },
+          "emisor": { "type": "string" },
+          "fecha": { "type": "string", "format": "date-time", "description": "Hora certificada por el tercero (para blockchain, la del bloque si se conoce)" },
+          "bloque": { "type": "integer", "minimum": 0 },
+          "prueba": { "type": "string", "description": "La prueba en base64: archivo .ots, token RFC 3161 o constancia" },
+          "detalle": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

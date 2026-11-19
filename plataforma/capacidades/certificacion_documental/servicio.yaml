@@ -1,0 +1,24 @@
+# Capacidad: prueba que un texto existía en una fecha y que no se ha alterado.
+# Pura: recibe el texto y devuelve la evidencia. No guarda nada ni toca el catastro: eso lo hace el producto.
+id: certificacion-documental
+nombre: Certificación documental
+resumen: Prueba que un texto existía en una fecha y que no se ha alterado (blockchain abierta, eIDAS, NOM-151)
+autor: Equipo PaaS Patrimonio
+tipo: tarea
+entrada: texto            # certificar: el texto · actualizar: el texto y su «evidencia» pendiente
+salida: evidencia
+version: 0.1.0
+modo: integrada
+parametros:
+  operacion:
+    tipo: texto
+    valores: [certificar, actualizar]
+    defecto: certificar
+    descripcion: "certificar: calcula la huella y la ancla · actualizar: completa los anclajes pendientes de una evidencia (entrada.evidencia)"
+  anclajes:
+    tipo: lista
+    valores: [blockchain, eidas, nom151]
+    defecto: [blockchain]
+    descripcion: "blockchain: Bitcoin vía OpenTimestamps · eidas: sello de tiempo RFC 3161 · nom151: constancia de conservación (México)"
+acceso: [registrado]
+cuota: {trabajos_dia: 5000}

@@ -191,6 +191,26 @@ services:
       interval: 10s
       retries: 5
 
+  srv-certificacion-documental:
+    # Capacidad: prueba que un texto existía en una fecha y no se ha alterado (la usa el producto legajo;
+    # cualquier institución, por API). Necesita salida a internet: calendarios de OpenTimestamps, la TSA y
+    # el explorador de bloques. Anclajes: blockchain (real) · eidas (demo: FreeTSA) · nom151 (SIMULADO)
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args: { CARPETA: capacidades, SERVICIO: certificacion_documental }
+    restart: unless-stopped
+    environment:
+      OTS_CALENDARIOS: ${OTS_CALENDARIOS:-}                    # vacío: los agregadores públicos de OpenTimestamps
+      OTS_EXPLORADOR: ${OTS_EXPLORADOR:-https://blockstream.info/api}
+      EIDAS_TSA_URL: ${EIDAS_TSA_URL:-https://freetsa.org/tsr}
+      EIDAS_CUALIFICADO: ${EIDAS_CUALIFICADO:-no}              # «si» solo con un prestador cualificado
+      NOM151_SIM_CLAVE: ${NOM151_SIM_CLAVE:-demo-nom151-no-usar-en-produccion}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/salud')"]
+      interval: 10s
+      retries: 5
+
   mlflow:
     # Núcleo: registro de modelos. Cada versión dice de qué datos (DVC) y de qué run sale; el alias
     # «produccion» decide qué modelo usa cada servicio (hoy el HTR) sin reiniciar nada.

@@ -236,3 +236,22 @@ en el sótano abre una alerta alta en un momento.
    y `docker compose up -d --force-recreate apisix` (rutas nuevas) y `docker compose run --rm suscripciones`
    (la suscripción de las observaciones; las instituciones dadas de alta después ya la reciben al registrarse,
    y las anteriores en el siguiente arranque de instituciones).
+
+## Certificación documental (capacidad `certificacion-documental`)
+
+Prueba que un texto existía en una fecha y que no se ha alterado. Entra un `texto`, sale una `evidencia`
+(`contracts/tipos/evidencia.schema.json`): la huella SHA-256 del texto normalizado (`nfc-lf-strip`) y sus
+anclajes fuera de la plataforma. Pura, como `evaluacion-en15757`: no guarda nada ni toca el catastro.
+
+| Anclaje | Qué es | Modo en esta instalación |
+|---|---|---|
+| `blockchain` | Bitcoin vía OpenTimestamps: gratuito, verificable por cualquiera (p. ej. en opentimestamps.org) | **real** |
+| `eidas` | Sello de tiempo RFC 3161, el protocolo de los prestadores cualificados europeos | **demo**: FreeTSA, sin valor legal. Producción: `EIDAS_TSA_URL`, `EIDAS_TSA_CERT`, `EIDAS_CUALIFICADO=si` |
+| `nom151` | Constancia de conservación (México) | **simulado**: no la emite un PSC acreditado. Producción: conector con la API de un PSC |
+
+- `operacion: certificar` (por defecto) con `anclajes: [blockchain, eidas, nom151]`.
+- `operacion: actualizar`: entrada `{texto, evidencia}`; completa los anclajes pendientes (Bitcoin tarda unas horas).
+- `POST /verificar` `{texto, evidencia}` → veredicto por anclaje. Sin cuota ni cuenta. `GET /anclajes`: qué ofrece.
+- Un proveedor nuevo = una clase en `capacidades/certificacion_documental/proveedores/` (`anclar`, `actualizar`,
+  `verificar`) registrada en su `__init__.py`.
+- El contenedor `srv-certificacion-documental` necesita salida a internet (calendarios, TSA, explorador de bloques).

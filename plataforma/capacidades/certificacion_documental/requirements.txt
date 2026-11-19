@@ -1,0 +1,7 @@
+fastapi>=0.110
+uvicorn>=0.29
+jsonschema>=4.17
+PyYAML>=6.0
+opentimestamps>=0.4.5
+rfc3161ng>=2.1
+requests>=2.31
