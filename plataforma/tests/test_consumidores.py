@@ -123,3 +123,21 @@ def test_gestoria_un_proceso_por_legajo_y_firma_con_identidad():
 def test_gestoria_sin_identidad_configurada_no_atiende():
     c = TestClient(app_gestoria(ExpedientesFalsos()))
     assert c.get("/yo", headers=_cab("tok-ortega")).status_code == 503
+
+
+# ---------- certificación: dos actas nuevas en el libro del legajo ----------
+
+def test_notario_anota_la_certificacion_y_el_anclaje(tmp_path):
+    cert, conf = cargar("evidencia.anclada"), cargar("anclaje.confirmado")
+    reg = Registro(str(tmp_path / "prov.ttl"))
+    for ev in (ingreso, htr, validada, cert, conf):
+        assert reg.anotar(ev)
+    actas = TestClient(app_procedencia(reg)).get("/actas", params={"activo": ACTIVO}).json()
+    assert [a["tipo"] for a in actas] == ["ingreso", "htr", "validacion", "certificacion", "anclaje"]
+    c, a = actas[3], actas[4]
+    # quien certifica es un programa (la capacidad), no la paleógrafa
+    assert "urn:paas:capacidad:certificacion-documental@0.1.0" in c["agentes"]
+    assert not any(x.startswith("urn:paas:usuario") for x in c["agentes"])
+    assert c["detalle"].startswith("huella 3b1f5c9e8a7d") and "blockchain (real, pendiente)" in c["detalle"]
+    assert "urn:paas:anclaje:blockchain" in a["agentes"] and "bloque 925000" in a["detalle"]
+    assert reg.anotar(conf) is False                        # mismo id: no duplica

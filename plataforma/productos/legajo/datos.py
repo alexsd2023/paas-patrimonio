@@ -54,4 +54,20 @@ def pasos(activo: dict, copia: Optional[dict], proceso: Optional[dict], actas: L
              None, esperando=estado_proc == "pendiente-validacion"),
         paso("5", "Acta de la validación", "validacion" in acta,
              "transcripcion.validada", (acta.get("validacion") or {}).get("tiempo")),
+    ] + pasos_certificacion(copia, acta, paso)
+
+
+def pasos_certificacion(copia: Optional[dict], acta: Dict[str, dict], paso) -> List[Dict[str, Any]]:
+    """Solo si la copia se certificó (o hay acta): las instalaciones sin certificación ven el recorrido de siempre."""
+    estado = v(copia, "certificacion")
+    if not estado and "certificacion" not in acta:
+        return []
+    cert, anc = acta.get("certificacion") or {}, acta.get("anclaje") or {}
+    return [
+        paso("6", "La copia queda certificada", "certificacion" in acta,
+             cert.get("detalle") or f"certificación {estado}", cert.get("tiempo"),
+             esperando=estado is not None and "certificacion" not in acta),
+        paso("6", "Un tercero confirma la fecha", "anclaje" in acta,
+             anc.get("detalle") or ("esperando el bloque de Bitcoin" if estado == "pendiente" else f"certificación {estado}"),
+             anc.get("tiempo"), esperando=estado == "pendiente"),
     ]

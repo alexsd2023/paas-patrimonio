@@ -28,6 +28,17 @@ def test_recorrido_esperando_la_firma():
     assert [p["estado"] for p in ps] == ["hecho"] * 6 + ["esperando", "pendiente"]
 
 
+def test_recorrido_con_certificacion():
+    copia = dict(COPIA, estado=P("validada"), validadoPor=P("paleografa-test"), certificacion=P("pendiente"))
+    actas = [{"tipo": t, "tiempo": f"t{i}"} for i, t in enumerate(["ingreso", "htr", "validacion", "certificacion"])]
+    actas[3]["detalle"] = "huella 3b1f… · blockchain (real, pendiente)"
+    ps = pasos(ACTIVO, copia, {"estado": "completado"}, actas)
+    assert [p["nombre"] for p in ps[-2:]] == ["La copia queda certificada", "Un tercero confirma la fecha"]
+    assert [p["estado"] for p in ps[-2:]] == ["hecho", "esperando"]
+    actas.append({"tipo": "anclaje", "tiempo": "t9", "detalle": "blockchain (real) · bloque 925000"})
+    assert pasos(ACTIVO, dict(copia, certificacion=P("confirmada")), {"estado": "completado"}, actas)[-1]["estado"] == "hecho"
+
+
 class Reg:
     def listar(self, tenant, tipo):
         return TODO.get(tipo, []) if tenant == "archivo-villanueva" else []

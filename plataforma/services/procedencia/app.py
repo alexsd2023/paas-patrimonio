@@ -108,6 +108,39 @@ def tripletas(ev: dict) -> Graph:
         g.add((persona, RDF.type, PROV.Person))
         g.add((act, PROV.wasAssociatedWith, persona))
         g.add((trans, PROV.wasAttributedTo, persona))
+    elif ev["type"] == "evidencia.anclada":
+        # la máquina certifica que la copia firmada no cambia; la firma del contenido es de la paleógrafa
+        trans, activo = URIRef(ev["subject"]), URIRef(data["activo"])
+        capacidad = URIRef(f"urn:paas:capacidad:{data['certificadoPor']}")
+        evidencia = URIRef(f"urn:paas:evidencia:{data['huella']}")
+        g.add((act, PAAS.tipoActa, Literal("certificacion")))
+        g.add((act, PAAS.sobre, activo))
+        g.add((act, PROV.used, trans))
+        g.add((capacidad, RDF.type, PROV.SoftwareAgent))
+        g.add((act, PROV.wasAssociatedWith, capacidad))
+        g.add((evidencia, RDF.type, PROV.Entity))
+        g.add((evidencia, PROV.wasGeneratedBy, act))
+        g.add((evidencia, PROV.wasDerivedFrom, trans))
+        g.add((evidencia, PAAS.huella, Literal(data["huella"])))
+        anclajes = ", ".join(f"{a['proveedor']} ({a['modo']}, {a['estado']})" for a in data["anclajes"])
+        g.add((act, PAAS.detalle, Literal(f"huella {data['huella'][:12]}… · {anclajes}")))
+    elif ev["type"] == "anclaje.confirmado":
+        # un tercero (Bitcoin, un prestador eIDAS, un PSC) da fe de la fecha de la huella
+        activo = URIRef(data["activo"])
+        evidencia = URIRef(f"urn:paas:evidencia:{data['huella']}")
+        tercero = URIRef(f"urn:paas:anclaje:{data['proveedor']}")
+        g.add((act, PAAS.tipoActa, Literal("anclaje")))
+        g.add((act, PAAS.sobre, activo))
+        g.add((act, PROV.used, evidencia))
+        g.add((tercero, RDF.type, PROV.Agent))
+        g.add((act, PROV.wasAssociatedWith, tercero))
+        detalle = [f"{data['proveedor']} ({data['modo']})"]
+        if data.get("bloque") is not None:
+            detalle.append(f"bloque {data['bloque']}")
+        if data.get("fecha"):
+            g.add((act, PAAS.fechaCertificada, Literal(data["fecha"], datatype=XSD.dateTime)))
+            detalle.append(data["fecha"])
+        g.add((act, PAAS.detalle, Literal(" · ".join(detalle))))
     elif ev["type"] in ("conservacion.alerta", "conservacion.normalizada"):
         dep = URIRef(ev["subject"])
         alerta = ev["type"] == "conservacion.alerta"
@@ -271,7 +304,7 @@ def crear_app(registro, bootstrap: Optional[str] = None, grupo: str = "procedenc
     @asynccontextmanager
     async def ciclo(app):
         if bootstrap:
-            lanzar_consumidor(bootstrap=bootstrap, grupo=grupo, topics=["activos", "htr", "conservacion"],
+            lanzar_consumidor(bootstrap=bootstrap, grupo=grupo, topics=["activos", "htr", "conservacion", "certificacion"],
                               manejar=registro.anotar, estado=estado)
         yield
 
