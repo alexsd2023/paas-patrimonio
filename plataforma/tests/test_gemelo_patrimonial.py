@@ -252,6 +252,11 @@ def test_el_producto_en_la_consola_con_sus_roles(monkeypatch):
     from services.sensores.app import Simulador, crear_app as app_sensores
 
     reg, pub = Catastro(), Pub()
+    reg.crear(T, entidad_deposito(T, "D1", nombre="Depósito 1 · sótano", umbrales=UMBRALES))
+    reg.crear(T, entidad_caja(T, "C-001", "D1"))
+    reg.crear(T, entidad_caja(T, "C-002", "D1"))
+    reg.crear(T, entidad_activo(T, signatura="AV-2", ark="ark:/1/y", manifiesto="m", imagenes=1, ingestado_por="m.ortega",
+                                caja="C-001"))
     g = GemeloPatrimonial(registro=reg, series=SeriesLocal(), publicador=pub, capacidad=lambda t, s, p: evaluar(s, p))
     g.firmas = FirmasDirectas(g)
     apps = {"conservacion": TestClient(crear_app(Vigilante(reg, pub), gemelo=g, firmas=g.firmas)),
@@ -289,8 +294,11 @@ def test_el_producto_en_la_consola_con_sus_roles(monkeypatch):
     assert t.post(f"{B}/api/semilla").status_code == 403
     r = a.post(f"{B}/api/semilla").json()
     assert r["creadas"] == 20 and r["sensores"] == 6 and len(r["evaluadas"]) == 4
-    for vista in ("", "/zona?z=Z01", "/mapa", "/alertas", "/configuracion", "/depositos", "/cajas"):
+    for vista in ("", "/zona?z=Z01", "/mapa", "/alertas", "/configuracion"):
         assert c.get(B + vista).status_code == 200, vista
+    for antigua in ("/depositos", "/cajas"):     # unidas a la vista de cada zona de tipo depósito
+        r = c.get(B + antigua, follow_redirects=False)
+        assert r.status_code == 301 and r.headers["location"] == B
     d = c.get(f"{B}/api/inmueble").json()
     assert d["kpis"]["zonas"] == 4 and d["kpis"]["enRiesgo"] == 0 and d["zonas"][0]["nivel"] == "bajo"
     assert p.get(f"{B}/api/inmueble").status_code == 403                  # la paleógrafa no tiene el gemelo
@@ -303,6 +311,10 @@ def test_el_producto_en_la_consola_con_sus_roles(monkeypatch):
     d = c.get(f"{B}/api/inmueble").json()
     assert d["zonas"][0]["codigo"] == "Z02" and d["kpis"]["alertas"] == 1 and d["kpis"]["criticas"] == 1
     z = c.get(f"{B}/api/zonas/Z02").json()
+    assert z["archivo"] == {"deposito": urn_deposito(T, "D1"), "nombre": "Depósito 1 · sótano", "legajos": 1,
+                            "cajas": [{"caja": "C-001", "legajos": ["AV-2"]}, {"caja": "C-002", "legajos": []}]}
+    assert c.get(f"{B}/api/zonas/Z01").json()["archivo"] is None
+    assert {x["codigo"]: x["legajos"] for x in c.get(f"{B}/api/inmueble").json()["zonas"]}["Z02"] == 1
     assert z["evaluacion"]["nivel"] == "alto" and len(z["serie"]) >= 160 and z["alertas"][0]["codigo"] == "Z02-1"
     assert len(c.get(f"{B}/api/sensores").json()) == 6
     assert c.get(f"{B}/api/zonas/Z99").status_code == 404

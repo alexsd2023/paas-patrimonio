@@ -73,7 +73,7 @@ tipos `escribe` en el catastro; una capacidad declara qué tipo de documento rec
   `platform/.env`). El catálogo (`services/catalogo`) los publica, controla acceso y cuotas, y ejecuta los flujos
   con un único workflow de Temporal (`FlujoReceta`). API: `/api/v1/servicios`, `/api/v1/trabajos/<id>`, `/api/v1/flujos`.
 - **Productos** · se montan en `/panel/productos/<id>`. `legajo`: Legajos · Entregar · Validar · Tramos.
-  `gemelo` (Gemelo patrimonial): Inicio · Zona · Mapa · Alertas · Configuración, y Depósitos · Cajas y legajos.
+  `gemelo` (Gemelo patrimonial): Inicio · Zona · Mapa · Alertas · Configuración. Una zona de tipo depósito enseña sus cajas y legajos.
 - **Conectores** · cada institución rellena en la consola el formulario que pide su `conector.yaml` y lo ejecuta.
   `oai-pmh` cosecha Dublin Core y lo inscribe como `RegistroCatalografico` (cosechar dos veces actualiza, no
   duplica). Al terminar sale la carta `conector.ejecutado`. API: `/api/v1/conectores`, `/api/v1/ejecuciones/<id>`,

@@ -1,5 +1,5 @@
 # Producto: el gemelo digital patrimonial (inmueble, zonas, sensores, microclima EN 15757 y alertas con firma).
-# Incluye el gemelo del archivo de antes (depósitos y cajas), que sigue funcionando en sus dos vistas.
+# Una zona de tipo «depósito» enlaza con su Deposito del archivo: su vista enseña sus cajas y legajos.
 id: gemelo
 orden: 2
 nombre: Gemelo patrimonial
@@ -37,5 +37,3 @@ vistas:
   - {id: mapa, nombre: Mapa, ruta: mapa}
   - {id: alertas, nombre: Alertas, ruta: alertas}
   - {id: configuracion, nombre: Configuración, ruta: configuracion}
-  - {id: depositos, nombre: Depósitos, ruta: depositos}
-  - {id: cajas, nombre: Cajas y legajos, ruta: cajas}

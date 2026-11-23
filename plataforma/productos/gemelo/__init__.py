@@ -6,8 +6,7 @@ Vistas (dentro de la consola, en /panel/productos/gemelo):
     /mapa            Mapa            la planta con las zonas y los sensores
     /alertas         Alertas         reconocer y cerrar (con la causa) · el historial del notario
     /configuracion   Configuración   inmueble de ejemplo, zonas, sensores y simulación para la demo
-    /depositos       Depósitos       el gemelo del archivo (umbrales fijos), como antes
-    /cajas           Cajas y legajos
+    /depositos, /cajas  llevan a Inicio: una zona de tipo depósito ya enseña sus cajas y legajos
 
 API (la misma, con token, en /api/v1/gemelo/… por la puerta): ver las rutas /api/… de montar().
 Cada ruta comprueba el rol: la consola oculta lo no permitido, pero nunca es el único control.
@@ -21,10 +20,9 @@ from typing import Any, Dict, List
 
 import httpx
 from fastapi import APIRouter, Body, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from productos.gemelo import modelo as M
-from productos.gemelo import vistas as V
 from productos.gemelo import vistas_patrimonial as VP
 
 LEER = {"gestor", "conservador", "tecnico", "archivera", "admin-institucion"}
@@ -84,13 +82,13 @@ def montar(nucleo, producto) -> APIRouter:
     r.add_api_route("/alertas", vista("alertas", VP.ALERTAS, VP.SCRIPT_ALERTAS), methods=["GET"])
     r.add_api_route("/configuracion", vista("configuracion", VP.CONFIGURACION, VP.SCRIPT_CONFIGURACION), methods=["GET"])
 
+    # Las vistas del gemelo del archivo (Depósitos, Cajas y legajos) se unieron a la de cada zona de tipo depósito.
+    # Sus direcciones llevan a Inicio para no romper enlaces guardados; su API (/api/depositos, /api/cajas,
+    # /api/escenario) sigue igual.
     @r.get("/depositos")
-    def depositos_v(req: Request):
-        return nucleo.pagina(req, producto.id, "depositos", V.DEPOSITOS, V.SCRIPT_DEPOSITOS, V.ESTILO)
-
     @r.get("/cajas")
-    def cajas_v(req: Request):
-        return nucleo.pagina(req, producto.id, "cajas", V.CAJAS, V.SCRIPT_CAJAS, V.ESTILO)
+    def antiguas_v(req: Request):
+        return RedirectResponse(req.url.path.rsplit("/", 1)[0] or "/", status_code=301)
 
     # ---------- API del gemelo patrimonial ----------
     @r.get("/api/inmueble")
@@ -116,6 +114,15 @@ def montar(nucleo, producto) -> APIRouter:
                           "deposito": v(z, "refDeposito"), **{k: s.get(k) for k in (
                               "nivel", "causa", "desviacion30d", "objetivoHumedad", "objetivoTemperatura", "metodo",
                               "origenDatos", "calculadaEn", "temperatura", "humedad", "alerta")}})
+        if any(f["deposito"] for f in filas):
+            cajas = {c["id"]: v(c, "enDeposito") for c in reg.listar(t, "Caja", limite=1000)}
+            por_dep: Dict[str, int] = {}
+            for a in reg.listar(t, "ActivoPatrimonial", limite=1000):
+                dep = cajas.get(v(a, "enCaja"))
+                if dep:
+                    por_dep[dep] = por_dep.get(dep, 0) + 1
+            for f in filas:
+                f["legajos"] = por_dep.get(f["deposito"], 0) if f["deposito"] else None
         filas.sort(key=lambda f: (orden.get(f["nivel"], 3), f["codigo"]))
         e0 = edificios[0] if edificios else None
         return {"edificio": e0 and {"id": e0["id"], "nombre": v(e0, "name"), "proteccion": v(e0, "protectionLevel"),
@@ -124,6 +131,20 @@ def montar(nucleo, producto) -> APIRouter:
                 "kpis": {"zonas": len(filas), "enRiesgo": sum(1 for f in filas if f["nivel"] in ("medio", "alto")),
                          "alertas": len(alertas), "criticas": sum(1 for a in alertas if v(a, "riskLevel") == "alto"),
                          "sensores": len(sens), "sensoresOK": sum(1 for s in sens if v(s, "operStatus") == "OK")}}
+
+    def contenido_deposito(t: str, deposito: str):
+        """Las cajas de un depósito del archivo con sus legajos, ordenadas."""
+        reg = nucleo.registro
+        cajas = {c["id"]: v(c, "nombre") for c in reg.listar(t, "Caja", limite=1000) if v(c, "enDeposito") == deposito}
+        por_caja: Dict[str, List[str]] = {cid: [] for cid in cajas}
+        for a in reg.listar(t, "ActivoPatrimonial", limite=1000):
+            if v(a, "enCaja") in por_caja:
+                por_caja[v(a, "enCaja")].append(v(a, "signatura"))
+        d = reg.leer(t, deposito)
+        return {"deposito": deposito, "nombre": v(d, "nombre", M.codigo(deposito)),
+                "cajas": sorted(({"caja": cajas[cid], "legajos": sorted(x for x in ls if x)} for cid, ls in por_caja.items()),
+                                key=lambda c: c["caja"] or ""),
+                "legajos": sum(len(ls) for ls in por_caja.values())}
 
     @r.get("/api/zonas/{cod}")
     def zona(cod: str, req: Request, dias: int = 7):
@@ -143,6 +164,7 @@ def montar(nucleo, producto) -> APIRouter:
                 "sensores": [{"codigo": M.codigo(s["id"]), "nombre": v(s, "name"), "estado": v(s, "operStatus"),
                               "ahora": ahora.get(s["id"])} for s in reg.listar(t, "EnvironmentalSensor") if v(s, "refZone") == z["id"]],
                 "alertas": [_alerta(a) for a in reg.listar(t, "ConservationAlert", limite=1000) if v(a, "refZone") == z["id"]],
+                "archivo": contenido_deposito(t, v(z, "refDeposito")) if v(z, "refDeposito") else None,
                 "serie": estado.get("serie", []), "evaluacion": estado.get("evaluacion"), "origenSeries": estado.get("origenSeries")}
 
     def _alerta(a, nombres=None):

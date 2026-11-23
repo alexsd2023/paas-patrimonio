@@ -77,7 +77,7 @@ async function cargar() {
       <span>${z.humedad == null ? '—' : NUM.format(z.humedad)}<small>% HR</small></span></div>
     <div>${esc(z.causa || 'Aún sin evaluar')}</div>
     <div class="gp-meta">objetivo HR ${banda(z.objetivoHumedad)} % · T ${banda(z.objetivoTemperatura)} °C${z.alerta ? ` · <strong style="color:var(--red)">alerta ${esc(z.alerta.codigo)} ${esc(z.alerta.estado)}</strong>` : ''}</div>
-    <div class="gp-meta">${esc(z.tipo || '')}${z.materiales && z.materiales.length ? ' · ' + esc(z.materiales.join(', ')) : ''}${z.calculadaEn ? ' · evaluada ' + fechaCorta(z.calculadaEn) : ''}</div></a>`).join('')
+    <div class="gp-meta">${esc(z.tipo || '')}${z.legajos != null ? ' · ' + z.legajos + ' legajos' : ''}${z.materiales && z.materiales.length ? ' · ' + esc(z.materiales.join(', ')) : ''}${z.calculadaEn ? ' · evaluada ' + fechaCorta(z.calculadaEn) : ''}</div></a>`).join('')
     || '<p class="vacio">El inmueble no tiene zonas.</p>';
 }
 cargar(); setInterval(cargar, 15000);
@@ -98,6 +98,8 @@ ZONA = """<p style="margin:0 0 12px"><a id="volver">← Inicio</a></p>
  <section class="tarjeta"><div class="cab"><h2>Sensores</h2></div><div class="tabla"><table><thead><tr><th>Sensor</th><th>Estado</th><th>Ahora</th></tr></thead><tbody id="sens"></tbody></table></div>
  <h3 style="margin:16px 0 6px;font-size:15px">Elementos</h3><ul id="elems" style="margin:0;padding-left:18px"></ul></section>
 </div>
+<section class="tarjeta" id="archivo" style="margin-top:16px" hidden><div class="cab"><h2>Cajas y legajos de este depósito</h2><span class="eyebrow" id="archivo-dep"></span></div><div id="archivo-cajas"></div>
+<p class="gp-nota">Una alerta de esta zona llega también al libro del notario de cada uno de estos legajos.</p></section>
 <section class="tarjeta" style="margin-top:16px"><div class="cab"><h2>Alertas de esta zona</h2><a id="ir-alertas">Todas las alertas</a></div><div id="alertas-z"></div></section>"""
 
 SCRIPT_ZONA = _UTIL + r"""
@@ -133,7 +135,13 @@ async function cargar() {
   document.title = z.nombre + ' · Gemelo patrimonial';
   $('#t-zona').textContent = z.nombre; $('#nivel').innerHTML = pillNivel(ev && ev.nivel);
   $('#causa').textContent = ev ? ev.causa : 'Aún sin evaluar.';
-  $('#meta').textContent = [z.tipo, (z.materiales || []).join(', '), z.area ? z.area + ' m²' : '', z.deposito ? 'enlazada con ' + z.deposito.split(':').pop() + ' (cajas y legajos)' : ''].filter(Boolean).join(' · ');
+  $('#meta').textContent = [z.tipo, (z.materiales || []).join(', '), z.area ? z.area + ' m²' : '', z.archivo ? `${z.archivo.legajos} legajos en ${z.archivo.cajas.length} cajas` : ''].filter(Boolean).join(' · ');
+  $('#archivo').hidden = !z.archivo;
+  if (z.archivo) {
+    $('#archivo-dep').textContent = 'Depósito del archivo · ' + z.archivo.nombre;
+    $('#archivo-cajas').innerHTML = z.archivo.cajas.length ? `<div class="tabla"><table><thead><tr><th>Caja</th><th>Legajos</th></tr></thead><tbody>${
+      z.archivo.cajas.map(c => `<tr><td class="mono">${esc(c.caja)}</td><td>${c.legajos.length ? c.legajos.map(l => `<span class="mono">${esc(l)}</span>`).join(' · ') : '<span class="gp-meta">vacía</span>'}</td></tr>`).join('')}</tbody></table></div>` : '<p class="vacio">Este depósito aún no tiene cajas.</p>';
+  }
   $('#g-h').innerHTML = grafica(z.serie, ev && ev.banda, 'humedad', 'hMin', 'hMax');
   $('#g-t').innerHTML = grafica(z.serie, ev && ev.banda, 'temperatura', 'tMin', 'tMax');
   $('#eval').innerHTML = ev ? `<dt>Método</dt><dd>${ev.metodo === 'en15757' ? 'EN 15757:2010 (media de 30 días, P7–P93, ±10 % HR)' : 'simplificado (v1.0)'}</dd>
