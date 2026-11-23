@@ -30,6 +30,8 @@ class Catastro:
     def crear(self, t, x):
         if (t, x["id"]) in self.e:
             return 409
+        if any(isinstance(a, dict) and a.get("type") == "Property" and a.get("value") in ([], None, "") for a in x.values()):
+            return 400          # como Scorpio: NGSI-LD no admite una Property sin valor
         self.e[(t, x["id"])] = {k: (dict(v) if isinstance(v, dict) else v) for k, v in x.items()}
         return 201
 

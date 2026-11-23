@@ -287,9 +287,17 @@ def montar(nucleo, producto) -> APIRouter:
                        plano=plano_de(t, p), deposito=deposito)
         except (TypeError, ValueError) as ex:
             raise HTTPException(422, str(ex))
-        if reg.crear(t, e) != 201:
-            raise HTTPException(409, "ya existe una zona con ese código")
+        crear_o_explicar(t, e, "ya existe una zona con ese código")
         return {"zona": e["id"], "codigo": M.codigo(e["id"]), "plano": M.v(e, "planPosition"), "deposito": deposito}
+
+    def crear_o_explicar(t: str, e: Dict[str, Any], si_existe: str) -> None:
+        """Inscribe la entidad; si el catastro no la acepta, dice por qué (antes todo salía como «ya existe»)."""
+        estado = nucleo.registro.crear(t, e)
+        if estado in (200, 201, 204):
+            return
+        if estado == 409:
+            raise HTTPException(409, si_existe)
+        raise HTTPException(502, f"el catastro no aceptó {e['id']} (HTTP {estado}); mira «docker compose logs scorpio»")
 
     def plano_de(t: str, p: Dict[str, Any], salvo: str = None) -> Dict[str, float]:
         """La posición pedida (x, y, w, h) o, si no viene, el primer hueco libre de la planta."""
@@ -350,8 +358,7 @@ def montar(nucleo, producto) -> APIRouter:
         except (TypeError, ValueError) as ex:
             raise HTTPException(422, str(ex))
         for e in ents:
-            if reg.crear(t, e) != 201:
-                raise HTTPException(409, f"ya existe {e['id']}")
+            crear_o_explicar(t, e, f"ya existe {e['id']}")
         try:   # que el simulador lo lea ya (si no, lo encontrará en su próxima vuelta)
             servicio("POST", f"{sensores}/gemelo/tenants", {"tenant": t}, timeout=10)
         except HTTPException:

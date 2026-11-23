@@ -58,8 +58,13 @@ def zona(tenant: str, cod: str, *, edificio_cod: str, nombre: str, tipo: str, ma
     if tipo not in TIPOS_ZONA:
         raise ValueError(f"zoneType: {', '.join(TIPOS_ZONA)}")
     e = {"id": urn("HeritageZone", tenant, cod), "type": "HeritageZone", "name": prop(nombre), "zoneType": prop(tipo),
-         "dominantMaterials": prop(materiales), "areaSqm": prop(area), "climateReference": prop(clima),
-         "planPosition": prop(plano), "refBuilding": rel(urn("HeritageBuilding", tenant, edificio_cod))}
+         "climateReference": prop(clima), "planPosition": prop(plano),
+         "refBuilding": rel(urn("HeritageBuilding", tenant, edificio_cod))}
+    # NGSI-LD no admite una Property sin valor: una lista vacía (materiales sin rellenar) hace que el catastro rechace la zona
+    if materiales:
+        e["dominantMaterials"] = prop(materiales)
+    if area:
+        e["areaSqm"] = prop(area)
     if deposito:
         e["refDeposito"] = rel(deposito)
     return e
