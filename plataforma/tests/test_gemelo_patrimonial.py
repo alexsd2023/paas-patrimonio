@@ -319,6 +319,26 @@ def test_el_producto_en_la_consola_con_sus_roles(monkeypatch):
     assert len(c.get(f"{B}/api/sensores").json()) == 6
     assert c.get(f"{B}/api/zonas/Z99").status_code == 404
 
+    # zonas nuevas: sin posición van al primer hueco libre (la planta de ejemplo está llena: debajo) y se ven
+    reg.crear(T, entidad_deposito(T, "D3", nombre="Depósito 3 · torre", umbrales=UMBRALES))
+    assert t.post(f"{B}/api/zonas", json={"codigo": "Z10", "nombre": "Torre"}).status_code == 403
+    r = a.post(f"{B}/api/zonas", json={"codigo": "Z10", "nombre": "Torre", "tipo": "depósito", "deposito": "D3",
+                                        "temperatura": "", "humedad": "", "area": ""}).json()
+    assert r["plano"] == {"x": 4.0, "y": 58.0, "w": 44.0, "h": 22.0} and r["deposito"] == urn_deposito(T, "D3")
+    assert a.post(f"{B}/api/zonas", json={"codigo": "Z11", "nombre": "Patio", "tipo": "otro"}).json()["plano"]["x"] == 52.0
+    assert a.post(f"{B}/api/zonas", json={"codigo": "Z12", "nombre": "X", "tipo": "depósito", "deposito": "D9"}).status_code == 404
+    d = c.get(f"{B}/api/inmueble").json()
+    assert {"Z10", "Z11"} <= {z["codigo"] for z in d["zonas"]} and d["kpis"]["zonas"] == 6
+    assert {x["codigo"]: x["zona"] for x in d["depositosArchivo"]}["D3"] == "Z10"
+    assert c.get(f"{B}/api/zonas/Z10").json()["archivo"]["nombre"] == "Depósito 3 · torre"
+    r = a.post(f"{B}/api/sensores", json={"codigo": "S10", "nombre": "Torre norte", "zona": "Z10"}).json()
+    assert M.v(reg.leer(T, r["sensor"]), "planPosition") == {"x": 26.0, "y": 69.0}      # en el centro de su zona
+    # recolocar: con posición o al primer hueco libre
+    assert a.post(f"{B}/api/zonas/Z11/plano", json={"x": 60, "y": 62, "w": 30, "h": 12}).json()["plano"]["w"] == 30
+    assert a.post(f"{B}/api/zonas/Z11/plano", json={"w": 0, "h": 5, "x": 1, "y": 1}).status_code == 422
+    assert a.post(f"{B}/api/zonas/Z11/plano").json()["plano"] == {"x": 52.0, "y": 58.0, "w": 44.0, "h": 22.0}
+    assert t.post(f"{B}/api/zonas/Z11/plano").status_code == 403
+
     # firmas: el técnico no; conservación sí, y con causa
     assert t.post(f"{B}/api/alertas/Z02-1/reconocer").status_code == 403
     assert c.post(f"{B}/api/alertas/Z02-1/reconocer").json()["por"] == "conservador-test"
@@ -333,11 +353,11 @@ def test_el_producto_en_la_consola_con_sus_roles(monkeypatch):
     assert a.post(f"{B}/api/zonas", json={"codigo": "Z05", "nombre": "Sacristía", "tipo": "sala", "humedad": 60}).status_code == 200
     assert a.post(f"{B}/api/zonas", json={"codigo": "Z05", "nombre": "x"}).status_code == 409
     assert a.post(f"{B}/api/sensores", json={"codigo": "S07", "zona": "Z05", "nombre": "Sacristía"}).status_code == 200
-    assert len(c.get(f"{B}/api/sensores").json()) == 7
+    assert len(c.get(f"{B}/api/sensores").json()) == 8      # 6 del ejemplo + S10 + S07
 
     # la API pública (/api/v1/gemelo/… por la puerta) entra con el token, sin cookie
     api = TestClient(app)
-    assert api.get(f"{B}/api/inmueble", headers={"Authorization": "Bearer tok-t"}).json()["kpis"]["zonas"] == 5
+    assert api.get(f"{B}/api/inmueble", headers={"Authorization": "Bearer tok-t"}).json()["kpis"]["zonas"] == 7   # 4 del ejemplo + Z10, Z11 y Z05
     assert api.post(f"{B}/api/ingesta/observacion", headers={"Authorization": "Bearer tok-a"},
                     json={"sensor": "S07", "temperatura": 19.5, "humedad": 61, "observadoEn": "2026-11-16T10:00:00Z"}).status_code == 200
     assert M.v(reg.leer(T, M.urn("IndoorEnvironmentObserved", T, "S07")), "relativeHumidity") == 61

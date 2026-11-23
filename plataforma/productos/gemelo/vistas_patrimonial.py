@@ -197,7 +197,8 @@ async function cargar() {
       return `<g><title>${esc(s.nombre)} (${esc(s.codigo)}) · ${s.ahora ? NUM.format(s.ahora.humedad) + ' % · ' + NUM.format(s.ahora.temperatura) + ' °C' : 'sin lecturas'}</title>
       <circle cx="${s.posicion.x}" cy="${s.posicion.y}" r="1.4" fill="${ok ? 'var(--ink)' : 'var(--card)'}" stroke="var(--ink)" stroke-width=".4"/>
       <text x="${s.posicion.x + 2}" y="${s.posicion.y + .8}" style="font-size:1.8px">${esc(s.codigo)}</text></g>`; }).join('');
-    $('#plano').innerHTML = `<svg class="gp-plano" viewBox="0 0 100 60" role="img" aria-label="Planta con zonas y sensores">${g}</svg>`;
+    const W = Math.max(100, ...zonas.map(z => z.plano.x + z.plano.w + 4)), H = Math.max(60, ...zonas.map(z => z.plano.y + z.plano.h + 4));
+    $('#plano').innerHTML = `<svg class="gp-plano" viewBox="0 0 ${W} ${H}" role="img" aria-label="Planta con zonas y sensores">${g}</svg>`;
   }
   $('#sens').innerHTML = ss.map(s => `<tr><td>${esc(s.nombre)} <span class="mono" style="color:var(--muted)">${esc(s.codigo)}</span></td><td>${esc(s.zonaNombre || s.zona)}</td>
     <td><span class="pill ${s.estado === 'OK' ? 'ok' : 'pendiente'}">${esc(s.estado || '—')}</span></td>
@@ -266,14 +267,24 @@ los sensores siguen en vivo con ese perfil. Lo que en la realidad tardaría día
 <div class="tabla" style="margin-top:8px"><table><thead><tr><th>Zona</th><th>Perfil en vivo</th></tr></thead><tbody id="perfiles"></tbody></table></div></section>
 <section class="tarjeta"><div class="cab"><h2>Nueva zona</h2></div>
 <form class="gp-form" id="f-zona"><label>Código<input name="codigo" required placeholder="Z05"></label><label>Nombre<input name="nombre" required></label>
-<label>Tipo<select name="tipo"><option>sala</option><option>depósito</option><option>capilla</option><option>cubierta</option><option>fachada</option><option>otro</option></select></label>
+<label>Tipo<select name="tipo" id="zona-tipo"><option>sala</option><option>depósito</option><option>capilla</option><option>cubierta</option><option>fachada</option><option>otro</option></select></label>
 <label>Materiales<input name="materiales" placeholder="madera, papel"></label><label>Área (m²)<input name="area" type="number" step="any"></label>
 <label>T habitual (°C)<input name="temperatura" type="number" step="any" value="18"></label><label>HR habitual (%)<input name="humedad" type="number" step="any" value="55"></label>
-<label>Planta x,y,ancho,alto<input name="plano" placeholder="4,4,20,14"></label><button class="btn" type="submit">Añadir zona</button></form></section>
+<label id="zona-dep-l" hidden>Depósito del archivo<select name="deposito" id="zona-dep"></select></label>
+<label>Planta x,y,ancho,alto<input name="plano" placeholder="vacío = primer hueco libre"></label><button class="btn" type="submit">Añadir zona</button></form>
+<p class="gp-nota">Sin posición, la zona se coloca en el primer hueco libre de la planta (el Mapa crece si hace falta). Una zona de tipo
+depósito enlazada con un depósito del archivo enseña sus cajas y legajos.</p></section>
+<section class="tarjeta"><div class="cab"><h2>Recolocar una zona</h2></div>
+<form class="gp-form" id="f-plano"><label>Zona<select name="zona" id="plano-zona"></select></label>
+<label>Planta x,y,ancho,alto<input name="plano" placeholder="vacío = primer hueco libre"></label>
+<button class="btn" type="submit">Recolocar</button></form>
+<p class="gp-nota">Para las zonas que quedaron encima de otra en el Mapa. La planta de ejemplo mide 100 × 60; cada zona del ejemplo,
+44 × 22–26.</p><div class="tabla" style="margin-top:8px"><table><thead><tr><th>Zona</th><th>Posición</th><th>Depósito</th></tr></thead>
+<tbody id="posiciones"></tbody></table></div></section>
 <section class="tarjeta"><div class="cab"><h2>Nuevo sensor</h2></div>
 <form class="gp-form" id="f-sensor"><label>Código<input name="codigo" required placeholder="S07"></label><label>Nombre<input name="nombre" required></label>
-<label>Zona<select name="zona" id="sensor-zona"></select></label><label>Posición x<input name="x" type="number" step="any" value="50"></label>
-<label>Posición y<input name="y" type="number" step="any" value="30"></label><button class="btn" type="submit">Añadir sensor</button></form>
+<label>Zona<select name="zona" id="sensor-zona"></select></label><label>Posición x<input name="x" type="number" step="any" placeholder="centro de la zona"></label>
+<label>Posición y<input name="y" type="number" step="any" placeholder="centro de la zona"></label><button class="btn" type="submit">Añadir sensor</button></form>
 <p class="gp-nota">Se inscribe en el catastro como EnvironmentalSensor con su IndoorEnvironmentObserved; el simulador lo lee en su
 siguiente vuelta. Para sensores reales, un sistema de tu institución puede enviar lecturas a
 <span class="mono">POST /api/v1/gemelo/ingesta/observacion</span> con una credencial de API de «Mi institución».
@@ -290,6 +301,12 @@ async function cargar() {
     const opts = d.zonas.map(z => `<option value="${esc(z.codigo)}">${esc(z.codigo)} · ${esc(z.nombre)}</option>`).join('');
     const sel = $('#sim-zona').value; $('#sim-zona').innerHTML = opts; if (sel) $('#sim-zona').value = sel;
     $('#sensor-zona').innerHTML = opts;
+    const pz = $('#plano-zona').value; $('#plano-zona').innerHTML = opts; if (pz) $('#plano-zona').value = pz;
+    const pl = p => p ? `${p.x}, ${p.y} · ${p.w} × ${p.h}` : '—';
+    $('#posiciones').innerHTML = d.zonas.slice().sort((a, b) => a.codigo.localeCompare(b.codigo)).map(z => `<tr><td>${esc(z.codigo)} · ${esc(z.nombre)}</td>
+      <td class="mono">${pl(z.plano)}</td><td>${esc(((d.depositosArchivo || []).find(x => x.id === z.deposito) || {}).nombre || '—')}</td></tr>`).join('');
+    $('#zona-dep').innerHTML = '<option value="">— sin enlazar —</option>' + (d.depositosArchivo || []).map(x =>
+      `<option value="${esc(x.codigo)}"${x.zona ? ' disabled' : ''}>${esc(x.nombre)}${x.zona ? ' (ya en ' + esc(x.zona) + ')' : ''}</option>`).join('');
     $('#semilla').textContent = d.edificio ? 'El inmueble ya está (volver a comprobar)' : 'Crear el inmueble de ejemplo';
     $('#perfiles').innerHTML = ps.map(p => `<tr><td>${esc(p.zona)}</td><td>${esc(p.perfil)}</td></tr>`).join('') || '<tr><td colspan="2">Sin sensores simulados.</td></tr>';
   } catch (e) { aviso(e.message); }
@@ -307,10 +324,22 @@ $('#f-sim').onsubmit = async ev => {
   catch (e) { aviso(e.message); }
   b.disabled = false; cargar();
 };
+const planoDe = txt => { const [x, y, w, h] = (txt || '').split(',').map(Number); return w && h ? {x: x || 0, y: y || 0, w, h} : {}; };
+$('#zona-tipo').onchange = () => { $('#zona-dep-l').hidden = $('#zona-tipo').value !== 'depósito'; };
 $('#f-zona').onsubmit = async ev => {
+  ev.preventDefault(); const f = Object.fromEntries(new FormData(ev.target)); const plano = planoDe(f.plano); delete f.plano;
+  if (f.tipo !== 'depósito') delete f.deposito;
+  try { const r = await post('/api/zonas', {...f, ...plano});
+    aviso(`Zona ${r.codigo} añadida en la planta (${r.plano.x}, ${r.plano.y}). Ponle un sensor para que reciba lecturas.`, true);
+    ev.target.reset(); $('#zona-dep-l').hidden = true; $('#sensor-zona').dataset.elegir = r.codigo; }
+  catch (e) { aviso(e.message); }
+  await cargar(); if ($('#sensor-zona').dataset.elegir) { $('#sensor-zona').value = $('#sensor-zona').dataset.elegir; delete $('#sensor-zona').dataset.elegir; }
+};
+$('#f-plano').onsubmit = async ev => {
   ev.preventDefault(); const f = Object.fromEntries(new FormData(ev.target));
-  const [x, y, w, h] = (f.plano || '').split(',').map(Number); delete f.plano;
-  try { await post('/api/zonas', {...f, ...(w ? {x, y, w, h} : {})}); aviso('Zona añadida', true); ev.target.reset(); } catch (e) { aviso(e.message); }
+  try { const r = await post(`/api/zonas/${encodeURIComponent(f.zona)}/plano`, planoDe(f.plano));
+    aviso(`${f.zona} recolocada en (${r.plano.x}, ${r.plano.y}) · ${r.plano.w} × ${r.plano.h}`, true); ev.target.querySelector('input').value = ''; }
+  catch (e) { aviso(e.message); }
   cargar();
 };
 $('#f-sensor').onsubmit = async ev => {

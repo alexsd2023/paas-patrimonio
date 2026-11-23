@@ -65,6 +65,31 @@ def zona(tenant: str, cod: str, *, edificio_cod: str, nombre: str, tipo: str, ma
     return e
 
 
+ANCHO_PLANTA, ALTO_PLANTA = 100, 60     # lo mínimo que dibuja el Mapa; crece con las zonas
+
+
+def _solapa(a: Dict[str, float], b: Dict[str, float], margen: float = 2) -> bool:
+    return not (a["x"] + a["w"] + margen <= b["x"] or b["x"] + b["w"] + margen <= a["x"]
+                or a["y"] + a["h"] + margen <= b["y"] or b["y"] + b["h"] + margen <= a["y"])
+
+
+def hueco_libre(planos: List[Dict[str, float]], w: float = 44, h: float = 22) -> Dict[str, float]:
+    """El primer sitio de la planta (de arriba abajo, en dos columnas) donde cabe una zona sin pisar a otra.
+    Si la planta está llena, la zona va debajo y el Mapa crece."""
+    planos = [p for p in planos if p and all(k in p for k in ("x", "y", "w", "h"))]
+    y = 4.0
+    while True:
+        for x in (4.0, 52.0):
+            cand = {"x": x, "y": y, "w": float(w), "h": float(h)}
+            if not any(_solapa(cand, p) for p in planos):
+                return cand
+        y += 2
+
+
+def centro(plano: Dict[str, float]) -> Dict[str, float]:
+    return {"x": round(plano["x"] + plano["w"] / 2, 1), "y": round(plano["y"] + plano["h"] / 2, 1)}
+
+
 def elemento(tenant: str, cod: str, *, zona_cod: str, nombre: str, tipo: str, material: str, estado: str,
              inspeccion: str) -> dict:
     return {"id": urn("HeritageElement", tenant, cod), "type": "HeritageElement", "name": prop(nombre),

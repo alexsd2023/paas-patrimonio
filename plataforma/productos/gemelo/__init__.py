@@ -24,6 +24,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from productos.gemelo import modelo as M
 from productos.gemelo import vistas_patrimonial as VP
+from sdk.registro import urn_deposito
 
 LEER = {"gestor", "conservador", "tecnico", "archivera", "admin-institucion"}
 FIRMAR = {"conservador", "archivera", "admin-institucion"}
@@ -124,10 +125,13 @@ def montar(nucleo, producto) -> APIRouter:
             for f in filas:
                 f["legajos"] = por_dep.get(f["deposito"], 0) if f["deposito"] else None
         filas.sort(key=lambda f: (orden.get(f["nivel"], 3), f["codigo"]))
+        enlazados = {f["deposito"]: f["codigo"] for f in filas if f["deposito"]}
+        archivo = [{"id": d["id"], "codigo": M.codigo(d["id"]), "nombre": v(d, "nombre") or v(d, "name") or M.codigo(d["id"]),
+                    "zona": enlazados.get(d["id"])} for d in reg.listar(t, "Deposito")]
         e0 = edificios[0] if edificios else None
         return {"edificio": e0 and {"id": e0["id"], "nombre": v(e0, "name"), "proteccion": v(e0, "protectionLevel"),
                                     "ano": v(e0, "yearOfConstruction"), "estilo": v(e0, "architecturalStyle")},
-                "zonas": filas, "aviso": sin_conservacion,
+                "zonas": filas, "aviso": sin_conservacion, "depositosArchivo": archivo,
                 "kpis": {"zonas": len(filas), "enRiesgo": sum(1 for f in filas if f["nivel"] in ("medio", "alto")),
                          "alertas": len(alertas), "criticas": sum(1 for a in alertas if v(a, "riskLevel") == "alto"),
                          "sensores": len(sens), "sensoresOK": sum(1 for s in sens if v(s, "operStatus") == "OK")}}
@@ -272,18 +276,61 @@ def montar(nucleo, producto) -> APIRouter:
         edificios = reg.listar(t, "HeritageBuilding")
         if not edificios:
             raise HTTPException(409, "primero hace falta el inmueble (crea el de ejemplo o súbelo al catastro)")
+        tipo = str(p.get("tipo", "sala"))
+        deposito = deposito_de(t, p.get("deposito")) if tipo == "depósito" else None
         try:
-            clima = {"temperatura": float(p.get("temperatura", 18)), "humedad": float(p.get("humedad", 55))}
+            clima = {"temperatura": float(p.get("temperatura") or 18), "humedad": float(p.get("humedad") or 55)}
             e = M.zona(t, codigo_ok(str(p.get("codigo", ""))), edificio_cod=M.codigo(edificios[0]["id"]),
-                       nombre=str(p.get("nombre") or "").strip() or str(p.get("codigo")), tipo=str(p.get("tipo", "sala")),
+                       nombre=str(p.get("nombre") or "").strip() or str(p.get("codigo")), tipo=tipo,
                        materiales=[x.strip() for x in str(p.get("materiales", "")).split(",") if x.strip()],
                        area=float(p.get("area", 0) or 0), clima=clima,
-                       plano={k: float(p.get(k, d)) for k, d in (("x", 4), ("y", 4), ("w", 20), ("h", 14))})
+                       plano=plano_de(t, p), deposito=deposito)
         except (TypeError, ValueError) as ex:
             raise HTTPException(422, str(ex))
         if reg.crear(t, e) != 201:
             raise HTTPException(409, "ya existe una zona con ese código")
-        return {"zona": e["id"]}
+        return {"zona": e["id"], "codigo": M.codigo(e["id"]), "plano": M.v(e, "planPosition"), "deposito": deposito}
+
+    def plano_de(t: str, p: Dict[str, Any], salvo: str = None) -> Dict[str, float]:
+        """La posición pedida (x, y, w, h) o, si no viene, el primer hueco libre de la planta."""
+        if p.get("w") not in (None, "") and p.get("h") not in (None, ""):
+            pl = {k: float(p.get(k) or 0) for k in ("x", "y", "w", "h")}
+            if pl["w"] <= 0 or pl["h"] <= 0 or pl["x"] < 0 or pl["y"] < 0:
+                raise HTTPException(422, "planta: x e y desde 0; ancho y alto mayores que 0")
+            return pl
+        otras = [v(z, "planPosition") for z in nucleo.registro.listar(t, "HeritageZone") if z["id"] != salvo]
+        return M.hueco_libre(otras)
+
+    def deposito_de(t: str, valor: Any):
+        """Acepta el código (D1) o el URN del Deposito del archivo; vacío = sin enlazar."""
+        valor = str(valor or "").strip()
+        if not valor:
+            return None
+        did = valor if valor.startswith("urn:") else urn_deposito(t, codigo_ok(valor))
+        if not did.startswith(f"urn:ngsi-ld:Deposito:{t}:") or not nucleo.registro.leer(t, did):
+            raise HTTPException(404, f"no hay ningún depósito del archivo {valor}")
+        return did
+
+    @r.post("/api/zonas/{cod}/plano")
+    def mover_zona(cod: str, req: Request, p: Dict[str, Any] = Body(default={})):
+        """Recoloca una zona en la planta: con x, y, w, h, o sin nada para llevarla al primer hueco libre."""
+        quien = nucleo.yo(req)
+        exigir(quien, CONFIGURAR, "configurar el inmueble")
+        t, reg = quien.tenant, nucleo.registro
+        zid = M.urn("HeritageZone", t, codigo_ok(cod))
+        if not reg.leer(t, zid):
+            raise HTTPException(404, f"no hay ninguna zona {cod}")
+        try:
+            pl = plano_de(t, p, salvo=zid)
+        except (TypeError, ValueError) as ex:
+            raise HTTPException(422, str(ex))
+        attrs = {"planPosition": M.prop(pl)}
+        if "deposito" in p:
+            dep = deposito_de(t, p.get("deposito"))
+            if dep:
+                attrs["refDeposito"] = M.rel(dep)
+        reg.anadir_atributos(t, zid, attrs)
+        return {"zona": zid, "plano": pl}
 
     @r.post("/api/sensores")
     def nuevo_sensor(req: Request, p: Dict[str, Any] = Body(...)):
@@ -291,11 +338,15 @@ def montar(nucleo, producto) -> APIRouter:
         exigir(quien, CONFIGURAR, "configurar el inmueble")
         t, reg = quien.tenant, nucleo.registro
         zc = codigo_ok(str(p.get("zona", "")))
-        if not reg.leer(t, M.urn("HeritageZone", t, zc)):
+        z = reg.leer(t, M.urn("HeritageZone", t, zc))
+        if not z:
             raise HTTPException(404, f"no hay ninguna zona {zc}")
         try:
+            pos = M.centro(v(z, "planPosition")) if v(z, "planPosition") else {"x": 50, "y": 30}
+            if p.get("x") not in (None, "") and p.get("y") not in (None, ""):
+                pos = {"x": float(p["x"]), "y": float(p["y"])}
             ents = M.sensor(t, codigo_ok(str(p.get("codigo", ""))), zona_cod=zc, nombre=str(p.get("nombre") or p.get("codigo")),
-                            x=float(p.get("x", 50)), y=float(p.get("y", 30)))
+                            x=pos["x"], y=pos["y"])
         except (TypeError, ValueError) as ex:
             raise HTTPException(422, str(ex))
         for e in ents:
