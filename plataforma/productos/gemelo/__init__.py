@@ -36,6 +36,13 @@ def v(entidad, attr, defecto=None):
     return M.v(entidad, attr, defecto)
 
 
+def lista(x) -> list:
+    """El catastro (JSON-LD compactado) devuelve una lista de un solo elemento como valor suelto: ["papel"] → "papel"."""
+    if x is None or x == "":
+        return []
+    return list(x) if isinstance(x, (list, tuple)) else [x]
+
+
 def _get(url):
     with urllib.request.urlopen(url, timeout=5) as r:
         return json.loads(r.read())
@@ -111,7 +118,7 @@ def montar(nucleo, producto) -> APIRouter:
         for zid, z in zonas.items():
             s = resumen.get(zid, {})
             filas.append({"zona": zid, "codigo": M.codigo(zid), "nombre": v(z, "name"), "tipo": v(z, "zoneType"),
-                          "materiales": v(z, "dominantMaterials", []), "plano": v(z, "planPosition"),
+                          "materiales": lista(v(z, "dominantMaterials")), "plano": v(z, "planPosition"),
                           "deposito": v(z, "refDeposito"), **{k: s.get(k) for k in (
                               "nivel", "causa", "desviacion30d", "objetivoHumedad", "objetivoTemperatura", "metodo",
                               "origenDatos", "calculadaEn", "temperatura", "humedad", "alerta")}})
@@ -161,7 +168,7 @@ def montar(nucleo, producto) -> APIRouter:
         estado = servicio("GET", f"{conservacion}/gemelo/zonas/{cod}", params={"tenant": t, "dias": max(1, min(dias, 60))})
         ahora = {x["sensor"]: x for x in estado.get("ahora", [])}
         return {"zona": z["id"], "codigo": cod, "nombre": v(z, "name"), "tipo": v(z, "zoneType"),
-                "materiales": v(z, "dominantMaterials", []), "area": v(z, "areaSqm"), "deposito": v(z, "refDeposito"),
+                "materiales": lista(v(z, "dominantMaterials")), "area": v(z, "areaSqm"), "deposito": v(z, "refDeposito"),
                 "elementos": [{"nombre": v(e, "name"), "tipo": v(e, "elementType"), "material": v(e, "material"),
                                "estado": v(e, "conditionStatus"), "inspeccion": v(e, "lastInspection")}
                               for e in reg.listar(t, "HeritageElement") if v(e, "refZone") == z["id"]],

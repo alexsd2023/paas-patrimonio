@@ -333,6 +333,12 @@ def test_el_producto_en_la_consola_con_sus_roles(monkeypatch):
     assert {"Z10", "Z11"} <= {z["codigo"] for z in d["zonas"]} and d["kpis"]["zonas"] == 6
     assert {x["codigo"]: x["zona"] for x in d["depositosArchivo"]}["D3"] == "Z10"
     assert c.get(f"{B}/api/zonas/Z10").json()["archivo"]["nombre"] == "Depósito 3 · torre"
+    # Scorpio compacta una lista de un elemento en un valor suelto: la API la devuelve siempre como lista
+    a.post(f"{B}/api/zonas", json={"codigo": "Z13", "nombre": "Expo", "materiales": "papel"})
+    reg.e[(T, M.urn("HeritageZone", T, "Z13"))]["dominantMaterials"]["value"] = "papel"
+    assert {z["codigo"]: z["materiales"] for z in c.get(f"{B}/api/inmueble").json()["zonas"]}["Z13"] == ["papel"]
+    assert c.get(f"{B}/api/zonas/Z13").json()["materiales"] == ["papel"]
+    reg.e.pop((T, M.urn("HeritageZone", T, "Z13")))
     r = a.post(f"{B}/api/sensores", json={"codigo": "S10", "nombre": "Torre norte", "zona": "Z10"}).json()
     assert M.v(reg.leer(T, r["sensor"]), "planPosition") == {"x": 26.0, "y": 69.0}      # en el centro de su zona
     # recolocar: con posición o al primer hueco libre

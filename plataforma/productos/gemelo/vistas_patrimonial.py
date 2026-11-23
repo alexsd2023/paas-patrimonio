@@ -71,6 +71,9 @@ async function cargar() {
     + kpi(k.enRiesgo, 'En riesgo', 'nivel medio o alto', k.enRiesgo ? 'ochre' : '')
     + kpi(k.alertas, 'Alertas abiertas', `${k.criticas} de nivel alto · <a href="${BASE}/alertas">ver</a>`, k.criticas ? 'red' : '')
     + kpi(`${k.sensoresOK}/${k.sensores}`, 'Sensores', 'operativos · <a href="' + BASE + '/mapa">mapa</a>');
+  try { pintarZonas(d); } catch (e) { $('#zonas').innerHTML = `<p class="aviso">No se pudo pintar las zonas: ${esc(e.message)}</p>`; }
+}
+function pintarZonas(d) {
   $('#zonas').innerHTML = d.zonas.map(z => `<a class="gp-zona ${esc(z.nivel || '')}" href="${BASE}/zona?z=${encodeURIComponent(z.codigo)}">
     <div class="gp-top"><h3>${esc(z.nombre)}</h3>${pillNivel(z.nivel)}</div>
     <div class="gp-lect"><span>${z.temperatura == null ? '—' : NUM.format(z.temperatura)}<small>°C</small></span>
